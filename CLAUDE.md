@@ -38,7 +38,7 @@ Built with Jetpack Compose, Kotlin, and follows Material Design 3 principles.
 
 ### Concepts
 
-- **Assistant**: An assistant configuration with system prompts, model parameters, and conversation isolation. Each assistant maintains its own settings including temperature, context size, custom headers, tools, memory options, regex transformations, and prompt injections (mode/world book). Assistants provide isolated chat environments with specific behaviors and capabilities. (app/src/main/java/me/rerere/rikkahub/data/model/Assistant.kt)
+- **Assistant**: An assistant configuration with system prompts, model parameters, and conversation isolation. Each assistant maintains its own settings including temperature, context size, custom headers, tools, memory options, regex transformations, and prompt injections (mode/lorebook). Assistants provide isolated chat environments with specific behaviors and capabilities. (app/src/main/java/me/rerere/rikkahub/data/model/Assistant.kt)
 
 - **Conversation**: A persistent conversation thread between the user and an assistant. Each conversation maintains a list of MessageNodes in a tree structure to support message branching, along with metadata like title, creation time, and pin status. Conversations can be truncated at a specific index and maintain chat suggestions. (app/src/main/java/me/rerere/rikkahub/data/model/Conversation.kt)
 
@@ -78,6 +78,59 @@ Built with Jetpack Compose, Kotlin, and follows Material Design 3 principles.
   localization. (e.g `Text("Hello world")`)
 - If the user explicitly requests localization, all languages should be supported.
 - English(en) is the default language. Chinese(zh), Japanese(ja), and Traditional Chinese(zh-rTW), Korean(ko-rKR) are supported.
+
+#### locale-tui Tool
+
+The `locale-tui` tool provides CLI and TUI interfaces for managing string resources with AI-powered translation.
+
+**Add Command Usage:**
+
+```bash
+# Add a new string resource with automatic translation
+uv run --directory locale-tui src/main.py add <key> <value> [OPTIONS]
+
+# Examples:
+uv run --directory locale-tui src/main.py add hello_world "Hello, World!"           # Add and auto-translate
+uv run --directory locale-tui src/main.py add greeting "Welcome" -m app             # Specify module
+uv run --directory locale-tui src/main.py add test_key "Test" --skip-translate      # Skip translation
+```
+
+**Options:**
+- `--module, -m`: Specify module name (defaults to first module in config)
+- `--skip-translate`: Skip automatic translation, only add to source language
+
+**Behavior:**
+1. Adds key-value pair to source language `strings.xml` (values/strings.xml)
+2. By default, automatically translates to all configured target languages using OpenAI API
+3. Saves translations to respective language directories (values-zh, values-ja, etc.)
+4. Displays translation progress and results for each language
+5. The input value should only be English
+
+**Set Command Usage:**
+
+```bash
+# Manually set a string value for a specific language
+uv run --directory locale-tui src/main.py set <key> <value> [OPTIONS]
+
+# Examples:
+uv run --directory locale-tui src/main.py set hello_world "你好，世界！" -l values-zh      # Set Chinese translation
+uv run --directory locale-tui src/main.py set greeting "Welcome" -l values              # Set source language
+uv run --directory locale-tui src/main.py set test_key "テスト" -l values-ja -m app       # Set Japanese with module
+```
+
+**Options:**
+- `--lang, -l`: Specify language code (e.g., values, values-zh, values-ja), defaults to source language (values)
+- `--module, -m`: Specify module name (defaults to first module in config)
+
+**Behavior:**
+1. Manually sets a key-value pair for a specific language without auto-translation
+2. Useful for correcting or overriding auto-translated values
+3. Creates the language directory and file if they don't exist
+
+**Other Commands:**
+- `uv run --directory locale-tui src/main.py list-keys [-m module]`: List all string resource keys
+
+See `locale-tui/CLAUDE.md` for detailed documentation.
 
 ### Database
 
