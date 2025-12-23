@@ -37,18 +37,18 @@ fun FormItem(
             modifier = modifier.weight(1f)
         ) {
             ProvideTextStyle(
-                MaterialTheme.typography.labelMedium.copy(
-                    color = MaterialTheme.colorScheme.primary
-                )
+                value = MaterialTheme.typography.titleMedium
             ) {
                 label()
             }
             ProvideTextStyle(
-                MaterialTheme.typography.labelSmall.copy(
+                value = MaterialTheme.typography.labelSmall.copy(
                     color = LocalContentColor.current.copy(alpha = 0.6f)
                 )
             ) {
-                Column {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
                     description?.invoke()
                 }
             }

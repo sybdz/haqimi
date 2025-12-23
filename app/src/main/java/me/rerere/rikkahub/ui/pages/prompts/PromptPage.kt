@@ -26,9 +26,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
@@ -81,6 +81,8 @@ import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Select
+import me.rerere.rikkahub.ui.components.ui.Tag
+import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -292,7 +294,11 @@ private fun ModeInjectionCard(
         enableDismissFromStartToEnd = false,
         modifier = modifier
     ) {
-        OutlinedCard {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -313,19 +319,16 @@ private fun ModeInjectionCard(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        AssistChip(
-                            onClick = {},
-                            label = { Text(getPositionLabel(injection.position)) }
-                        )
-                        AssistChip(
-                            onClick = {},
-                            label = { Text(stringResource(R.string.prompt_page_priority_format, injection.priority)) }
-                        )
+                        Tag(type = TagType.INFO) {
+                            Text(getPositionLabel(injection.position))
+                        }
+                        Tag(type = TagType.DEFAULT) {
+                            Text(stringResource(R.string.prompt_page_priority_format, injection.priority))
+                        }
                         if (!injection.enabled) {
-                            AssistChip(
-                                onClick = {},
-                                label = { Text(stringResource(R.string.prompt_page_disabled)) }
-                            )
+                            Tag(type = TagType.WARNING) {
+                                Text(stringResource(R.string.prompt_page_disabled))
+                            }
                         }
                     }
                 }
@@ -618,7 +621,11 @@ private fun LorebookCard(
         enableDismissFromStartToEnd = false,
         modifier = modifier
     ) {
-        OutlinedCard {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -648,22 +655,18 @@ private fun LorebookCard(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        AssistChip(
-                            onClick = {},
-                            label = {
-                                Text(
-                                    stringResource(
-                                        R.string.prompt_page_entries_count_format,
-                                        book.entries.size
-                                    )
+                        Tag(type = TagType.INFO) {
+                            Text(
+                                stringResource(
+                                    R.string.prompt_page_entries_count_format,
+                                    book.entries.size
                                 )
-                            }
-                        )
-                        if (!book.enabled) {
-                            AssistChip(
-                                onClick = {},
-                                label = { Text(stringResource(R.string.prompt_page_disabled)) }
                             )
+                        }
+                        if (!book.enabled) {
+                            Tag(type = TagType.WARNING) {
+                                Text(stringResource(R.string.prompt_page_disabled))
+                            }
                         }
                     }
                 }
@@ -835,6 +838,15 @@ private fun RegexInjectionEntryCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (!entry.enabled) {
+                        Tag(type = TagType.WARNING) {
+                            Text(stringResource(R.string.prompt_page_disabled))
+                        }
+                    }
                 }
             }
             IconButton(onClick = onEdit) {

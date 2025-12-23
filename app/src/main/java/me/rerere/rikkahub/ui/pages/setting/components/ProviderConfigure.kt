@@ -87,9 +87,38 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
     }
     val newProvider = type.primaryConstructor!!.callBy(emptyMap())
     return when (newProvider) {
-        is ProviderSetting.OpenAI -> newProvider.copy(apiKey = apiKey)
-        is ProviderSetting.Google -> newProvider.copy(apiKey = apiKey)
-        is ProviderSetting.Claude -> newProvider.copy(apiKey = apiKey)
+        is ProviderSetting.OpenAI -> newProvider.copy(
+            id = this.id,
+            enabled = this.enabled,
+            name = this.name,
+            models = this.models,
+            proxy = this.proxy,
+            balanceOption = this.balanceOption,
+            builtIn = this.builtIn,
+            apiKey = apiKey
+        )
+
+        is ProviderSetting.Google -> newProvider.copy(
+            id = this.id,
+            enabled = this.enabled,
+            name = this.name,
+            models = this.models,
+            proxy = this.proxy,
+            balanceOption = this.balanceOption,
+            builtIn = this.builtIn,
+            apiKey = apiKey
+        )
+
+        is ProviderSetting.Claude -> newProvider.copy(
+            id = this.id,
+            enabled = this.enabled,
+            name = this.name,
+            models = this.models,
+            proxy = this.proxy,
+            balanceOption = this.balanceOption,
+            builtIn = this.builtIn,
+            apiKey = apiKey
+        )
     }
 }
 
@@ -172,7 +201,7 @@ private fun ColumnScope.ProviderConfigureOpenAI(
             onCheckedChange = {
                 onEdit(provider.copy(useResponseApi = it))
 
-                if(it && provider.baseUrl.toHttpUrlOrNull()?.host != "api.openai.com") {
+                if (it && provider.baseUrl.toHttpUrlOrNull()?.host != "api.openai.com") {
                     toaster.show(
                         message = responseAPIWarning,
                         type = ToastType.Warning
@@ -222,7 +251,8 @@ private fun ColumnScope.ProviderConfigureClaude(
         label = {
             Text(stringResource(id = R.string.setting_provider_page_api_key))
         },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        maxLines = 3,
     )
 
     OutlinedTextField(
