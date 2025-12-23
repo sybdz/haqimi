@@ -31,9 +31,11 @@ android {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
 
-        python {
-            pip {
-                install("pillow")
+        withGroovyBuilder {
+            "python" {
+                "pip" {
+                    "install"("pillow")
+                }
             }
         }
     }
