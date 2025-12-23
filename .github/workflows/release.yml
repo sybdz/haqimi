@@ -49,9 +49,14 @@ jobs:
           if [ -f app/google-services.json ]; then
             python3 - <<'PY'
             import json
+            import sys
             p = "app/google-services.json"
-            with open(p, "r", encoding="utf-8") as f:
-              data = json.load(f)
+            try:
+              with open(p, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            except Exception as e:
+              print(f"google-services.json parse failed: {e}")
+              sys.exit(0)
             pkgs = []
             for client in data.get("client", []):
               info = (client.get("client_info", {}) or {}).get("android_client_info", {}) or {}
