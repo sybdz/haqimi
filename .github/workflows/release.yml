@@ -47,24 +47,27 @@ jobs:
           fi
 
           if [ -f app/google-services.json ]; then
-            python3 - <<'PY'
-            import json
-            import sys
-            p = "app/google-services.json"
-            try:
-              with open(p, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            except Exception as e:
-              print(f"google-services.json parse failed: {e}")
-              sys.exit(0)
-            pkgs = []
-            for client in data.get("client", []):
-              info = (client.get("client_info", {}) or {}).get("android_client_info", {}) or {}
-              pkg = info.get("package_name")
-              if pkg:
-                pkgs.append(pkg)
-            print("google-services.json package_name:", ", ".join(sorted(set(pkgs))) or "(none)")
-            PY
+          python3 - <<'PY'
+import json
+import sys
+
+p = "app/google-services.json"
+try:
+  with open(p, "r", encoding="utf-8") as f:
+    data = json.load(f)
+except Exception as e:
+  print(f"google-services.json parse failed: {e}")
+  sys.exit(0)
+
+pkgs = []
+for client in data.get("client", []):
+  info = (client.get("client_info", {}) or {}).get("android_client_info", {}) or {}
+  pkg = info.get("package_name")
+  if pkg:
+    pkgs.append(pkg)
+
+print("google-services.json package_name:", ", ".join(sorted(set(pkgs))) or "(none)")
+PY
           fi
 
       - name: Gradle Build
