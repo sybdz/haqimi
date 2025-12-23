@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import groovy.json.JsonSlurper
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -145,13 +146,24 @@ val firebaseEnabled: Boolean = providers.gradleProperty("firebase.enabled")
         val googleServicesFile = file("google-services.json")
         if (!googleServicesFile.exists()) return@run false
 
-        val googleServicesJson = googleServicesFile.readText()
+        val packageNames: Set<String> = runCatching {
+            val root = JsonSlurper().parse(googleServicesFile) as? Map<*, *> ?: return@runCatching emptySet()
+            val clients = root["client"] as? List<*> ?: return@runCatching emptySet()
+
+            clients.mapNotNull { client ->
+                val clientMap = client as? Map<*, *> ?: return@mapNotNull null
+                val clientInfo = clientMap["client_info"] as? Map<*, *> ?: return@mapNotNull null
+                val androidClientInfo = clientInfo["android_client_info"] as? Map<*, *> ?: return@mapNotNull null
+                androidClientInfo["package_name"] as? String
+            }.toSet()
+        }.getOrDefault(emptySet())
+
         val releaseApplicationId = android.defaultConfig.applicationId
         val debugSuffix = android.buildTypes.getByName("debug").applicationIdSuffix.orEmpty()
         val debugApplicationId = releaseApplicationId + debugSuffix
 
-        val hasReleaseClient = googleServicesJson.contains("\"package_name\": \"$releaseApplicationId\"")
-        val hasDebugClient = debugSuffix.isEmpty() || googleServicesJson.contains("\"package_name\": \"$debugApplicationId\"")
+        val hasReleaseClient = packageNames.contains(releaseApplicationId)
+        val hasDebugClient = debugSuffix.isEmpty() || packageNames.contains(debugApplicationId)
 
         val taskNames = gradle.startParameter.taskNames.map { it.lowercase() }
         val wantsRelease = taskNames.any { it.contains("release") }
