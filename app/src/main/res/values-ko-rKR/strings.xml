@@ -63,6 +63,8 @@
   <string name="assistant_page_invalid_json">잘못된 JSON: %s</string>
   <string name="assistant_page_local_tools_javascript_engine_desc">QuickJS 엔진으로 자바스크립트 코드를 실행하여 계산 및 스크립팅 수행</string>
   <string name="assistant_page_local_tools_javascript_engine_title">자바스크립트 엔진</string>
+  <string name="assistant_page_local_tools_python_engine_desc">Chaquopy로 로컬 Python 코드를 실행하고 stdout을 캡처하며 image/images 변수로 이미지를 반환합니다.</string>
+  <string name="assistant_page_local_tools_python_engine_title">파이썬 인터프리터</string>
   <string name="assistant_page_manage_memory_title">기억 관리</string>
   <string name="assistant_page_max_tokens">최대 토큰</string>
   <string name="assistant_page_max_tokens_desc">생성할 최대 토큰 수. 제한 없음은 비워두세요.</string>
@@ -711,4 +713,3 @@
   <string name="setting_display_page_show_line_numbers_title">줄 번호 표시</string>
   <string name="setting_display_page_show_line_numbers_desc">코드 블록에 줄 번호 표시</string>
 </resources>
-

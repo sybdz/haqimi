@@ -1,10 +1,13 @@
 package me.rerere.rikkahub.ui.components.message
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +27,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -89,115 +94,136 @@ private fun JsonElement?.getStringContent(key: String): String? =
     this?.jsonObject?.get(key)?.jsonPrimitiveOrNull?.contentOrNull
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun ToolCallItem(
     toolName: String,
     arguments: JsonElement,
     content: JsonElement?,
     loading: Boolean = false,
+    onDelete: (() -> Unit)? = null,
 ) {
     var showResult by remember { mutableStateOf(false) }
-    Surface(
-        modifier = Modifier.animateContentSize(),
-        onClick = {
-            showResult = true
-        },
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .padding(vertical = 8.dp, horizontal = 16.dp)
-                .height(IntrinsicSize.Min)
-        ) {
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 4.dp,
-                )
-            } else {
-                Icon(
-                    imageVector = getToolIcon(toolName),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = LocalContentColor.current.copy(alpha = 0.7f)
-                )
-            }
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = when (toolName) {
-                        ToolNames.CREATE_MEMORY -> stringResource(R.string.chat_message_tool_create_memory)
-                        ToolNames.EDIT_MEMORY -> stringResource(R.string.chat_message_tool_edit_memory)
-                        ToolNames.DELETE_MEMORY -> stringResource(R.string.chat_message_tool_delete_memory)
-                        ToolNames.SEARCH_WEB -> stringResource(
-                            R.string.chat_message_tool_search_web,
-                            arguments.getStringContent("query") ?: ""
-                        )
+    var showActions by remember { mutableStateOf(false) }
 
-                        ToolNames.SCRAPE_WEB -> stringResource(R.string.chat_message_tool_scrape_web)
-                        else -> stringResource(
-                            R.string.chat_message_tool_call_generic,
-                            toolName
-                        )
-                    },
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.shimmer(isLoading = loading),
-                )
-                if (toolName == ToolNames.CREATE_MEMORY || toolName == ToolNames.EDIT_MEMORY) {
-                    content.getStringContent("content")?.let { memoryContent ->
-                        Text(
-                            text = memoryContent,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.shimmer(isLoading = loading),
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+    Box(modifier = Modifier.animateContentSize()) {
+        Surface(
+            modifier = Modifier.combinedClickable(
+                onClick = { showResult = true },
+                onLongClick = {
+                    if (onDelete != null) showActions = true
                 }
-                if (toolName == ToolNames.SEARCH_WEB) {
-                    content.getStringContent("answer")?.let { answer ->
-                        Text(
-                            text = answer,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.shimmer(isLoading = loading),
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    val items = content?.jsonObject?.get("items")?.jsonArray ?: emptyList()
-                    if (items.isNotEmpty()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            FaviconRow(
-                                urls = items.mapNotNull { it.getStringContent("url") },
-                                size = 18.dp,
+            ),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .padding(vertical = 8.dp, horizontal = 16.dp)
+                    .height(IntrinsicSize.Min)
+            ) {
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 4.dp,
+                    )
+                } else {
+                    Icon(
+                        imageVector = getToolIcon(toolName),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = LocalContentColor.current.copy(alpha = 0.7f)
+                    )
+                }
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = when (toolName) {
+                            ToolNames.CREATE_MEMORY -> stringResource(R.string.chat_message_tool_create_memory)
+                            ToolNames.EDIT_MEMORY -> stringResource(R.string.chat_message_tool_edit_memory)
+                            ToolNames.DELETE_MEMORY -> stringResource(R.string.chat_message_tool_delete_memory)
+                            ToolNames.SEARCH_WEB -> stringResource(
+                                R.string.chat_message_tool_search_web,
+                                arguments.getStringContent("query") ?: ""
                             )
+
+                            ToolNames.SCRAPE_WEB -> stringResource(R.string.chat_message_tool_scrape_web)
+                            else -> stringResource(
+                                R.string.chat_message_tool_call_generic,
+                                toolName
+                            )
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.shimmer(isLoading = loading),
+                    )
+                    if (toolName == ToolNames.CREATE_MEMORY || toolName == ToolNames.EDIT_MEMORY) {
+                        content.getStringContent("content")?.let { memoryContent ->
                             Text(
-                                text = stringResource(R.string.chat_message_tool_search_results_count, items.size),
+                                text = memoryContent,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.shimmer(isLoading = loading),
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
-                }
-                if (toolName == ToolNames.SCRAPE_WEB) {
-                    val url = arguments.getStringContent("url") ?: ""
-                    Text(
-                        text = url,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                    )
+                    if (toolName == ToolNames.SEARCH_WEB) {
+                        content.getStringContent("answer")?.let { answer ->
+                            Text(
+                                text = answer,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.shimmer(isLoading = loading),
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        val items = content?.jsonObject?.get("items")?.jsonArray ?: emptyList()
+                        if (items.isNotEmpty()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                FaviconRow(
+                                    urls = items.mapNotNull { it.getStringContent("url") },
+                                    size = 18.dp,
+                                )
+                                Text(
+                                    text = stringResource(R.string.chat_message_tool_search_results_count, items.size),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                )
+                            }
+                        }
+                    }
+                    if (toolName == ToolNames.SCRAPE_WEB) {
+                        val url = arguments.getStringContent("url") ?: ""
+                        Text(
+                            text = url,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        )
+                    }
                 }
             }
+        }
+
+        DropdownMenu(
+            expanded = showActions,
+            onDismissRequest = { showActions = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.delete)) },
+                onClick = {
+                    showActions = false
+                    onDelete?.invoke()
+                }
+            )
         }
     }
     if (showResult && content != null) {

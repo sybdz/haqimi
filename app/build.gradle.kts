@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.chaquopy.python)
 }
 
 android {
@@ -28,6 +29,12 @@ android {
 
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+
+        python {
+            pip {
+                install("pillow")
+            }
         }
     }
 
