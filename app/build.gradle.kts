@@ -152,7 +152,12 @@ val firebaseEnabled: Boolean = providers.gradleProperty("firebase.enabled")
 
         val hasReleaseClient = googleServicesJson.contains("\"package_name\": \"$releaseApplicationId\"")
         val hasDebugClient = debugSuffix.isEmpty() || googleServicesJson.contains("\"package_name\": \"$debugApplicationId\"")
-        hasReleaseClient && hasDebugClient
+
+        val taskNames = gradle.startParameter.taskNames.map { it.lowercase() }
+        val wantsRelease = taskNames.any { it.contains("release") }
+        val wantsDebug = taskNames.any { it.contains("debug") } || !wantsRelease
+
+        (!wantsRelease || hasReleaseClient) && (!wantsDebug || hasDebugClient)
     }
 
 if (firebaseEnabled) {
@@ -165,8 +170,8 @@ if (firebaseEnabled) {
 
     logger.lifecycle(
         "Firebase plugins disabled (missing/mismatched app/google-services.json). " +
-            "Provide a google-services.json containing clients for \"$releaseApplicationId\" " +
-            "and \"$debugApplicationId\", or enable explicitly with -Pfirebase.enabled=true."
+            "Provide a google-services.json containing a client for \"$releaseApplicationId\" " +
+            "(and optionally \"$debugApplicationId\" for Debug), or enable explicitly with -Pfirebase.enabled=true."
     )
 }
 
