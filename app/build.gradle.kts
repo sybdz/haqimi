@@ -1,6 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import groovy.json.JsonSlurper
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -10,6 +9,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.chaquopy.python)
 }
 
@@ -137,54 +138,6 @@ android {
         compilerOptions.optIn.add("kotlin.time.ExperimentalTime")
         compilerOptions.optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
     }
-}
-
-val firebaseEnabled: Boolean = providers.gradleProperty("firebase.enabled")
-    .orNull
-    ?.toBooleanStrictOrNull()
-    ?: run {
-        val googleServicesFile = file("google-services.json")
-        if (!googleServicesFile.exists()) return@run false
-
-        val packageNames: Set<String> = runCatching {
-            val root = JsonSlurper().parse(googleServicesFile) as? Map<*, *> ?: return@runCatching emptySet()
-            val clients = root["client"] as? List<*> ?: return@runCatching emptySet()
-
-            clients.mapNotNull { client ->
-                val clientMap = client as? Map<*, *> ?: return@mapNotNull null
-                val clientInfo = clientMap["client_info"] as? Map<*, *> ?: return@mapNotNull null
-                val androidClientInfo = clientInfo["android_client_info"] as? Map<*, *> ?: return@mapNotNull null
-                androidClientInfo["package_name"] as? String
-            }.toSet()
-        }.getOrDefault(emptySet())
-
-        val releaseApplicationId = android.defaultConfig.applicationId
-        val debugSuffix = android.buildTypes.getByName("debug").applicationIdSuffix.orEmpty()
-        val debugApplicationId = releaseApplicationId + debugSuffix
-
-        val hasReleaseClient = packageNames.contains(releaseApplicationId)
-        val hasDebugClient = debugSuffix.isEmpty() || packageNames.contains(debugApplicationId)
-
-        val taskNames = gradle.startParameter.taskNames.map { it.lowercase() }
-        val wantsRelease = taskNames.any { it.contains("release") }
-        val wantsDebug = taskNames.any { it.contains("debug") } || !wantsRelease
-
-        (!wantsRelease || hasReleaseClient) && (!wantsDebug || hasDebugClient)
-    }
-
-if (firebaseEnabled) {
-    apply(plugin = "com.google.gms.google-services")
-    apply(plugin = "com.google.firebase.crashlytics")
-} else {
-    val releaseApplicationId = android.defaultConfig.applicationId
-    val debugApplicationId =
-        releaseApplicationId + android.buildTypes.getByName("debug").applicationIdSuffix.orEmpty()
-
-    logger.lifecycle(
-        "Firebase plugins disabled (missing/mismatched app/google-services.json). " +
-            "Provide a google-services.json containing a client for \"$releaseApplicationId\" " +
-            "(and optionally \"$debugApplicationId\" for Debug), or enable explicitly with -Pfirebase.enabled=true."
-    )
 }
 
 tasks.register("buildAll") {
