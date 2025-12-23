@@ -63,6 +63,8 @@
   <string name="assistant_page_invalid_json">无效的 JSON: %s</string>
   <string name="assistant_page_local_tools_javascript_engine_desc">使用 QuickJS 引擎执行 JavaScript 代码，进行计算和脚本处理</string>
   <string name="assistant_page_local_tools_javascript_engine_title">JavaScript 引擎</string>
+  <string name="assistant_page_local_tools_python_engine_desc">使用本地 Python（Chaquopy）运行代码，支持捕获输出并通过 image/images 变量返回图像。</string>
+  <string name="assistant_page_local_tools_python_engine_title">Python 解释器</string>
   <string name="assistant_page_manage_memory_title">管理记忆</string>
   <string name="assistant_page_max_tokens">最大Token数</string>
   <string name="assistant_page_max_tokens_desc">最大生成Token数量。留空表示无限制。</string>
@@ -711,4 +713,3 @@
   <string name="setting_display_page_show_line_numbers_title">显示行号</string>
   <string name="setting_display_page_show_line_numbers_desc">在代码块中显示行号</string>
 </resources>
-

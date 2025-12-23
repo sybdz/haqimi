@@ -63,6 +63,8 @@ import com.composables.icons.lucide.Video
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -88,12 +90,34 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.base64Encode
+import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 private val EmptyJson = JsonObject(emptyMap())
+
+private fun normalizeImageData(raw: String?): String? {
+    val value = raw?.trim().orEmpty()
+    if (value.isBlank()) return null
+    if (value.startsWith("data:image") || value.startsWith("http") || value.startsWith("file:")) {
+        return value
+    }
+    return "data:image/png;base64,$value"
+}
+
+private fun extractToolImages(content: JsonElement): List<String> {
+    if (content !is JsonObject) return emptyList()
+    val images = mutableListOf<String>()
+    (content["images"] as? JsonArray)?.forEach { element ->
+        normalizeImageData(element.jsonPrimitiveOrNull?.contentOrNull)?.let(images::add)
+    }
+    listOf("image", "image_base64").forEach { key ->
+        normalizeImageData(content[key]?.jsonPrimitiveOrNull?.contentOrNull)?.let(images::add)
+    }
+    return images.distinct()
+}
 
 @Composable
 fun ChatMessage(
@@ -157,17 +181,55 @@ fun ChatMessage(
                 )
             }
         }
-        ProvideTextStyle(textStyle) {
-            MessagePartsBlock(
-                assistant = assistant,
-                role = message.role,
-                parts = message.parts,
-                annotations = message.annotations,
-                messages = chatMessages,
-                messageIndex = messageIndex,
-                loading = loading,
-                model = model,
-            )
+    ProvideTextStyle(textStyle) {
+        MessagePartsBlock(
+            assistant = assistant,
+            role = message.role,
+            parts = message.parts,
+            annotations = message.annotations,
+            messages = chatMessages,
+            messageIndex = messageIndex,
+            loading = loading,
+            model = model,
+            onDeleteToolPart = { toolCallId ->
+                conversation.messageNodes
+                    .asSequence()
+                    .filter { it.id != node.id }
+                    .filter { otherNode ->
+                        otherNode.currentMessage.parts.any { part ->
+                            (part is UIMessagePart.ToolCall && part.toolCallId == toolCallId) ||
+                                (part is UIMessagePart.ToolResult && part.toolCallId == toolCallId)
+                        }
+                    }
+                    .forEach { otherNode ->
+                        val otherMessage = otherNode.currentMessage
+                        val updatedOtherMessage = otherMessage.copy(
+                            parts = otherMessage.parts.filterNot { part ->
+                                (part is UIMessagePart.ToolCall && part.toolCallId == toolCallId) ||
+                                    (part is UIMessagePart.ToolResult && part.toolCallId == toolCallId)
+                            }
+                        )
+                        val updatedOtherNodeMessages = otherNode.messages.toMutableList()
+                        updatedOtherNodeMessages[otherNode.selectIndex] = updatedOtherMessage
+                        onUpdate(otherNode.copy(messages = updatedOtherNodeMessages))
+                    }
+
+                val updatedMessage = message.copy(
+                    parts = message.parts.filterNot { part ->
+                        (part is UIMessagePart.ToolCall && part.toolCallId == toolCallId) ||
+                            (part is UIMessagePart.ToolResult && part.toolCallId == toolCallId)
+                    }
+                )
+
+                if (updatedMessage.parts.isEmptyUIMessage()) {
+                    onDelete()
+                } else {
+                    val updatedNodeMessages = node.messages.toMutableList()
+                    updatedNodeMessages[node.selectIndex] = updatedMessage
+                    onUpdate(node.copy(messages = updatedNodeMessages))
+                }
+            }
+        )
 
             message.translation?.let { translation ->
                 CollapsibleTranslationText(
@@ -260,7 +322,8 @@ private fun MessagePartsBlock(
     annotations: List<UIMessageAnnotation>,
     messages: List<UIMessage>,
     messageIndex: Int,
-    loading: Boolean
+    loading: Boolean,
+    onDeleteToolPart: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
@@ -354,6 +417,7 @@ private fun MessagePartsBlock(
                         .getOrElse { EmptyJson },
                     content = null,
                     loading = loading,
+                    onDelete = { onDeleteToolPart(toolCall.toolCallId) },
                 )
             }
         }
@@ -364,6 +428,7 @@ private fun MessagePartsBlock(
                 toolName = toolCall.toolName,
                 arguments = toolCall.arguments,
                 content = toolCall.content,
+                onDelete = { onDeleteToolPart(toolCall.toolCallId) },
             )
         }
     }
@@ -499,15 +564,20 @@ private fun MessagePartsBlock(
     }
 
     // Images
-    val images = parts.filterIsInstance<UIMessagePart.Image>()
-    if (images.isNotEmpty()) {
+    val imageUrls = buildList {
+        addAll(parts.filterIsInstance<UIMessagePart.Image>().map { it.url })
+        parts.filterIsInstance<UIMessagePart.ToolResult>().fastForEach { toolResult ->
+            addAll(extractToolImages(toolResult.content))
+        }
+    }.distinct()
+    if (imageUrls.isNotEmpty()) {
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
 
-            images.fastForEach {
+            imageUrls.fastForEach {
                 ZoomableAsyncImage(
-                    model = it.url,
+                    model = it,
                     contentDescription = null,
                     modifier = Modifier
                         .clip(MaterialTheme.shapes.medium)

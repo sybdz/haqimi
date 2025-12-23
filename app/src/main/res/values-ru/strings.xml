@@ -63,6 +63,8 @@
   <string name="assistant_page_invalid_json">Недопустимый JSON: %s</string>
   <string name="assistant_page_local_tools_javascript_engine_desc">Выполнение кода JavaScript с помощью движка QuickJS для вычислений и сценариев</string>
   <string name="assistant_page_local_tools_javascript_engine_title">Движок JavaScript</string>
+  <string name="assistant_page_local_tools_python_engine_desc">Выполняйте локальный код Python (Chaquopy), получайте stdout и возвращайте изображения через переменные image/images.</string>
+  <string name="assistant_page_local_tools_python_engine_title">Интерпретатор Python</string>
   <string name="assistant_page_manage_memory_title">Управление памятью</string>
   <string name="assistant_page_max_tokens">Макс. токенов</string>
   <string name="assistant_page_max_tokens_desc">Максимальное количество токенов для генерации. Оставьте пустым, чтобы не ограничивать.</string>
@@ -711,4 +713,3 @@
   <string name="setting_display_page_show_line_numbers_title">Показывать номера строк</string>
   <string name="setting_display_page_show_line_numbers_desc">Отображать номера строк в блоках кода</string>
 </resources>
-

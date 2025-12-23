@@ -85,6 +85,19 @@ private fun AssistantLocalToolContent(
                 onUpdate(assistant.copy(localTools = newLocalTools))
             }
         )
+        LocalToolCard(
+            title = stringResource(R.string.assistant_page_local_tools_python_engine_title),
+            description = stringResource(R.string.assistant_page_local_tools_python_engine_desc),
+            isEnabled = assistant.localTools.contains(LocalToolOption.PythonEngine),
+            onToggle = { enabled ->
+                val newLocalTools = if (enabled) {
+                    assistant.localTools + LocalToolOption.PythonEngine
+                } else {
+                    assistant.localTools - LocalToolOption.PythonEngine
+                }
+                onUpdate(assistant.copy(localTools = newLocalTools))
+            }
+        )
     }
 }
 
