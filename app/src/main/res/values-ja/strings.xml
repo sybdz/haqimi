@@ -63,6 +63,8 @@
   <string name="assistant_page_invalid_json">無効なJSON: %s</string>
   <string name="assistant_page_local_tools_javascript_engine_desc">QuickJSエンジンでJavaScriptコードを実行し、計算とスクリプト処理を行います</string>
   <string name="assistant_page_local_tools_javascript_engine_title">JavaScriptエンジン</string>
+  <string name="assistant_page_local_tools_python_engine_desc">ChaquopyでローカルのPythonコードを実行し、stdoutを取得してimage/images変数で画像を返します。</string>
+  <string name="assistant_page_local_tools_python_engine_title">Pythonインタープリタ</string>
   <string name="assistant_page_manage_memory_title">記憶を管理</string>
   <string name="assistant_page_max_tokens">最大トークン数</string>
   <string name="assistant_page_max_tokens_desc">生成する最大トークン数。空白にすると制限なし。</string>
@@ -711,4 +713,3 @@
   <string name="setting_display_page_show_line_numbers_title">行番号を表示</string>
   <string name="setting_display_page_show_line_numbers_desc">コードブロックに行番号を表示</string>
 </resources>
-

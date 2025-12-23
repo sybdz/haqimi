@@ -18,6 +18,7 @@ media3 = "1.9.0"
 metadataExtractor = "2.19.0"
 nav2 = "2.9.6"
 nav3Core = "1.0.0"
+chaquopy = "15.0.1"
 material3AdaptiveNav3 = "1.2.0"
 lifecycleViewmodelNav3 = "2.10.0"
 nav3Material = "1.0.0-SNAPSHOT"
@@ -156,3 +157,4 @@ google-services = { id = "com.google.gms.google-services", version.ref = "google
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase-crashlytics" }
 android-test = { id = "com.android.test", version.ref = "agp" }
 baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineprofile" }
+chaquopy-python = { id = "com.chaquo.python", version.ref = "chaquopy" }

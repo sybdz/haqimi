@@ -63,6 +63,8 @@
   <string name="assistant_page_invalid_json">無效的 JSON: %s</string>
   <string name="assistant_page_local_tools_javascript_engine_desc">使用 QuickJS 引擎執行 JavaScript 代碼，進行計算和腳本處理</string>
   <string name="assistant_page_local_tools_javascript_engine_title">JavaScript 引擎</string>
+  <string name="assistant_page_local_tools_python_engine_desc">使用本機 Python（Chaquopy）執行程式碼，支援捕獲輸出並透過 image/images 變數回傳圖像。</string>
+  <string name="assistant_page_local_tools_python_engine_title">Python 直譯器</string>
   <string name="assistant_page_manage_memory_title">管理記憶</string>
   <string name="assistant_page_max_tokens">最大Token數</string>
   <string name="assistant_page_max_tokens_desc">最大生成Token數量。留空表示無限制。</string>
@@ -711,4 +713,3 @@
   <string name="setting_display_page_show_line_numbers_title">顯示行號</string>
   <string name="setting_display_page_show_line_numbers_desc">在程式碼區塊中顯示行號</string>
 </resources>
-

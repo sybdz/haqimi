@@ -9,8 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.google.services)
-    alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.chaquopy.python)
 }
 
 android {
@@ -28,6 +27,14 @@ android {
 
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+
+        withGroovyBuilder {
+            "python" {
+                "pip" {
+                    "install"("pillow")
+                }
+            }
         }
     }
 
@@ -129,6 +136,38 @@ android {
         compilerOptions.optIn.add("kotlin.time.ExperimentalTime")
         compilerOptions.optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
     }
+}
+
+val firebaseEnabled: Boolean = providers.gradleProperty("firebase.enabled")
+    .orNull
+    ?.toBooleanStrictOrNull()
+    ?: run {
+        val googleServicesFile = file("google-services.json")
+        if (!googleServicesFile.exists()) return@run false
+
+        val googleServicesJson = googleServicesFile.readText()
+        val releaseApplicationId = android.defaultConfig.applicationId
+        val debugSuffix = android.buildTypes.getByName("debug").applicationIdSuffix.orEmpty()
+        val debugApplicationId = releaseApplicationId + debugSuffix
+
+        val hasReleaseClient = googleServicesJson.contains("\"package_name\": \"$releaseApplicationId\"")
+        val hasDebugClient = debugSuffix.isEmpty() || googleServicesJson.contains("\"package_name\": \"$debugApplicationId\"")
+        hasReleaseClient && hasDebugClient
+    }
+
+if (firebaseEnabled) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+} else {
+    val releaseApplicationId = android.defaultConfig.applicationId
+    val debugApplicationId =
+        releaseApplicationId + android.buildTypes.getByName("debug").applicationIdSuffix.orEmpty()
+
+    logger.lifecycle(
+        "Firebase plugins disabled (missing/mismatched app/google-services.json). " +
+            "Provide a google-services.json containing clients for \"$releaseApplicationId\" " +
+            "and \"$debugApplicationId\", or enable explicitly with -Pfirebase.enabled=true."
+    )
 }
 
 tasks.register("buildAll") {
