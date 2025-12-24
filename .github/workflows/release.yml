@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,30 +27,15 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
 
       - name: Prepare build files
-        env:
-          KEY_BASE64: ${{ secrets.KEY_BASE64 }}
-          SIGNING_CONFIG: ${{ secrets.SIGNING_CONFIG }}
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
         run: |
-          set -euo pipefail
-
           # 解码base64编码的keystore文件
-          echo "$KEY_BASE64" | base64 -d > app/app.key
-
+          echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/app.key
+          
           # 写入签名配置到local.properties
-          echo "$SIGNING_CONFIG" > local.properties
-
+          echo "${{ secrets.SIGNING_CONFIG }}" > local.properties
+          
           # 写入Google Services配置
-          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > app/google-services.json
-          elif [ -n "$GOOGLE_SERVICES_JSON" ]; then
-            printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
-          else
-            echo "Missing GOOGLE_SERVICES_JSON/GOOGLE_SERVICES_JSON_BASE64 secret" >&2
-            exit 1
-          fi
-          echo "google-services.json written: $(wc -c < app/google-services.json) bytes"
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > app/google-services.json
 
       - name: Gradle Build
         run: |
