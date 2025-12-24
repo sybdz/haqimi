@@ -2,8 +2,12 @@ import base64
 import contextlib
 import io
 import json
+import re
+import textwrap
 import traceback
 from typing import Any, Dict, Iterable, List, Optional
+
+CODE_FENCE_PATTERN = re.compile(r"```(?:python|py)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
 
 
 def _encode_image(image: Any) -> Optional[str]:
@@ -102,6 +106,26 @@ def _safe_default(value: Any) -> str:
     return str(value)
 
 
+def _normalize_code(raw_code: Any) -> str:
+    """
+    Accept friendlier input formats (markdown code fences, language prefixes) and flatten indentation.
+    The local tools caller often wraps Python in ```python ```; we strip those and dedent the code.
+    """
+    code = str(raw_code).replace("\r\n", "\n").strip()
+    fence_match = CODE_FENCE_PATTERN.search(code)
+    if fence_match:
+        code = fence_match.group(1)
+    elif code.startswith("`") and code.endswith("`") and len(code) > 1:
+        code = code.strip("`")
+
+    lowered = code.lower()
+    if lowered.startswith("python") or lowered.startswith("py"):
+        newline_index = code.find("\n")
+        code = code[newline_index + 1 :] if newline_index != -1 else ""
+
+    return textwrap.dedent(code).strip()
+
+
 def run_python_tool(code: str) -> str:
     """
     Execute user-provided Python code.
@@ -114,8 +138,19 @@ def run_python_tool(code: str) -> str:
     locals_dict: Dict[str, Any] = {}
     stdout_buffer = io.StringIO()
     try:
+        normalized_code = _normalize_code(code)
+        if not normalized_code:
+            raise ValueError("Python code is empty after normalization")
+
         with contextlib.redirect_stdout(stdout_buffer):
-            exec(code, {}, locals_dict)
+            try:
+                exec(normalized_code, {}, locals_dict)
+            except SyntaxError as syntax_error:
+                stripped = normalized_code.lstrip()
+                if stripped.startswith("return "):
+                    exec("result = " + stripped[len("return ") :], {}, locals_dict)
+                else:
+                    raise syntax_error
 
         images = []
         single_image = _encode_image(locals_dict.get("image"))
