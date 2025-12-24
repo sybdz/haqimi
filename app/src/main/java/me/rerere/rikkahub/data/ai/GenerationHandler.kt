@@ -80,6 +80,7 @@ class GenerationHandler(
         tools: List<Tool> = emptyList(),
         truncateIndex: Int = -1,
         maxSteps: Int = 256,
+        executeTools: Boolean = true,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -163,6 +164,9 @@ class GenerationHandler(
             val toolCalls = messages.last().getToolCalls()
             if (toolCalls.isEmpty()) {
                 // no tool calls, break
+                break
+            }
+            if (!executeTools) {
                 break
             }
             // handle tool calls

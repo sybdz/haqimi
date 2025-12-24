@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -36,6 +37,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.Tool
+import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.TextGenerationParams
@@ -67,7 +69,10 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.model.ArenaGroupState
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.data.model.MessageNodeGroupType
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -259,8 +264,20 @@ class ChatService(
         }
     }
 
+    private data class GroupGenerationTarget(
+        val model: Model,
+        val nodeId: Uuid,
+        val placeholder: UIMessage,
+    )
+
     // 发送消息
-    fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean = true) {
+    fun sendMessage(
+        conversationId: Uuid,
+        content: List<UIMessagePart>,
+        answer: Boolean = true,
+        replyModelIds: List<Uuid> = emptyList(),
+        replyGroupType: MessageNodeGroupType? = null,
+    ) {
         // 取消现有的生成任务
         getGenerationJob(conversationId)?.cancel()
 
@@ -268,18 +285,67 @@ class ChatService(
             try {
                 val currentConversation = getConversationFlow(conversationId).value
 
-                // 添加消息到列表
-                val newConversation = currentConversation.copy(
-                    messageNodes = currentConversation.messageNodes + UIMessage(
-                        role = MessageRole.USER,
-                        parts = content,
-                    ).toMessageNode(),
+                val userMessage = UIMessage(
+                    role = MessageRole.USER,
+                    parts = content,
                 )
-                saveConversation(conversationId, newConversation)
+                val conversationAfterUser = currentConversation.copy(
+                    messageNodes = currentConversation.messageNodes + userMessage.toMessageNode(),
+                )
 
-                // 开始补全
-                if (answer) {
-                    handleMessageComplete(conversationId)
+                val normalizedReplyIds = replyModelIds.distinct()
+                val shouldUseGroup = answer && replyGroupType != null && normalizedReplyIds.isNotEmpty()
+                if (shouldUseGroup) {
+                    val settings = settingsStore.settingsFlow.first()
+                    val models =
+                        normalizedReplyIds.mapNotNull(settings::findModelById).distinctBy { it.id }
+                    if (models.isNotEmpty()) {
+                        val groupId = Uuid.random()
+                        val arenaState = if (replyGroupType == MessageNodeGroupType.ARENA) {
+                            ArenaGroupState(revealed = false, votedMessageId = null)
+                        } else {
+                            null
+                        }
+                        val targets = mutableListOf<GroupGenerationTarget>()
+                        val nodesToAdd = models.mapIndexed { index, model ->
+                            val placeholderMessage = UIMessage(
+                                role = MessageRole.ASSISTANT,
+                                parts = emptyList(),
+                                modelId = model.id,
+                            )
+                            val nodeId = Uuid.random()
+                            targets += GroupGenerationTarget(
+                                model = model,
+                                nodeId = nodeId,
+                                placeholder = placeholderMessage,
+                            )
+                            MessageNode(
+                                id = nodeId,
+                                messages = listOf(placeholderMessage),
+                                selectIndex = 0,
+                                groupId = groupId,
+                                groupType = replyGroupType,
+                                arena = arenaState,
+                            )
+                        }
+                        val conversationWithPlaceholders = conversationAfterUser.copy(
+                            messageNodes = conversationAfterUser.messageNodes + nodesToAdd,
+                        )
+                        saveConversation(conversationId, conversationWithPlaceholders)
+                        handleGroupedMessageComplete(
+                            conversationId = conversationId,
+                            baseMessages = conversationAfterUser.currentMessages,
+                            targets = targets,
+                        )
+                    } else {
+                        saveConversation(conversationId, conversationAfterUser)
+                        handleMessageComplete(conversationId)
+                    }
+                } else {
+                    saveConversation(conversationId, conversationAfterUser)
+                    if (answer) {
+                        handleMessageComplete(conversationId)
+                    }
                 }
 
                 _generationDoneFlow.emit(conversationId)
@@ -322,9 +388,74 @@ class ChatService(
                     handleMessageComplete(conversationId)
                 } else {
                     if (regenerateAssistantMsg) {
-                        val node = conversation.getMessageNodeByMessage(message)
-                        val nodeIndex = conversation.messageNodes.indexOf(node)
-                        handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
+                        val node = conversation.getMessageNodeByMessage(message) ?: return@launch
+                        if (node.groupId != null && node.groupType != null) {
+                            val nodeIndex = conversation.messageNodes.indexOf(node)
+                            val groupId = node.groupId
+                            val groupType = node.groupType
+
+                            var groupStartIndex = nodeIndex
+                            while (groupStartIndex > 0) {
+                                val prev = conversation.messageNodes[groupStartIndex - 1]
+                                if (prev.groupId == groupId && prev.groupType == groupType) {
+                                    groupStartIndex--
+                                } else {
+                                    break
+                                }
+                            }
+
+                            val baseEndIndex = when {
+                                groupStartIndex - 1 >= 0 -> groupStartIndex - 1
+                                nodeIndex - 1 >= 0 -> nodeIndex - 1
+                                else -> -1
+                            }
+                            if (baseEndIndex == -1) return@launch
+                            val baseMessages =
+                                conversation.currentMessages.subList(0, baseEndIndex + 1)
+
+                            val settings = settingsStore.settingsFlow.first()
+                            val model = message.modelId?.let(settings::findModelById)
+                                ?: settings.getCurrentChatModel()
+                                ?: return@launch
+
+                            val placeholder = message.copy(
+                                parts = emptyList(),
+                                annotations = emptyList(),
+                                usage = null,
+                                translation = null,
+                                finishedAt = null,
+                                modelId = model.id,
+                            )
+
+                            updateConversation(conversationId) { current ->
+                                val nodes = current.messageNodes.toMutableList()
+                                val idx = nodes.indexOfFirst { it.id == node.id }
+                                if (idx == -1) return@updateConversation current
+                                nodes[idx] = nodes[idx].copy(
+                                    messages = listOf(placeholder),
+                                    selectIndex = 0,
+                                )
+                                current.copy(
+                                    messageNodes = nodes,
+                                    updateAt = Instant.now(),
+                                )
+                            }
+
+                            handleGroupedMessageComplete(
+                                conversationId = conversationId,
+                                baseMessages = baseMessages,
+                                targets = listOf(
+                                    GroupGenerationTarget(
+                                        model = model,
+                                        nodeId = node.id,
+                                        placeholder = placeholder,
+                                    )
+                                ),
+                            )
+                        } else {
+                            val nodeIndex = conversation.messageNodes.indexOf(node)
+                            handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
+                        }
                     } else {
                         saveConversation(conversationId, conversation)
                     }
@@ -448,6 +579,116 @@ class ChatService(
                 }
             }.invokeOnCompletion {
                 removeConversationReference(conversationId) // 移除引用
+            }
+        }
+    }
+
+    private suspend fun handleGroupedMessageComplete(
+        conversationId: Uuid,
+        baseMessages: List<UIMessage>,
+        targets: List<GroupGenerationTarget>,
+    ) {
+        val settings = settingsStore.settingsFlow.first()
+        val assistant = settings.getCurrentAssistant().copy(
+            enableMemory = false,
+            localTools = emptyList(),
+            mcpServers = emptySet(),
+        )
+
+        runCatching {
+            val conversation = getConversationFlow(conversationId).value
+
+            // reset suggestions
+            updateConversation(conversationId, conversation.copy(chatSuggestions = emptyList()))
+
+            // check invalid messages (tool call/result cleanup)
+            checkInvalidMessages(conversationId)
+
+            coroutineScope {
+                targets.forEach { target ->
+                    launch {
+                        runCatching {
+                            generationHandler.generateText(
+                                settings = settings,
+                                model = target.model,
+                                messages = baseMessages + target.placeholder,
+                                assistant = assistant,
+                                memories = emptyList(),
+                                inputTransformers = buildList {
+                                    addAll(inputTransformers)
+                                    add(templateTransformer)
+                                },
+                                outputTransformers = outputTransformers,
+                                tools = emptyList(),
+                                truncateIndex = conversation.truncateIndex,
+                                maxSteps = 1,
+                                executeTools = false,
+                            ).onCompletion {
+                                updateConversation(conversationId) { current ->
+                                    val nodes = current.messageNodes.toMutableList()
+                                    val nodeIndex = nodes.indexOfFirst { it.id == target.nodeId }
+                                    if (nodeIndex == -1) return@updateConversation current
+                                    val node = nodes[nodeIndex]
+                                    nodes[nodeIndex] = node.copy(
+                                        messages = node.messages.map { it.finishReasoning() }
+                                    )
+                                    current.copy(
+                                        messageNodes = nodes,
+                                        updateAt = Instant.now(),
+                                    )
+                                }
+                            }.collect { chunk ->
+                                when (chunk) {
+                                    is GenerationChunk.Messages -> {
+                                        val updatedMessage = chunk.messages.lastOrNull() ?: return@collect
+                                        updateConversation(conversationId) { current ->
+                                            val nodes = current.messageNodes.toMutableList()
+                                            val nodeIndex = nodes.indexOfFirst { it.id == target.nodeId }
+                                            if (nodeIndex == -1) return@updateConversation current
+                                            val node = nodes[nodeIndex]
+                                            nodes[nodeIndex] = node.copy(
+                                                messages = listOf(updatedMessage),
+                                                selectIndex = 0,
+                                            )
+                                            current.copy(
+                                                messageNodes = nodes,
+                                                updateAt = Instant.now(),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }.onFailure {
+                            it.printStackTrace()
+                            _errorFlow.emit(it)
+                            Logging.log(TAG, "handleGroupedMessageComplete: $it")
+                            Logging.log(TAG, it.stackTraceToString())
+                        }
+                    }
+                }
+            }
+        }.onFailure {
+            it.printStackTrace()
+            _errorFlow.emit(it)
+            Logging.log(TAG, "handleGroupedMessageComplete: $it")
+            Logging.log(TAG, it.stackTraceToString())
+        }.onSuccess {
+            val finalConversation = getConversationFlow(conversationId).value
+            saveConversation(conversationId, finalConversation)
+
+            // Show notification if app is not in foreground
+            if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+                sendGenerationDoneNotification(conversationId)
+            }
+
+            addConversationReference(conversationId)
+            appScope.launch {
+                coroutineScope {
+                    launch { generateTitle(conversationId, finalConversation) }
+                    launch { generateSuggestion(conversationId, finalConversation) }
+                }
+            }.invokeOnCompletion {
+                removeConversationReference(conversationId)
             }
         }
     }
@@ -750,12 +991,40 @@ class ChatService(
         )
     }
 
+    private fun getMutableConversationFlow(conversationId: Uuid): MutableStateFlow<Conversation> {
+        val settings = settingsStore.settingsFlow.value
+        return conversations.getOrPut(conversationId) {
+            MutableStateFlow(
+                Conversation.ofId(
+                    id = conversationId,
+                    assistantId = settings.getCurrentAssistant().id
+                )
+            )
+        }
+    }
+
     // 更新对话
     private fun updateConversation(conversationId: Uuid, conversation: Conversation) {
         if (conversation.id != conversationId) return
-        checkFilesDelete(conversation, getConversationFlow(conversationId).value)
-        conversations.getOrPut(conversationId) { MutableStateFlow(conversation) }.value =
+        getMutableConversationFlow(conversationId).update { old ->
+            checkFilesDelete(conversation, old)
             conversation
+        }
+    }
+
+    private inline fun updateConversation(
+        conversationId: Uuid,
+        transform: (Conversation) -> Conversation,
+    ) {
+        getMutableConversationFlow(conversationId).update { old ->
+            val updated = transform(old)
+            if (updated.id != conversationId) {
+                old
+            } else {
+                checkFilesDelete(updated, old)
+                updated
+            }
+        }
     }
 
     // 检查文件删除

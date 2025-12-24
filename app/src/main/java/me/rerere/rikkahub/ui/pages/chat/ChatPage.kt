@@ -54,6 +54,7 @@ import com.dokar.sonner.ToastType
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -234,6 +235,10 @@ private fun ChatPageContent(
     val toaster = LocalToaster.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
 
+    val multiModelMode by vm.multiModelMode.collectAsStateWithLifecycle()
+    val arenaMode by vm.arenaMode.collectAsStateWithLifecycle()
+    val selectedChatModels by vm.selectedChatModels.collectAsStateWithLifecycle()
+
     LaunchedEffect(loadingJob) {
         inputState.loading = loadingJob != null
     }
@@ -276,9 +281,25 @@ private fun ChatPageContent(
                         vm.updateSettings(setting.copy(enableWebSearch = !enableWebSearch))
                     },
                     onSendClick = {
-                        if (currentChatModel == null) {
-                            toaster.show("请先选择模型", type = ToastType.Error)
-                            return@ChatInput
+                        val enabledChatModels = setting.providers
+                            .filter { it.enabled }
+                            .flatMap { it.models }
+                            .filter { it.type == ModelType.CHAT }
+                        when {
+                            arenaMode && enabledChatModels.size < 2 -> {
+                                toaster.show("匿名模式需要至少 2 个已启用模型", type = ToastType.Error)
+                                return@ChatInput
+                            }
+
+                            multiModelMode && selectedChatModels.isEmpty() -> {
+                                toaster.show("请至少选择 1 个模型", type = ToastType.Error)
+                                return@ChatInput
+                            }
+
+                            !arenaMode && !multiModelMode && currentChatModel == null -> {
+                                toaster.show("请先选择模型", type = ToastType.Error)
+                                return@ChatInput
+                            }
                         }
                         if (inputState.isEditing()) {
                             vm.handleMessageEdit(
@@ -310,6 +331,12 @@ private fun ChatPageContent(
                     onUpdateChatModel = {
                         vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
                     },
+                    multiModelMode = multiModelMode,
+                    arenaMode = arenaMode,
+                    selectedChatModels = selectedChatModels,
+                    onMultiModelModeChange = { vm.setMultiModelMode(it) },
+                    onArenaModeChange = { vm.setArenaMode(it) },
+                    onSelectedChatModelsChange = { vm.updateSelectedChatModels(it) },
                     onUpdateAssistant = {
                         vm.updateSettings(
                             setting.copy(
@@ -372,6 +399,13 @@ private fun ChatPageContent(
                             }
                         ))
                     vm.saveConversationAsync()
+                },
+                onArenaVote = { groupId, votedMessageId, votedModelId ->
+                    vm.voteArena(
+                        groupId = groupId,
+                        votedMessageId = votedMessageId,
+                        votedModelId = votedModelId,
+                    )
                 },
                 onClickSuggestion = { suggestion ->
                     inputState.editingMessage = null

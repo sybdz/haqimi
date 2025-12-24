@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyInputMessage
@@ -39,8 +41,10 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
+import me.rerere.rikkahub.data.model.ArenaGroupState
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.MessageNodeGroupType
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.service.ChatService
@@ -196,6 +200,40 @@ class ChatVM(
         settings.getCurrentChatModel()
     }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
+    // 多模型模式 (Multi-Model Mode)
+    private val _multiModelMode = MutableStateFlow(false)
+    val multiModelMode: StateFlow<Boolean> = _multiModelMode.asStateFlow()
+
+    // 匿名竞技模式 (Arena Mode)
+    private val _arenaMode = MutableStateFlow(false)
+    val arenaMode: StateFlow<Boolean> = _arenaMode.asStateFlow()
+
+    // 多选模型列表 (仅 Multi-Model Mode 使用)
+    private val _selectedChatModels = MutableStateFlow<Set<Uuid>>(emptySet())
+    val selectedChatModels: StateFlow<Set<Uuid>> = _selectedChatModels.asStateFlow()
+
+    fun setMultiModelMode(enabled: Boolean) {
+        _multiModelMode.value = enabled
+        if (enabled) {
+            _arenaMode.value = false
+            if (_selectedChatModels.value.isEmpty()) {
+                val fallback = settings.value.getCurrentAssistant().chatModelId ?: settings.value.chatModelId
+                _selectedChatModels.value = setOf(fallback)
+            }
+        }
+    }
+
+    fun setArenaMode(enabled: Boolean) {
+        _arenaMode.value = enabled
+        if (enabled) {
+            _multiModelMode.value = false
+        }
+    }
+
+    fun updateSelectedChatModels(modelIds: Set<Uuid>) {
+        _selectedChatModels.value = modelIds
+    }
+
     // 错误流 (从ChatService获取)
     val errorFlow: SharedFlow<Throwable> = chatService.errorFlow
 
@@ -278,7 +316,34 @@ class ChatVM(
             content
         }
 
-        chatService.sendMessage(_conversationId, processedContent, answer)
+        val settings = settings.value
+        val replyGroupType = when {
+            arenaMode.value -> MessageNodeGroupType.ARENA
+            multiModelMode.value -> MessageNodeGroupType.MULTI_MODEL
+            else -> null
+        }
+        val replyModelIds = when (replyGroupType) {
+            MessageNodeGroupType.ARENA -> {
+                val enabledChatModelIds = settings.providers
+                    .filter { it.enabled }
+                    .flatMap { it.models }
+                    .filter { it.type == ModelType.CHAT }
+                    .map { it.id }
+                    .distinct()
+                enabledChatModelIds.shuffled().take(2)
+            }
+
+            MessageNodeGroupType.MULTI_MODEL -> selectedChatModels.value.toList()
+            null -> emptyList()
+        }
+
+        chatService.sendMessage(
+            conversationId = _conversationId,
+            content = processedContent,
+            answer = answer,
+            replyModelIds = replyModelIds,
+            replyGroupType = replyGroupType,
+        )
     }
 
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {
@@ -527,6 +592,50 @@ class ChatVM(
 
     fun clearTranslationField(messageId: Uuid) {
         chatService.clearTranslationField(_conversationId, messageId)
+    }
+
+    fun voteArena(
+        groupId: Uuid,
+        votedMessageId: Uuid,
+        votedModelId: Uuid,
+    ) {
+        val currentConversation = conversation.value
+        val groupNodes = currentConversation.messageNodes.filter { node ->
+            node.groupId == groupId && node.groupType == MessageNodeGroupType.ARENA
+        }
+        if (groupNodes.isEmpty()) return
+        if (groupNodes.any { it.arena?.revealed == true || it.arena?.votedMessageId != null }) return
+        val participantModelIds = groupNodes.mapNotNull { it.currentMessage.modelId }.distinct()
+
+        val updatedConversation = currentConversation.copy(
+            messageNodes = currentConversation.messageNodes.map { node ->
+                if (node.groupId == groupId && node.groupType == MessageNodeGroupType.ARENA) {
+                    node.copy(
+                        arena = ArenaGroupState(
+                            revealed = true,
+                            votedMessageId = votedMessageId,
+                        )
+                    )
+                } else {
+                    node
+                }
+            }
+        )
+
+        // Auto-exit arena mode after vote
+        setArenaMode(false)
+
+        viewModelScope.launch {
+            chatService.saveConversation(_conversationId, updatedConversation)
+            settingsStore.update { settings ->
+                val scores = settings.modelArenaScores.toMutableMap()
+                participantModelIds.forEach { modelId ->
+                    scores.putIfAbsent(modelId, scores[modelId] ?: 0)
+                }
+                scores[votedModelId] = (scores[votedModelId] ?: 0) + 1
+                settings.copy(modelArenaScores = scores)
+            }
+        }
     }
 
     fun updateConversation(newConversation: Conversation) {

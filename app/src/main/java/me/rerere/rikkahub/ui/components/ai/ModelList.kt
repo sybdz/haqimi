@@ -23,8 +23,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
@@ -101,7 +103,14 @@ fun ModelSelector(
     modifier: Modifier = Modifier,
     onlyIcon: Boolean = false,
     allowClear: Boolean = false,
-    onSelect: (Model) -> Unit
+    onSelect: (Model) -> Unit,
+    enableChatModes: Boolean = false,
+    multiModelMode: Boolean = false,
+    arenaMode: Boolean = false,
+    selectedModels: Set<Uuid> = emptySet(),
+    onMultiModelModeChange: (Boolean) -> Unit = {},
+    onArenaModeChange: (Boolean) -> Unit = {},
+    onSelectedModelsChange: (Set<Uuid>) -> Unit = {},
 ) {
     var popup by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -183,15 +192,69 @@ fun ModelSelector(
                 val filteredProviderSettings = providers.fastFilter {
                     it.enabled && it.models.fastAny { model -> model.type == type }
                 }
+
+                if (enableChatModes && type == ModelType.CHAT) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(
+                            selected = multiModelMode,
+                            onClick = {
+                                val newValue = !multiModelMode
+                                onMultiModelModeChange(newValue)
+                                if (newValue) onArenaModeChange(false)
+                            },
+                            label = { Text("多选") },
+                            enabled = !arenaMode,
+                        )
+                        FilterChip(
+                            selected = arenaMode,
+                            onClick = {
+                                val newValue = !arenaMode
+                                onArenaModeChange(newValue)
+                                if (newValue) onMultiModelModeChange(false)
+                            },
+                            label = { Text("匿名模式") },
+                            enabled = !multiModelMode,
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        if (multiModelMode) {
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        state.hide()
+                                        popup = false
+                                    }
+                                }
+                            ) {
+                                Text("完成")
+                            }
+                        }
+                    }
+                }
                 ModelList(
                     currentModel = modelId,
                     providers = filteredProviderSettings,
                     modelType = type,
+                    multiSelect = multiModelMode,
+                    selectedModels = selectedModels,
                     onSelect = {
-                        onSelect(it)
-                        scope.launch {
-                            state.hide()
-                            popup = false
+                        if (multiModelMode) {
+                            val updated = selectedModels.toMutableSet()
+                            if (!updated.add(it.id)) {
+                                updated.remove(it.id)
+                            }
+                            onSelectedModelsChange(updated)
+                        } else {
+                            onSelect(it)
+                            scope.launch {
+                                state.hide()
+                                popup = false
+                            }
                         }
                     },
                     onDismiss = {
@@ -211,6 +274,8 @@ private fun ColumnScope.ModelList(
     currentModel: Uuid? = null,
     providers: List<ProviderSetting>,
     modelType: ModelType,
+    multiSelect: Boolean = false,
+    selectedModels: Set<Uuid> = emptySet(),
     onSelect: (Model) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -396,11 +461,17 @@ private fun ColumnScope.ModelList(
                             .scale(if (isDragging) 0.95f else 1f)
                             .animateItem(),
                         providerSetting = provider,
-                        select = model.id == currentModel,
+                        select = if (multiSelect) selectedModels.contains(model.id) else model.id == currentModel,
                         onDismiss = {
                             onDismiss()
                         },
                         tail = {
+                            if (multiSelect) {
+                                Checkbox(
+                                    checked = selectedModels.contains(model.id),
+                                    onCheckedChange = { onSelect(model) },
+                                )
+                            }
                             IconButton(
                                 onClick = {
                                     coroutineScope.launch {
@@ -478,11 +549,17 @@ private fun ColumnScope.ModelList(
                     onSelect = onSelect,
                     modifier = Modifier.animateItem(),
                     providerSetting = providerSetting,
-                    select = currentModel == model.id,
+                    select = if (multiSelect) selectedModels.contains(model.id) else currentModel == model.id,
                     onDismiss = {
                         onDismiss()
                     },
                     tail = {
+                        if (multiSelect) {
+                            Checkbox(
+                                checked = selectedModels.contains(model.id),
+                                onCheckedChange = { onSelect(model) },
+                            )
+                        }
                         IconButton(
                             onClick = {
                                 coroutineScope.launch {

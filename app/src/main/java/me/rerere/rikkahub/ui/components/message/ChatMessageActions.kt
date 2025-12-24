@@ -189,6 +189,88 @@ fun ColumnScope.ChatMessageActionButtons(
 }
 
 @Composable
+fun ChatMessageLocalActionButtons(
+    message: UIMessage,
+    onTranslate: ((UIMessage, Locale) -> Unit)? = null,
+    onClearTranslation: (UIMessage) -> Unit = {},
+) {
+    val context = LocalContext.current
+    var showTranslateDialog by remember { mutableStateOf(false) }
+
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Lucide.Copy, stringResource(R.string.copy), modifier = Modifier
+                .clip(CircleShape)
+                .clickable { context.copyMessageToClipboard(message) }
+                .padding(8.dp)
+                .size(16.dp)
+        )
+
+        if (message.role == MessageRole.ASSISTANT) {
+            val tts = LocalTTSState.current
+            val isSpeaking by tts.isSpeaking.collectAsState()
+            val isAvailable by tts.isAvailable.collectAsState()
+            Icon(
+                imageVector = if (isSpeaking) Lucide.CircleStop else Lucide.Volume2,
+                contentDescription = stringResource(R.string.tts),
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(
+                        enabled = isAvailable,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = LocalIndication.current,
+                        onClick = {
+                            if (!isSpeaking) {
+                                tts.speak(message.toText())
+                            } else {
+                                tts.stop()
+                            }
+                        }
+                    )
+                    .padding(8.dp)
+                    .size(16.dp),
+                tint = if (isAvailable) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
+            )
+
+            if (onTranslate != null) {
+                Icon(
+                    imageVector = Lucide.Languages,
+                    contentDescription = stringResource(R.string.translate),
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = LocalIndication.current,
+                            onClick = { showTranslateDialog = true }
+                        )
+                        .padding(8.dp)
+                        .size(16.dp)
+                )
+            }
+        }
+    }
+
+    if (showTranslateDialog && onTranslate != null) {
+        LanguageSelectionDialog(
+            onLanguageSelected = { language ->
+                showTranslateDialog = false
+                onTranslate(message, language)
+            },
+            onClearTranslation = {
+                showTranslateDialog = false
+                onClearTranslation(message)
+            },
+            onDismissRequest = {
+                showTranslateDialog = false
+            },
+        )
+    }
+}
+
+@Composable
 fun ChatMessageActionsSheet(
     message: UIMessage,
     model: Model?,
