@@ -339,11 +339,7 @@ private fun ChatListNormal(
                                 onArenaVote = { votedNode ->
                                     val groupId = votedNode.groupId ?: return@ChatMessageCards
                                     val votedModelId = votedNode.currentMessage.modelId ?: return@ChatMessageCards
-                                    onArenaVote(
-                                        groupId = groupId,
-                                        votedMessageId = votedNode.currentMessage.id,
-                                        votedModelId = votedModelId,
-                                    )
+                                    onArenaVote(groupId, votedNode.currentMessage.id, votedModelId)
                                 },
                             )
                         } else {

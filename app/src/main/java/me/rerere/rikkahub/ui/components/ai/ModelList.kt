@@ -103,7 +103,6 @@ fun ModelSelector(
     modifier: Modifier = Modifier,
     onlyIcon: Boolean = false,
     allowClear: Boolean = false,
-    onSelect: (Model) -> Unit,
     enableChatModes: Boolean = false,
     multiModelMode: Boolean = false,
     arenaMode: Boolean = false,
@@ -111,6 +110,7 @@ fun ModelSelector(
     onMultiModelModeChange: (Boolean) -> Unit = {},
     onArenaModeChange: (Boolean) -> Unit = {},
     onSelectedModelsChange: (Set<Uuid>) -> Unit = {},
+    onSelect: (Model) -> Unit,
 ) {
     var popup by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
