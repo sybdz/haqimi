@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 
 def _encode_image(image: Any) -> Optional[str]:
-    """Convert different image-like objects to a data URL."""
+    """Convert different image-like objects (Pillow/matplotlib/plotly/numpy) to a data URL."""
     if image is None:
         return None
 
@@ -24,16 +24,60 @@ def _encode_image(image: Any) -> Optional[str]:
         except Exception:
             return None
 
-    # Pillow image
     try:
         from PIL import Image  # noqa: WPS433
     except Exception:
         Image = None
 
-    if Image is not None and isinstance(image, Image.Image):
-        buffer = io.BytesIO()
-        image.save(buffer, format="PNG")
-        return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("utf-8")
+    # Plotly figure
+    if hasattr(image, "to_image"):
+        try:
+            png_bytes = image.to_image(format="png")
+            if isinstance(png_bytes, str):
+                png_bytes = png_bytes.encode("utf-8")
+            return "data:image/png;base64," + base64.b64encode(png_bytes).decode("utf-8")
+        except Exception:
+            pass
+
+    # Pillow image
+    try:
+        if Image is not None and isinstance(image, Image.Image):
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("utf-8")
+    except Exception:
+        pass
+
+    # numpy ndarray
+    try:
+        import numpy as np  # noqa: WPS433
+    except Exception:
+        np = None
+
+    if np is not None and isinstance(image, np.ndarray) and Image is not None:
+        try:
+            arr = image
+            if arr.dtype != np.uint8:
+                finite = np.nan_to_num(arr)
+                min_val = finite.min()
+                max_val = finite.max()
+                if max_val > min_val:
+                    scaled = ((finite - min_val) / (max_val - min_val) * 255).clip(0, 255)
+                else:
+                    scaled = np.zeros_like(finite)
+                arr = scaled.astype(np.uint8)
+            if arr.ndim == 2:
+                mode = "L"
+            elif arr.ndim == 3 and arr.shape[2] == 4:
+                mode = "RGBA"
+            else:
+                mode = "RGB"
+            image_obj = Image.fromarray(arr, mode=mode)
+            buffer = io.BytesIO()
+            image_obj.save(buffer, format="PNG")
+            return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("utf-8")
+        except Exception:
+            pass
 
     # Matplotlib figure-like object
     if hasattr(image, "savefig"):
@@ -64,7 +108,8 @@ def run_python_tool(code: str) -> str:
 
     Expected variables set by the code:
     - result: any serializable object returned to the model.
-    - image / images: Pillow image, matplotlib figure, raw base64 string, or bytes.
+    - image / images: Pillow image, matplotlib/plotly figure, numpy array, raw base64 string, or bytes.
+    Pre-installed libraries: pillow, numpy, matplotlib, pandas, seaborn.
     """
     locals_dict: Dict[str, Any] = {}
     stdout_buffer = io.StringIO()
