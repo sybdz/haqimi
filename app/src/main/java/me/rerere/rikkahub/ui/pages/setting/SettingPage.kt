@@ -54,6 +54,7 @@ import com.composables.icons.lucide.Palette
 import com.composables.icons.lucide.Share2
 import com.composables.icons.lucide.SunMoon
 import com.composables.icons.lucide.Terminal
+import com.composables.icons.lucide.Trophy
 import com.composables.icons.lucide.Volume2
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -200,6 +201,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     description = { Text(stringResource(R.string.setting_page_default_model_desc)) },
                     icon = { Icon(Lucide.Hammer, stringResource(R.string.setting_page_default_model)) },
                     link = Screen.SettingModels
+                )
+            }
+
+            item {
+                SettingItem(
+                    navController = navController,
+                    title = { Text(stringResource(R.string.setting_page_model_scoreboard)) },
+                    description = { Text(stringResource(R.string.setting_page_model_scoreboard_desc)) },
+                    icon = { Icon(Trophy, null) },
+                    link = Screen.ModelLeaderboard
                 )
             }
 

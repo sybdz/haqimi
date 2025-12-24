@@ -47,6 +47,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -93,6 +96,7 @@ import coil3.compose.AsyncImage
 import com.composables.icons.lucide.ArrowUp
 import com.composables.icons.lucide.Camera
 import com.composables.icons.lucide.BookOpen
+import com.composables.icons.lucide.EyeOff
 import com.composables.icons.lucide.Eraser
 import com.composables.icons.lucide.FileAudio
 import com.composables.icons.lucide.Files
@@ -101,6 +105,7 @@ import com.composables.icons.lucide.GraduationCap
 import com.composables.icons.lucide.Image
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Music
+import com.composables.icons.lucide.Option
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Video
 import com.composables.icons.lucide.X
@@ -125,12 +130,14 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.InjectionSelector
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
+import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.pages.chat.MultiModeState
 import me.rerere.rikkahub.utils.createChatFilesByContents
 import me.rerere.rikkahub.utils.deleteChatFiles
 import me.rerere.rikkahub.utils.getFileMimeType
@@ -150,6 +157,10 @@ fun ChatInput(
     conversation: Conversation,
     settings: Settings,
     mcpManager: McpManager,
+    multiModeState: MultiModeState,
+    onToggleMultiSelect: (Boolean) -> Unit,
+    onUpdateMultiSelection: (Set<Uuid>) -> Unit,
+    onToggleAnonymousMode: () -> Unit,
     enableSearch: Boolean,
     onToggleSearch: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -178,6 +189,7 @@ fun ChatInput(
     }
 
     var expand by remember { mutableStateOf(ExpandState.Collapsed) }
+    var showMultiSelector by remember { mutableStateOf(false) }
     fun dismissExpand() {
         expand = ExpandState.Collapsed
     }
@@ -236,6 +248,51 @@ fun ChatInput(
                         type = ModelType.CHAT,
                         onlyIcon = true,
                         modifier = Modifier,
+                    )
+
+                    AssistChip(
+                        onClick = {
+                            val enable = !multiModeState.multiSelectEnabled
+                            onToggleMultiSelect(enable)
+                            if (enable) {
+                                showMultiSelector = true
+                            }
+                        },
+                        label = {
+                            Text(stringResource(R.string.chat_multi_select))
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Lucide.Option,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = if (multiModeState.multiSelectEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                            labelColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+
+                    AssistChip(
+                        onClick = {
+                            onToggleAnonymousMode()
+                            showMultiSelector = false
+                        },
+                        label = {
+                            Text(stringResource(R.string.chat_anonymous_mode))
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Lucide.EyeOff,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = if (multiModeState.anonymousMode) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                            labelColor = MaterialTheme.colorScheme.onSurface
+                        )
                     )
 
                     // Search
@@ -366,6 +423,153 @@ fun ChatInput(
                             onDismiss = { dismissExpand() }
                         )
                     }
+                }
+            }
+
+            if (showMultiSelector) {
+                MultiModelSelectorSheet(
+                    settings = settings,
+                    selected = multiModeState.selectedModelIds,
+                    onDismiss = { showMultiSelector = false },
+                    onConfirm = { ids ->
+                        onUpdateMultiSelection(ids)
+                        onToggleMultiSelect(ids.isNotEmpty())
+                        showMultiSelector = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MultiModelSelectorSheet(
+    settings: Settings,
+    selected: Set<Uuid>,
+    onDismiss: () -> Unit,
+    onConfirm: (Set<Uuid>) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var currentSelection by remember(selected) {
+        mutableStateOf(selected.toMutableSet())
+    }
+    val chatModels = remember(settings.providers) {
+        settings.providers
+            .filter { it.enabled }
+            .flatMap { provider ->
+                provider.models.filter { it.type == ModelType.CHAT }.map { it to provider }
+            }
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.chat_multi_sheet_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            if (chatModels.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.chat_multi_sheet_empty),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                )
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                ) {
+                    items(chatModels) { (model, provider) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    if (currentSelection.contains(model.id)) {
+                                        currentSelection = currentSelection.toMutableSet().apply {
+                                            remove(model.id)
+                                        }
+                                    } else {
+                                        currentSelection = currentSelection.toMutableSet().apply {
+                                            add(model.id)
+                                        }
+                                    }
+                                }
+                                .padding(8.dp)
+                        ) {
+                            Checkbox(
+                                checked = currentSelection.contains(model.id),
+                                onCheckedChange = { checked ->
+                                    currentSelection = currentSelection.toMutableSet().apply {
+                                        if (checked) {
+                                            add(model.id)
+                                        } else {
+                                            remove(model.id)
+                                        }
+                                    }
+                                }
+                            )
+                            AutoAIIcon(
+                                name = model.modelId,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = model.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = provider.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TextButton(
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            onDismiss()
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(stringResource(R.string.chat_multi_sheet_cancel))
+                }
+                TextButton(
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            onConfirm(currentSelection)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(stringResource(R.string.chat_multi_sheet_confirm))
                 }
             }
         }

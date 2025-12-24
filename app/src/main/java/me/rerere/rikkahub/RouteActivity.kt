@@ -84,6 +84,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
+import me.rerere.rikkahub.ui.pages.setting.SettingModelLeaderboardPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
@@ -328,6 +329,10 @@ class RouteActivity : ComponentActivity() {
                         SettingModelPage()
                     }
 
+                    composable<Screen.ModelLeaderboard> {
+                        SettingModelLeaderboardPage()
+                    }
+
                     composable<Screen.SettingAbout> {
                         SettingAboutPage()
                     }
@@ -473,6 +478,9 @@ sealed interface Screen {
 
     @Serializable
     data object SettingModels : Screen
+
+    @Serializable
+    data object ModelLeaderboard : Screen
 
     @Serializable
     data object SettingAbout : Screen

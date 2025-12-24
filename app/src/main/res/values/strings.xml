@@ -712,4 +712,18 @@
   <string name="injection_selector_lorebooks_empty">No lorebooks available</string>
   <string name="setting_display_page_show_line_numbers_title">Show Line Numbers</string>
   <string name="setting_display_page_show_line_numbers_desc">Display line numbers in code blocks</string>
+  <string name="chat_multi_select">Multi Select</string>
+  <string name="chat_anonymous_mode">Anonymous Mode</string>
+  <string name="chat_multi_sheet_title">Choose chat models</string>
+  <string name="chat_multi_sheet_empty">No available chat models</string>
+  <string name="chat_multi_sheet_cancel">Cancel</string>
+  <string name="chat_multi_sheet_confirm">Confirm</string>
+  <string name="chat_multi_need_two_models">Select at least two models</string>
+  <string name="chat_anonymous_need_two_models">Need at least two enabled models for anonymous mode</string>
+  <string name="chat_anonymous_vote">Vote for this answer</string>
+  <string name="chat_anonymous_model_placeholder">Anonymous model</string>
+  <string name="setting_page_model_scoreboard">Model leaderboard</string>
+  <string name="setting_page_model_scoreboard_desc">See anonymous votes by model</string>
+  <string name="setting_page_model_scoreboard_empty">No votes yet</string>
+  <string name="setting_page_model_scoreboard_unknown">Unknown model</string>
 </resources>

@@ -70,6 +70,9 @@ fun ColumnScope.ChatMessageActionButtons(
     onOpenActionSheet: () -> Unit,
     onTranslate: ((UIMessage, Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
+    showRegenerate: Boolean = true,
+    showMoreActions: Boolean = true,
+    showBranchSelector: Boolean = true,
 ) {
     val context = LocalContext.current
     var isPendingDelete by remember { mutableStateOf(false) }
@@ -94,13 +97,15 @@ fun ColumnScope.ChatMessageActionButtons(
                 .size(16.dp)
         )
 
-        Icon(
-            Lucide.RefreshCw, stringResource(R.string.regenerate), modifier = Modifier
-                .clip(CircleShape)
-                .clickable { onRegenerate() }
-                .padding(8.dp)
-                .size(16.dp)
-        )
+        if (showRegenerate) {
+            Icon(
+                Lucide.RefreshCw, stringResource(R.string.regenerate), modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable { onRegenerate() }
+                    .padding(8.dp)
+                    .size(16.dp)
+            )
+        }
 
         if (message.role == MessageRole.ASSISTANT) {
             val tts = LocalTTSState.current
@@ -148,26 +153,30 @@ fun ColumnScope.ChatMessageActionButtons(
             }
         }
 
-        Icon(
-            imageVector = Lucide.Ellipsis,
-            contentDescription = "More Options",
-            modifier = Modifier
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = LocalIndication.current,
-                    onClick = {
-                        onOpenActionSheet()
-                    }
-                )
-                .padding(8.dp)
-                .size(16.dp)
-        )
+        if (showMoreActions) {
+            Icon(
+                imageVector = Lucide.Ellipsis,
+                contentDescription = "More Options",
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = LocalIndication.current,
+                        onClick = {
+                            onOpenActionSheet()
+                        }
+                    )
+                    .padding(8.dp)
+                    .size(16.dp)
+            )
+        }
 
-        ChatMessageBranchSelector(
-            node = node,
-            onUpdate = onUpdate,
-        )
+        if (showBranchSelector) {
+            ChatMessageBranchSelector(
+                node = node,
+                onUpdate = onUpdate,
+            )
+        }
     }
 
     // Translation dialog

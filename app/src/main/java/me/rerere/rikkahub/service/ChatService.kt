@@ -260,7 +260,12 @@ class ChatService(
     }
 
     // 发送消息
-    fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean = true) {
+    fun sendMessage(
+        conversationId: Uuid,
+        content: List<UIMessagePart>,
+        answer: Boolean = true,
+        plan: GenerationPlan? = null
+    ) {
         // 取消现有的生成任务
         getGenerationJob(conversationId)?.cancel()
 
@@ -279,7 +284,7 @@ class ChatService(
 
                 // 开始补全
                 if (answer) {
-                    handleMessageComplete(conversationId)
+                    handleMessageComplete(conversationId, plan = plan)
                 }
 
                 _generationDoneFlow.emit(conversationId)
@@ -303,7 +308,8 @@ class ChatService(
     fun regenerateAtMessage(
         conversationId: Uuid,
         message: UIMessage,
-        regenerateAssistantMsg: Boolean = true
+        regenerateAssistantMsg: Boolean = true,
+        plan: GenerationPlan? = null
     ) {
         getGenerationJob(conversationId)?.cancel()
 
@@ -319,12 +325,16 @@ class ChatService(
                         messageNodes = conversation.messageNodes.subList(0, indexAt + 1)
                     )
                     saveConversation(conversationId, newConversation)
-                    handleMessageComplete(conversationId)
+                    handleMessageComplete(conversationId, plan = plan)
                 } else {
                     if (regenerateAssistantMsg) {
                         val node = conversation.getMessageNodeByMessage(message)
                         val nodeIndex = conversation.messageNodes.indexOf(node)
-                        handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
+                        handleMessageComplete(
+                            conversationId,
+                            messageRange = 0..<nodeIndex,
+                            plan = plan
+                        )
                     } else {
                         saveConversation(conversationId, conversation)
                     }
@@ -350,10 +360,12 @@ class ChatService(
     // 处理消息补全
     private suspend fun handleMessageComplete(
         conversationId: Uuid,
-        messageRange: ClosedRange<Int>? = null
+        messageRange: ClosedRange<Int>? = null,
+        plan: GenerationPlan? = null
     ) {
         val settings = settingsStore.settingsFlow.first()
-        val model = settings.getCurrentChatModel() ?: return
+        val models = plan?.models?.takeIf { it.isNotEmpty() } ?: listOfNotNull(settings.getCurrentChatModel())
+        if (models.isEmpty()) return
 
         runCatching {
             val conversation = getConversationFlow(conversationId).value
@@ -361,73 +373,88 @@ class ChatService(
             // reset suggestions
             updateConversation(conversationId, conversation.copy(chatSuggestions = emptyList()))
 
-            // memory tool
-            if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (settings.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
-                    _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
-                }
-            }
-
             // check invalid messages
             checkInvalidMessages(conversationId)
 
-            // start generating
-            generationHandler.generateText(
-                settings = settings,
-                model = model,
-                messages = conversation.currentMessages.let {
-                    if (messageRange != null) {
-                        it.subList(messageRange.start, messageRange.endInclusive + 1)
-                    } else {
-                        it
-                    }
-                },
-                assistant = settings.getCurrentAssistant(),
-                memories = memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString()),
-                inputTransformers = buildList {
-                    addAll(inputTransformers)
-                    add(templateTransformer)
-                },
-                outputTransformers = outputTransformers,
-                tools = buildList {
-                    if (settings.enableWebSearch) {
-                        addAll(createSearchTool(settings))
-                    }
-                    addAll(localTools.getTools(settings.getCurrentAssistant().localTools))
-                    mcpManager.getAllAvailableTools().forEach { tool ->
-                        add(
-                            Tool(
-                                name = tool.name,
-                                description = tool.description ?: "",
-                                parameters = { tool.inputSchema },
-                                execute = {
-                                    mcpManager.callTool(tool.name, it.jsonObject)
-                                },
-                            )
-                        )
-                    }
-                },
-                truncateIndex = conversation.truncateIndex,
-            ).onCompletion {
-                // 可能被取消了，或者意外结束，兜底更新
-                val updatedConversation = getConversationFlow(conversationId).value.copy(
-                    messageNodes = getConversationFlow(conversationId).value.messageNodes.map { node ->
-                        node.copy(messages = node.messages.map { it.finishReasoning() })
-                    },
-                    updateAt = Instant.now()
-                )
-                updateConversation(conversationId, updatedConversation)
-
-                // Show notification if app is not in foreground
-                if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
-                    sendGenerationDoneNotification(conversationId)
+            val baseMessages = conversation.currentMessages.let {
+                if (messageRange != null) {
+                    it.subList(messageRange.start, messageRange.endInclusive + 1)
+                } else {
+                    it
                 }
-            }.collect { chunk ->
-                when (chunk) {
-                    is GenerationChunk.Messages -> {
-                        val updatedConversation = getConversationFlow(conversationId).value
-                            .updateCurrentMessages(chunk.messages)
-                        updateConversation(conversationId, updatedConversation)
+            }
+            val groupId = plan?.groupId ?: if (plan?.groupType != null || models.size > 1) Uuid.random() else null
+            val assistant = settings.getCurrentAssistant()
+
+            models.forEach { model ->
+                // memory tool
+                if (!model.abilities.contains(ModelAbility.TOOL)) {
+                    if (settings.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
+                        _errorFlow.emit(IllegalStateException(context.getString(R.string.tools_warning)))
+                    }
+                }
+
+                generationHandler.generateText(
+                    settings = settings,
+                    model = model,
+                    messages = baseMessages,
+                    assistant = assistant,
+                    memories = memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString()),
+                    inputTransformers = buildList {
+                        addAll(inputTransformers)
+                        add(templateTransformer)
+                    },
+                    outputTransformers = outputTransformers,
+                    tools = buildList {
+                        if (settings.enableWebSearch) {
+                            addAll(createSearchTool(settings))
+                        }
+                        addAll(localTools.getTools(settings.getCurrentAssistant().localTools))
+                        mcpManager.getAllAvailableTools().forEach { tool ->
+                            add(
+                                Tool(
+                                    name = tool.name,
+                                    description = tool.description ?: "",
+                                    parameters = { tool.inputSchema },
+                                    execute = {
+                                        mcpManager.callTool(tool.name, it.jsonObject)
+                                    },
+                                )
+                            )
+                        }
+                    },
+                    truncateIndex = conversation.truncateIndex,
+                ).onCompletion {
+                    // 可能被取消了，或者意外结束，兜底更新
+                    val updatedConversation = getConversationFlow(conversationId).value.copy(
+                        messageNodes = getConversationFlow(conversationId).value.messageNodes.map { node ->
+                            node.copy(messages = node.messages.map { it.finishReasoning() })
+                        },
+                        updateAt = Instant.now()
+                    )
+                    updateConversation(conversationId, updatedConversation)
+
+                    // Show notification if app is not in foreground
+                    if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+                        sendGenerationDoneNotification(conversationId)
+                    }
+                }.collect { chunk ->
+                    when (chunk) {
+                        is GenerationChunk.Messages -> {
+                            val enrichedMessages = chunk.messages.mapIndexed { index, message ->
+                                if (index >= baseMessages.size && message.role == MessageRole.ASSISTANT) {
+                                    message.copy(
+                                        groupId = groupId,
+                                        groupType = plan?.groupType,
+                                        anonymous = plan?.anonymous == true,
+                                        anonymousRevealed = if (plan?.anonymous == true) false else message.anonymousRevealed,
+                                    )
+                                } else message
+                            }
+                            val updatedConversation = getConversationFlow(conversationId).value
+                                .updateCurrentMessages(enrichedMessages)
+                            updateConversation(conversationId, updatedConversation)
+                        }
                     }
                 }
             }

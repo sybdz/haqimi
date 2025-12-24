@@ -28,15 +28,19 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.MessageGroupType
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.Avatar
@@ -44,6 +48,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.service.GenerationPlan
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.UpdateChecker
@@ -56,6 +61,12 @@ import java.util.Locale
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatVM"
+
+data class MultiModeState(
+    val multiSelectEnabled: Boolean = false,
+    val anonymousMode: Boolean = false,
+    val selectedModelIds: Set<Uuid> = emptySet(),
+)
 
 class ChatVM(
     id: String,
@@ -107,6 +118,10 @@ class ChatVM(
     val enableWebSearch = settings.map {
         it.enableWebSearch
     }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    // 多模型 / 匿名模式
+    private val _multiModeState = MutableStateFlow(MultiModeState())
+    val multiModeState: StateFlow<MultiModeState> = _multiModeState
 
     // 搜索关键词
     private val _searchQuery = MutableStateFlow("")
@@ -191,6 +206,36 @@ class ChatVM(
         _searchQuery.value = query
     }
 
+    fun updateMultiSelection(ids: Set<Uuid>) {
+        _multiModeState.update { state ->
+            state.copy(selectedModelIds = ids)
+        }
+    }
+
+    fun setMultiSelectEnabled(enabled: Boolean) {
+        _multiModeState.update { state ->
+            if (enabled) {
+                state.copy(multiSelectEnabled = true, anonymousMode = false)
+            } else {
+                state.copy(multiSelectEnabled = false)
+            }
+        }
+    }
+
+    fun toggleAnonymousMode() {
+        _multiModeState.update { state ->
+            val newValue = !state.anonymousMode
+            state.copy(
+                anonymousMode = newValue,
+                multiSelectEnabled = if (newValue) false else state.multiSelectEnabled
+            )
+        }
+    }
+
+    fun disableAnonymousMode() {
+        _multiModeState.update { it.copy(anonymousMode = false) }
+    }
+
     // 当前模型
     val currentChatModel = settings.map { settings ->
         settings.getCurrentChatModel()
@@ -253,7 +298,7 @@ class ChatVM(
      * @param content 消息内容
      * @param answer 是否触发消息生成，如果为false，则仅添加消息到消息列表中
      */
-    fun handleMessageSend(content: List<UIMessagePart>,answer: Boolean = true) {
+    fun handleMessageSend(content: List<UIMessagePart>, answer: Boolean = true, plan: GenerationPlan? = null) {
         if (content.isEmptyInputMessage()) return
         analytics.logEvent("ai_send_message", null)
 
@@ -278,7 +323,72 @@ class ChatVM(
             content
         }
 
-        chatService.sendMessage(_conversationId, processedContent, answer)
+        chatService.sendMessage(_conversationId, processedContent, answer, plan)
+    }
+
+    fun buildGenerationPlan(): Result<GenerationPlan?> {
+        val settings = settings.value
+        val mode = multiModeState.value
+
+        if (mode.anonymousMode) {
+            val candidates = settings.providers
+                .filter { it.enabled }
+                .flatMap { provider ->
+                    provider.models.filter { it.type == ModelType.CHAT }
+                }
+            if (candidates.size < 2) {
+                return Result.failure(IllegalStateException(context.getString(R.string.chat_anonymous_need_two_models)))
+            }
+            val selected = candidates.shuffled().take(2)
+            return Result.success(
+                GenerationPlan(
+                    models = selected,
+                    groupId = Uuid.random(),
+                    groupType = MessageGroupType.ANONYMOUS,
+                    anonymous = true
+                )
+            )
+        }
+
+        if (mode.multiSelectEnabled) {
+            val selected = mode.selectedModelIds.mapNotNull { settings.findModelById(it) }
+                .filter {
+                    it.type == ModelType.CHAT && (it.findProvider(settings.providers, checkOverwrite = false)?.enabled == true)
+                }
+            if (selected.size < 2) {
+                return Result.failure(IllegalStateException(context.getString(R.string.chat_multi_need_two_models)))
+            }
+            return Result.success(
+                GenerationPlan(
+                    models = selected,
+                    groupId = Uuid.random(),
+                    groupType = MessageGroupType.MULTI_SELECT
+                )
+            )
+        }
+
+        return Result.success(null)
+    }
+
+    private fun planForMessage(message: UIMessage): GenerationPlan? {
+        val settings = settings.value
+        message.groupId?.let { groupId ->
+            val groupedMessages = conversation.value.messageNodes
+                .flatMap { it.messages }
+                .filter { it.groupId == groupId && it.modelId != null }
+            val models = groupedMessages.mapNotNull { msg ->
+                msg.modelId?.let { settings.findModelById(it) }
+            }
+            if (models.isNotEmpty()) {
+                return GenerationPlan(
+                    models = models,
+                    groupId = Uuid.random(),
+                    groupType = message.groupType,
+                    anonymous = message.anonymous
+                )
+            }
+        }
+        return buildGenerationPlan().getOrNull()
     }
 
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {
@@ -471,7 +581,38 @@ class ChatVM(
         regenerateAssistantMsg: Boolean = true
     ) {
         analytics.logEvent("ai_regenerate_at_message", null)
-        chatService.regenerateAtMessage(_conversationId, message, regenerateAssistantMsg)
+        chatService.regenerateAtMessage(
+            _conversationId,
+            message,
+            regenerateAssistantMsg,
+            plan = planForMessage(message)
+        )
+    }
+
+    fun voteForAnonymous(message: UIMessage) {
+        val groupId = message.groupId ?: return
+        val modelId = message.modelId ?: return
+        viewModelScope.launch {
+            val currentConversation = conversation.value
+            val updatedConversation = currentConversation.copy(
+                messageNodes = currentConversation.messageNodes.map { node ->
+                    val updatedMessages = node.messages.map { msg ->
+                        if (msg.groupId == groupId) {
+                            msg.copy(anonymousRevealed = true)
+                        } else msg
+                    }
+                    node.copy(messages = updatedMessages)
+                }
+            )
+            chatService.saveConversation(_conversationId, updatedConversation)
+            settingsStore.update { settings ->
+                val currentScore = settings.modelScores[modelId] ?: 0
+                settings.copy(
+                    modelScores = settings.modelScores + (modelId to (currentScore + 1))
+                )
+            }
+            disableAnonymousMode()
+        }
     }
 
     fun saveConversationAsync() {

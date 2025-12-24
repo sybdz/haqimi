@@ -101,6 +101,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
+    val multiModeState by vm.multiModeState.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -178,6 +179,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                     chatListState = chatListState,
                     enableWebSearch = enableWebSearch,
                     currentChatModel = currentChatModel,
+                    multiModeState = multiModeState,
                     bigScreen = true
                 )
             }
@@ -206,6 +208,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                     chatListState = chatListState,
                     enableWebSearch = enableWebSearch,
                     currentChatModel = currentChatModel,
+                    multiModeState = multiModeState,
                     bigScreen = false
                 )
             }
@@ -229,6 +232,7 @@ private fun ChatPageContent(
     chatListState: LazyListState,
     enableWebSearch: Boolean,
     currentChatModel: Model?,
+    multiModeState: MultiModeState,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -268,6 +272,16 @@ private fun ChatPageContent(
                     settings = setting,
                     conversation = conversation,
                     mcpManager = vm.mcpManager,
+                    multiModeState = multiModeState,
+                    onToggleMultiSelect = {
+                        vm.setMultiSelectEnabled(it)
+                    },
+                    onUpdateMultiSelection = {
+                        vm.updateMultiSelection(it)
+                    },
+                    onToggleAnonymousMode = {
+                        vm.toggleAnonymousMode()
+                    },
                     onCancelClick = {
                         loadingJob?.cancel()
                     },
@@ -276,20 +290,29 @@ private fun ChatPageContent(
                         vm.updateSettings(setting.copy(enableWebSearch = !enableWebSearch))
                     },
                     onSendClick = {
-                        if (currentChatModel == null) {
-                            toaster.show("请先选择模型", type = ToastType.Error)
-                            return@ChatInput
-                        }
                         if (inputState.isEditing()) {
                             vm.handleMessageEdit(
                                 parts = inputState.getContents(),
                                 messageId = inputState.editingMessage!!,
                             )
-                        } else {
-                            vm.handleMessageSend(inputState.getContents())
-                            scope.launch {
-                                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                            }
+                            inputState.clearInput()
+                            return@ChatInput
+                        }
+                        val planResult = vm.buildGenerationPlan()
+                        val plan = planResult.getOrElse {
+                            toaster.show(it.message ?: "请选择模型", type = ToastType.Error)
+                            return@ChatInput
+                        }
+                        if (plan == null && currentChatModel == null) {
+                            toaster.show("请先选择模型", type = ToastType.Error)
+                            return@ChatInput
+                        }
+                        vm.handleMessageSend(
+                            inputState.getContents(),
+                            plan = plan
+                        )
+                        scope.launch {
+                            chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                         }
                         inputState.clearInput()
                     },
@@ -389,6 +412,9 @@ private fun ChatPageContent(
                         chatListState.animateScrollToItem(index)
                     }
                 },
+                onAnonymousVote = {
+                    vm.voteForAnonymous(it)
+                }
             )
         }
     }

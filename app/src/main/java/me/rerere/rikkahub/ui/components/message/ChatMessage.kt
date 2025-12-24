@@ -128,6 +128,9 @@ fun ChatMessage(
     loading: Boolean = false,
     model: Model? = null,
     assistant: Assistant? = null,
+    showRegenerate: Boolean = true,
+    showMoreActions: Boolean = true,
+    showBranchSelector: Boolean = true,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
     onEdit: () -> Unit,
@@ -263,7 +266,10 @@ fun ChatMessage(
                         showActionsSheet = true
                     },
                     onTranslate = onTranslate,
-                    onClearTranslation = onClearTranslation
+                    onClearTranslation = onClearTranslation,
+                    showRegenerate = showRegenerate,
+                    showMoreActions = showMoreActions,
+                    showBranchSelector = showBranchSelector
                 )
             }
         }

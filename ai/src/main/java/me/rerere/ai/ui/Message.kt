@@ -27,7 +27,11 @@ data class UIMessage(
     val finishedAt: LocalDateTime? = null,
     val modelId: Uuid? = null,
     val usage: TokenUsage? = null,
-    val translation: String? = null
+    val translation: String? = null,
+    val groupId: Uuid? = null,
+    val groupType: MessageGroupType? = null,
+    val anonymous: Boolean = false,
+    val anonymousRevealed: Boolean = false,
 ) {
     private fun appendChunk(chunk: MessageChunk): UIMessage {
         val choice = chunk.choices.getOrNull(0)

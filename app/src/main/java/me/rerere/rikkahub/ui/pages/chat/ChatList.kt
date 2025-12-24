@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalScrollCaptureInProgress
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -83,18 +84,28 @@ import com.composables.icons.lucide.X
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.MessageGroupType
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.message.ChatMessage
+import me.rerere.rikkahub.ui.components.message.ChatMessageActionsSheet
+import me.rerere.rikkahub.ui.components.message.ChatMessageCopySheet
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import me.rerere.rikkahub.ui.components.ui.Tooltip
+import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.utils.plus
+import me.rerere.rikkahub.utils.base64Encode
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatList"
@@ -118,6 +129,7 @@ fun ChatList(
     onTranslate: ((UIMessage, java.util.Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
     onJumpToMessage: (Int) -> Unit = {},
+    onAnonymousVote: (UIMessage) -> Unit = {},
 ) {
     AnimatedContent(
         targetState = previewMode,
@@ -150,6 +162,7 @@ fun ChatList(
                 onTranslate = onTranslate,
                 onClearTranslation = onClearTranslation,
                 animatedVisibilityScope = this@AnimatedContent,
+                onAnonymousVote = onAnonymousVote,
             )
         }
     }
@@ -171,6 +184,7 @@ private fun ChatListNormal(
     onTranslate: ((UIMessage, java.util.Locale) -> Unit)?,
     onClearTranslation: (UIMessage) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
+    onAnonymousVote: (UIMessage) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val loadingState by rememberUpdatedState(loading)
@@ -261,6 +275,11 @@ private fun ChatListNormal(
                 key = { index, item -> item.id },
             ) { index, node ->
                 Column {
+                    val currentMessage = node.currentMessage
+                    val groupId = currentMessage.groupId
+                    val groupedMessages = if (groupId != null && currentMessage.groupType != null && node.role == MessageRole.ASSISTANT) {
+                        node.messages.filter { it.groupId == groupId }
+                    } else emptyList()
                     ListSelectableItem(
                         key = node.id,
                         onSelectChange = {
@@ -273,36 +292,61 @@ private fun ChatListNormal(
                         selectedKeys = selectedItems,
                         enabled = selecting,
                     ) {
-                        ChatMessage(
-                            node = node,
-                            conversation = conversation,
-                            model = node.currentMessage.modelId?.let { settings.findModelById(it) },
-                            assistant = settings.getAssistantById(conversation.assistantId),
-                            loading = loading && index == conversation.messageNodes.lastIndex,
-                            onRegenerate = {
-                                onRegenerate(node.currentMessage)
-                            },
-                            onEdit = {
-                                onEdit(node.currentMessage)
-                            },
-                            onFork = {
-                                onForkMessage(node.currentMessage)
-                            },
-                            onDelete = {
-                                onDelete(node.currentMessage)
-                            },
-                            onShare = {
-                                selecting = true  // 使用 CoroutineScope 延迟状态更新
-                                selectedItems.clear()
-                                selectedItems.addAll(conversation.messageNodes.map { it.id }
-                                    .subList(0, conversation.messageNodes.indexOf(node) + 1))
-                            },
-                            onUpdate = {
-                                onUpdateMessage(it)
-                            },
-                            onTranslate = onTranslate,
-                            onClearTranslation = onClearTranslation
-                        )
+                        if (groupedMessages.isNotEmpty()) {
+                            MultiMessageRow(
+                                node = node,
+                                messages = groupedMessages,
+                                conversation = conversation,
+                                settings = settings,
+                                isLast = index == conversation.messageNodes.lastIndex,
+                                loading = loading,
+                                onRegenerateGroup = { onRegenerate(it) },
+                                onEdit = onEdit,
+                                onFork = onForkMessage,
+                                onDelete = onDelete,
+                                onShare = {
+                                    selecting = true
+                                    selectedItems.clear()
+                                    selectedItems.addAll(conversation.messageNodes.map { it.id }
+                                        .subList(0, conversation.messageNodes.indexOf(node) + 1))
+                                },
+                                onUpdateMessage = onUpdateMessage,
+                                onTranslate = onTranslate,
+                                onClearTranslation = onClearTranslation,
+                                onAnonymousVote = onAnonymousVote
+                            )
+                        } else {
+                            ChatMessage(
+                                node = node,
+                                conversation = conversation,
+                                model = node.currentMessage.modelId?.let { settings.findModelById(it) },
+                                assistant = settings.getAssistantById(conversation.assistantId),
+                                loading = loading && index == conversation.messageNodes.lastIndex,
+                                onRegenerate = {
+                                    onRegenerate(node.currentMessage)
+                                },
+                                onEdit = {
+                                    onEdit(node.currentMessage)
+                                },
+                                onFork = {
+                                    onForkMessage(node.currentMessage)
+                                },
+                                onDelete = {
+                                    onDelete(node.currentMessage)
+                                },
+                                onShare = {
+                                    selecting = true  // 使用 CoroutineScope 延迟状态更新
+                                    selectedItems.clear()
+                                    selectedItems.addAll(conversation.messageNodes.map { it.id }
+                                        .subList(0, conversation.messageNodes.indexOf(node) + 1))
+                                },
+                                onUpdate = {
+                                    onUpdateMessage(it)
+                                },
+                                onTranslate = onTranslate,
+                                onClearTranslation = onClearTranslation
+                            )
+                        }
                     }
                     if (index == conversation.truncateIndex - 1) {
                         Row(
@@ -627,6 +671,197 @@ private fun ChatListPreview(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MultiMessageRow(
+    node: MessageNode,
+    messages: List<UIMessage>,
+    conversation: Conversation,
+    settings: Settings,
+    isLast: Boolean,
+    loading: Boolean,
+    onRegenerateGroup: (UIMessage) -> Unit,
+    onEdit: (UIMessage) -> Unit,
+    onFork: (UIMessage) -> Unit,
+    onDelete: (UIMessage) -> Unit,
+    onShare: () -> Unit,
+    onUpdateMessage: (MessageNode) -> Unit,
+    onTranslate: ((UIMessage, java.util.Locale) -> Unit)?,
+    onClearTranslation: (UIMessage) -> Unit,
+    onAnonymousVote: (UIMessage) -> Unit,
+) {
+    if (messages.isEmpty()) return
+    val assistant = settings.getAssistantById(conversation.assistantId)
+    val navController = LocalNavController.current
+    val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
+    var activeIndex by remember(node.id, messages.size, node.selectIndex) {
+        mutableStateOf(messages.indexOf(node.currentMessage).coerceAtLeast(0).coerceAtMost(messages.lastIndex))
+    }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = activeIndex)
+    var showActionsSheet by remember { mutableStateOf(false) }
+    var showSelectCopySheet by remember { mutableStateOf(false) }
+
+    val activeMessage = messages.getOrElse(activeIndex) { messages.first() }
+    val activeModel = if (activeMessage.anonymous && !activeMessage.anonymousRevealed) {
+        null
+    } else {
+        activeMessage.modelId?.let { settings.findModelById(it) }
+    }
+
+    LaunchedEffect(activeMessage, node) {
+        val globalIndex = node.messages.indexOf(activeMessage)
+        if (globalIndex >= 0 && node.selectIndex != globalIndex) {
+            onUpdateMessage(node.copy(selectIndex = globalIndex))
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        LazyRow(
+            state = listState,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            itemsIndexed(messages, key = { _, msg -> msg.id }) { index, message ->
+                val displayModel = if (message.anonymous && !message.anonymousRevealed) {
+                    null
+                } else {
+                    message.modelId?.let { settings.findModelById(it) }
+                }
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .widthIn(max = 560.dp)
+                        .clickable {
+                            activeIndex = index
+                        },
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(12.dp)
+                    ) {
+                        if (message.groupType == MessageGroupType.ANONYMOUS && !message.anonymousRevealed) {
+                            IconButton(
+                                onClick = { onAnonymousVote(message) },
+                                modifier = Modifier.align(Alignment.TopEnd)
+                            ) {
+                                Icon(
+                                    imageVector = Lucide.ThumbsUp,
+                                    contentDescription = stringResource(R.string.chat_anonymous_vote)
+                                )
+                            }
+                        }
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (message.anonymous && !message.anonymousRevealed) {
+                                Text(
+                                    text = stringResource(R.string.chat_anonymous_model_placeholder),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            } else if (displayModel != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    AutoAIIcon(
+                                        name = displayModel.modelId,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Text(
+                                        text = displayModel.displayName,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            ChatMessage(
+                                node = node.copy(selectIndex = node.messages.indexOf(message)),
+                                conversation = conversation,
+                                model = displayModel,
+                                assistant = assistant,
+                                loading = loading && isLast,
+                                showRegenerate = false,
+                                showMoreActions = false,
+                                showBranchSelector = false,
+                                onFork = { onFork(message) },
+                                onRegenerate = { },
+                                onEdit = { onEdit(message) },
+                                onShare = onShare,
+                                onDelete = { onDelete(message) },
+                                onUpdate = onUpdateMessage,
+                                onTranslate = onTranslate,
+                                onClearTranslation = onClearTranslation
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ) {
+            FilledIconButton(
+                onClick = { onRegenerateGroup(activeMessage) }
+            ) {
+                Icon(Lucide.RefreshCw, stringResource(R.string.regenerate))
+            }
+            IconButton(
+                onClick = {
+                    showActionsSheet = true
+                }
+            ) {
+                Icon(Lucide.Ellipsis, stringResource(R.string.more_options))
+            }
+        }
+    }
+
+    if (showActionsSheet) {
+        ChatMessageActionsSheet(
+            message = activeMessage,
+            onEdit = { onEdit(activeMessage) },
+            onDelete = { onDelete(activeMessage) },
+            onShare = onShare,
+            onFork = { onFork(activeMessage) },
+            model = activeModel,
+            onSelectAndCopy = {
+                showSelectCopySheet = true
+            },
+            onWebViewPreview = {
+                val textContent = activeMessage.parts
+                    .filterIsInstance<UIMessagePart.Text>()
+                    .joinToString("\n\n") { it.text }
+                    .trim()
+                if (textContent.isNotBlank()) {
+                    val htmlContent = buildMarkdownPreviewHtml(
+                        context = context,
+                        markdown = textContent,
+                        colorScheme = colorScheme
+                    )
+                    navController.navigate(Screen.WebView(content = htmlContent.base64Encode()))
+                }
+            },
+            onDismissRequest = {
+                showActionsSheet = false
+            }
+        )
+    }
+
+    if (showSelectCopySheet) {
+        ChatMessageCopySheet(
+            message = activeMessage,
+            onDismissRequest = {
+                showSelectCopySheet = false
+            }
+        )
     }
 }
 
