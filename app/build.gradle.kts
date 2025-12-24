@@ -19,10 +19,10 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "me.rerere.rikkahub"
+        applicationId = "me.rerere.rikkahub.ywxk"
         minSdk = 26
         targetSdk = 36
-        versionCode = 120
+        versionCode = 119
         versionName = "1.7.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -112,9 +112,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-    sourceSets {
-        getByName("androidTest").assets.srcDirs("$projectDir/schemas")
     }
     androidResources {
         generateLocaleConfig = true
@@ -299,7 +296,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
-    androidTestImplementation(libs.androidx.room.testing)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
