@@ -35,6 +35,10 @@ android {
             "python" {
                 "pip" {
                     "install"("pillow")
+                    "install"("numpy")
+                    "install"("matplotlib")
+                    "install"("pandas")
+                    "install"("seaborn")
                 }
             }
         }
