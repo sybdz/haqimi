@@ -260,7 +260,7 @@ class ChatService(
     }
 
     // 发送消息
-    fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean=true) {
+    fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean = true) {
         // 取消现有的生成任务
         getGenerationJob(conversationId)?.cancel()
 
@@ -278,7 +278,7 @@ class ChatService(
                 saveConversation(conversationId, newConversation)
 
                 // 开始补全
-                if(answer){
+                if (answer) {
                     handleMessageComplete(conversationId)
                 }
 
@@ -778,14 +778,10 @@ class ChatService(
         val updatedConversation = conversation.copy()
         updateConversation(conversationId, updatedConversation)
 
-        try {
-            if (conversationRepo.getConversationById(conversation.id) == null) {
-                conversationRepo.insertConversation(updatedConversation)
-            } else {
-                conversationRepo.updateConversation(updatedConversation)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        if (conversationRepo.getConversationById(conversation.id) == null) {
+            conversationRepo.insertConversation(updatedConversation)
+        } else {
+            conversationRepo.updateConversation(updatedConversation)
         }
     }
 
