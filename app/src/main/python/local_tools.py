@@ -135,7 +135,14 @@ def run_python_tool(code: str) -> str:
     - image / images: Pillow image, matplotlib/plotly figure, numpy array, raw base64 string, or bytes.
     Pre-installed libraries: pillow, numpy, matplotlib, pandas, seaborn.
     """
-    locals_dict: Dict[str, Any] = {}
+    # Use a shared namespace for globals/locals so that `import` and definitions
+    # work like a normal Python module environment (e.g. functions can access
+    # imported names).
+    namespace: Dict[str, Any] = {
+        "__builtins__": __builtins__,
+        "__name__": "__main__",
+        "__package__": None,
+    }
     stdout_buffer = io.StringIO()
     try:
         normalized_code = _normalize_code(code)
@@ -144,26 +151,26 @@ def run_python_tool(code: str) -> str:
 
         with contextlib.redirect_stdout(stdout_buffer):
             try:
-                exec(normalized_code, {}, locals_dict)
+                exec(normalized_code, namespace, namespace)
             except SyntaxError as syntax_error:
                 stripped = normalized_code.lstrip()
                 if stripped.startswith("return "):
-                    exec("result = " + stripped[len("return ") :], {}, locals_dict)
+                    exec("result = " + stripped[len("return ") :], namespace, namespace)
                 else:
                     raise syntax_error
 
         images = []
-        single_image = _encode_image(locals_dict.get("image"))
+        single_image = _encode_image(namespace.get("image"))
         if single_image:
             images.append(single_image)
 
-        images_var = locals_dict.get("images")
+        images_var = namespace.get("images")
         if isinstance(images_var, (list, tuple)):
             images.extend(_encode_images(images_var))
 
         payload = {
             "ok": True,
-            "result": locals_dict.get("result"),
+            "result": namespace.get("result"),
             "stdout": stdout_buffer.getvalue(),
             "images": images,
         }
