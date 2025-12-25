@@ -41,7 +41,7 @@ internal fun looksLikeSvgMarkup(source: String): Boolean {
     val value = stripXmlPreamble(source)
     if (!value.startsWith('<')) return false
     if (value.length < 4) return false
-    if (!value.regionMatches(startIndex = 1, other = "svg", otherStartIndex = 0, length = 3, ignoreCase = true)) {
+    if (!value.regionMatches(1, "svg", 0, 3, true)) {
         return false
     }
     if (value.length == 4) return true
