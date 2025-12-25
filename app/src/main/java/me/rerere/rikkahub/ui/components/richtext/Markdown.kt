@@ -543,6 +543,30 @@ private fun MarkdownNode(
                 node.findChildOfTypeRecursive(MarkdownTokenTypes.FENCE_LANG)?.getTextInNode(content) ?: "plaintext"
             val hasEnd = node.findChildOfTypeRecursive(MarkdownTokenTypes.CODE_FENCE_END) != null
 
+            val normalizedLanguage = language.trim().lowercase()
+            if (hasEnd) {
+                if (displaySettings.enableHtmlRendering && normalizedLanguage in setOf("html", "htm")) {
+                    SimpleHtmlBlock(
+                        html = code,
+                        enableSvg = displaySettings.enableSvgRendering,
+                        modifier = Modifier
+                            .padding(bottom = 4.dp)
+                            .fillMaxWidth(),
+                    )
+                    return
+                }
+                if (displaySettings.enableSvgRendering && normalizedLanguage == "svg") {
+                    SimpleHtmlBlock(
+                        html = code,
+                        enableSvg = true,
+                        modifier = Modifier
+                            .padding(bottom = 4.dp)
+                            .fillMaxWidth(),
+                    )
+                    return
+                }
+            }
+
             HighlightCodeBlock(
                 code = code,
                 language = language,
