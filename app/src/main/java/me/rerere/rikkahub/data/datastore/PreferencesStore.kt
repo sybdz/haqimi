@@ -381,6 +381,8 @@ data class DisplaySetting(
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = false,
     val showLineNumbers: Boolean = false,
+    val enableHtmlRendering: Boolean = true,
+    val enableSvgRendering: Boolean = true,
 )
 
 @Serializable

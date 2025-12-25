@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import me.rerere.rikkahub.ui.components.table.DataTable
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.toDp
 import org.intellij.markdown.IElementType
@@ -274,6 +275,7 @@ private fun MarkdownNode(
     onClickCitation: (String) -> Unit = {},
     listLevel: Int = 0
 ) {
+    val displaySettings = LocalSettings.current.displaySetting
     when (node.type) {
         // 文件根节点
         MarkdownElementTypes.MARKDOWN_FILE -> {
@@ -457,15 +459,33 @@ private fun MarkdownNode(
             Column(
                 modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 这里可以使用Coil等图片加载库加载图片
-                ZoomableAsyncImage(
-                    model = imageUrl,
-                    contentDescription = altText,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .widthIn(min = 120.dp)
-                        .heightIn(min = 120.dp),
-                )
+                if (!displaySettings.enableSvgRendering && isSvgSource(imageUrl)) {
+                    val label = altText.takeIf { it.isNotBlank() } ?: imageUrl
+                    val linkColor = MaterialTheme.colorScheme.primary
+                    Text(
+                        text = buildAnnotatedString {
+                            withLink(LinkAnnotation.Url(imageUrl)) {
+                                withStyle(
+                                    SpanStyle(
+                                        color = linkColor,
+                                        textDecoration = TextDecoration.Underline
+                                    )
+                                ) {
+                                    append(label)
+                                }
+                            }
+                        },
+                    )
+                } else {
+                    ZoomableAsyncImage(
+                        model = imageUrl,
+                        contentDescription = altText,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .widthIn(min = 120.dp)
+                            .heightIn(min = 120.dp),
+                    )
+                }
             }
         }
 
@@ -543,9 +563,19 @@ private fun MarkdownNode(
 
         MarkdownElementTypes.HTML_BLOCK -> {
             val text = node.getTextInNode(content)
-            SimpleHtmlBlock(
-                html = text, modifier = modifier
-            )
+            if (displaySettings.enableHtmlRendering) {
+                SimpleHtmlBlock(
+                    html = text,
+                    enableSvg = displaySettings.enableSvgRendering,
+                    modifier = modifier
+                )
+            } else {
+                HighlightCodeBlock(
+                    code = text.trim(),
+                    language = "html",
+                    modifier = modifier.fillMaxWidth(),
+                )
+            }
         }
 
         // 其他类型的节点，递归处理子节点

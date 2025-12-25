@@ -24,7 +24,7 @@ import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 @Composable
 fun ZoomableAsyncImage(
-    model: String?,
+    model: Any?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
     alignment: Alignment = Alignment.Center,
@@ -47,9 +47,13 @@ fun ZoomableAsyncImage(
         contentDescription = contentDescription,
         modifier = modifier
             .shimmer(isLoading = loading)
-            .clickable {
-                showImageViewer = true
-            },
+            .then(
+                if (model is String) {
+                    Modifier.clickable { showImageViewer = true }
+                } else {
+                    Modifier
+                }
+            ),
         contentScale = contentScale,
         alpha = alpha,
         alignment = alignment,
@@ -63,8 +67,8 @@ fun ZoomableAsyncImage(
             loading = false
         },
     )
-    if (showImageViewer) {
-        ImagePreviewDialog(images = listOf(model ?: "")) {
+    if (showImageViewer && model is String) {
+        ImagePreviewDialog(images = listOf(model)) {
             showImageViewer = false
         }
     }

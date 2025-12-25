@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -24,15 +25,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import me.rerere.rikkahub.ui.components.table.DataTable
@@ -44,6 +48,7 @@ import org.jsoup.nodes.TextNode
 @Composable
 fun SimpleHtmlBlock(
     html: String,
+    enableSvg: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val document = remember(html) {
@@ -52,19 +57,11 @@ fun SimpleHtmlBlock(
         }
     }
 
-    val uriHandler = LocalUriHandler.current
-
     Column(modifier = modifier) {
         document.body().childNodes().forEach { node ->
             RenderNode(
                 node = node,
-                onLinkClick = { url ->
-                    try {
-                        uriHandler.openUri(url)
-                    } catch (e: Exception) {
-                        // Handle link click error silently
-                    }
-                }
+                enableSvg = enableSvg,
             )
         }
     }
@@ -73,7 +70,7 @@ fun SimpleHtmlBlock(
 @Composable
 private fun RenderNode(
     node: Node,
-    onLinkClick: (String) -> Unit
+    enableSvg: Boolean,
 ) {
     when (node) {
         is TextNode -> {
@@ -90,7 +87,7 @@ private fun RenderNode(
         is Element -> {
             when (node.tagName().lowercase()) {
                 "p" -> {
-                    val annotatedString = buildAnnotatedStringFromElement(node, onLinkClick)
+                    val annotatedString = buildAnnotatedStringFromElement(node)
                     if (annotatedString.text.isNotBlank()) {
                         // Parse inline styles for <p> element
                         val style = node.attr("style")
@@ -118,7 +115,7 @@ private fun RenderNode(
                         else -> MaterialTheme.typography.titleSmall
                     }
 
-                    val annotatedString = buildAnnotatedStringFromElement(node, onLinkClick)
+                    val annotatedString = buildAnnotatedStringFromElement(node)
                     if (annotatedString.text.isNotBlank()) {
                         // Parse inline styles for heading elements
                         val style = node.attr("style")
@@ -136,15 +133,15 @@ private fun RenderNode(
                 }
 
                 "ul", "ol" -> {
-                    RenderList(node, node.tagName() == "ol", onLinkClick)
+                    RenderList(node, node.tagName() == "ol")
                 }
 
                 "details" -> {
-                    RenderDetails(node, onLinkClick)
+                    RenderDetails(node, enableSvg)
                 }
 
                 "img" -> {
-                    RenderImage(node)
+                    RenderImage(node, enableSvg)
                 }
 
                 "progress" -> {
@@ -152,7 +149,7 @@ private fun RenderNode(
                 }
 
                 "table" -> {
-                    RenderTable(node, onLinkClick)
+                    RenderTable(node)
                 }
 
                 "br" -> {
@@ -162,14 +159,38 @@ private fun RenderNode(
                 "div" -> {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         node.childNodes().forEach { childNode ->
-                            RenderNode(childNode, onLinkClick)
+                            RenderNode(childNode, enableSvg)
                         }
                     }
                 }
 
+                "blockquote" -> {
+                    RenderBlockQuote(node, enableSvg)
+                }
+
+                "hr" -> {
+                    HorizontalDivider(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        color = LocalContentColor.current.copy(alpha = 0.2f),
+                        thickness = 0.5.dp,
+                    )
+                }
+
+                "pre" -> {
+                    RenderPreformatted(node)
+                }
+
+                "svg" -> {
+                    RenderSvg(node, enableSvg)
+                }
+
+                "script", "style" -> Unit
+
                 else -> {
                     // Render other elements as text
-                    val annotatedString = buildAnnotatedStringFromElement(node, onLinkClick)
+                    val annotatedString = buildAnnotatedStringFromElement(node)
                     if (annotatedString.text.isNotBlank()) {
                         // Parse inline styles for other elements
                         val style = node.attr("style")
@@ -193,7 +214,6 @@ private fun RenderNode(
 private fun RenderList(
     listElement: Element,
     isOrdered: Boolean,
-    onLinkClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)) {
         listElement.children().forEachIndexed { index, item ->
@@ -207,7 +227,7 @@ private fun RenderList(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    val annotatedString = buildAnnotatedStringFromElement(item, onLinkClick)
+                    val annotatedString = buildAnnotatedStringFromElement(item)
                     if (annotatedString.text.isNotBlank()) {
                         Text(
                             text = annotatedString,
@@ -226,7 +246,7 @@ private fun RenderList(
 @Composable
 private fun RenderDetails(
     detailsElement: Element,
-    onLinkClick: (String) -> Unit
+    enableSvg: Boolean,
 ) {
     val isOpenByDefault = detailsElement.hasAttr("open")
     var isExpanded by remember { mutableStateOf(isOpenByDefault) }
@@ -253,7 +273,7 @@ private fun RenderDetails(
             )
 
             val summaryAnnotatedString = if (summaryElement != null) {
-                buildAnnotatedStringFromElement(summaryElement, onLinkClick)
+                buildAnnotatedStringFromElement(summaryElement)
             } else {
                 AnnotatedString(summaryText)
             }
@@ -276,7 +296,7 @@ private fun RenderDetails(
             ) {
                 detailsElement.children().forEach { child ->
                     if (child.tagName().lowercase() != "summary") {
-                        RenderNode(child, onLinkClick)
+                        RenderNode(child, enableSvg)
                     }
                 }
             }
@@ -286,7 +306,8 @@ private fun RenderDetails(
 
 @Composable
 private fun RenderImage(
-    imgElement: Element
+    imgElement: Element,
+    enableSvg: Boolean,
 ) {
     val src = imgElement.attr("src")
     val alt = imgElement.attr("alt")
@@ -297,32 +318,134 @@ private fun RenderImage(
                 .padding(vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
-            ZoomableAsyncImage(
-                model = src,
-                contentDescription = alt.takeIf { it.isNotEmpty() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 400.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Fit,
-            )
+            if (!enableSvg && isSvgSource(src)) {
+                val linkColor = MaterialTheme.colorScheme.primary
+                Text(
+                    text = buildAnnotatedString {
+                        withLink(LinkAnnotation.Url(src)) {
+                            withStyle(
+                                SpanStyle(
+                                    color = linkColor,
+                                    textDecoration = TextDecoration.Underline
+                                )
+                            ) {
+                                append(alt.takeIf { it.isNotBlank() } ?: src)
+                            }
+                        }
+                    }
+                )
+            } else {
+                ZoomableAsyncImage(
+                    model = src,
+                    contentDescription = alt.takeIf { it.isNotEmpty() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Fit,
+                )
+            }
         }
     }
 }
 
+@Composable
+private fun RenderBlockQuote(
+    blockquoteElement: Element,
+    enableSvg: Boolean,
+) {
+    val barColor = LocalContentColor.current.copy(alpha = 0.2f)
+    Column(
+        modifier = Modifier
+            .drawWithContent {
+                drawContent()
+                drawRoundRect(
+                    color = barColor,
+                    size = Size(width = 10f, height = size.height),
+                )
+            }
+            .padding(start = 16.dp, bottom = 8.dp)
+    ) {
+        blockquoteElement.childNodes().forEach { childNode ->
+            RenderNode(childNode, enableSvg)
+        }
+    }
+}
+
+@Composable
+private fun RenderPreformatted(
+    preElement: Element,
+) {
+    val codeElement = preElement.selectFirst("code")
+    val language = codeElement
+        ?.classNames()
+        ?.firstOrNull { it.startsWith("language-") }
+        ?.removePrefix("language-")
+        ?: codeElement
+            ?.classNames()
+            ?.firstOrNull { it.startsWith("lang-") }
+            ?.removePrefix("lang-")
+        ?: "plaintext"
+
+    val code = (codeElement ?: preElement)
+        .wholeText()
+        .trimEnd()
+
+    if (code.isNotBlank()) {
+        HighlightCodeBlock(
+            code = code,
+            language = language,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            completeCodeBlock = true,
+        )
+    }
+}
+
+@Composable
+private fun RenderSvg(
+    svgElement: Element,
+    enableSvg: Boolean,
+) {
+    val svg = svgElement.outerHtml().trim()
+    if (svg.isBlank()) return
+
+    if (!enableSvg) {
+        HighlightCodeBlock(
+            code = svg,
+            language = "xml",
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            completeCodeBlock = true,
+        )
+        return
+    }
+
+    val bytes = remember(svg) { svg.toByteArray(Charsets.UTF_8) }
+    ZoomableAsyncImage(
+        model = bytes,
+        contentDescription = svgElement.attr("aria-label").takeIf { it.isNotBlank() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 400.dp)
+            .clip(RoundedCornerShape(8.dp)),
+        contentScale = ContentScale.Fit,
+    )
+}
+
 private fun buildAnnotatedStringFromElement(
     element: Element,
-    onLinkClick: (String) -> Unit
 ): AnnotatedString {
     return buildAnnotatedString {
-        processElementNodes(element, this, onLinkClick)
+        processElementNodes(element, this)
     }
 }
 
 private fun processElementNodes(
     element: Element,
     builder: AnnotatedString.Builder,
-    onLinkClick: (String) -> Unit
 ) {
     element.childNodes().forEach { node ->
         when (node) {
@@ -334,7 +457,7 @@ private fun processElementNodes(
                 when (node.tagName().lowercase()) {
                     "b", "strong" -> {
                         val start = builder.length
-                        processElementNodes(node, builder, onLinkClick)
+                        processElementNodes(node, builder)
                         builder.addStyle(
                             SpanStyle(fontWeight = FontWeight.Bold),
                             start,
@@ -344,7 +467,7 @@ private fun processElementNodes(
 
                     "i", "em" -> {
                         val start = builder.length
-                        processElementNodes(node, builder, onLinkClick)
+                        processElementNodes(node, builder)
                         builder.addStyle(
                             SpanStyle(fontStyle = FontStyle.Italic),
                             start,
@@ -354,7 +477,7 @@ private fun processElementNodes(
 
                     "u" -> {
                         val start = builder.length
-                        processElementNodes(node, builder, onLinkClick)
+                        processElementNodes(node, builder)
                         builder.addStyle(
                             SpanStyle(textDecoration = TextDecoration.Underline),
                             start,
@@ -364,29 +487,28 @@ private fun processElementNodes(
 
                     "a" -> {
                         val href = node.attr("href")
-                        val start = builder.length
-                        processElementNodes(node, builder, onLinkClick)
                         if (href.isNotEmpty()) {
+                            val start = builder.length
+                            builder.withLink(LinkAnnotation.Url(href)) {
+                                processElementNodes(node, this)
+                            }
+                            val end = builder.length
                             builder.addStyle(
                                 SpanStyle(
                                     color = Color.Blue,
                                     textDecoration = TextDecoration.Underline
                                 ),
-                                start,
-                                builder.length
-                            )
-                            builder.addStringAnnotation(
-                                tag = "URL",
-                                annotation = href,
                                 start = start,
-                                end = builder.length
+                                end = end,
                             )
+                        } else {
+                            processElementNodes(node, builder)
                         }
                     }
 
                     "code" -> {
                         val start = builder.length
-                        processElementNodes(node, builder, onLinkClick)
+                        processElementNodes(node, builder)
                         builder.addStyle(
                             SpanStyle(
                                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
@@ -403,7 +525,7 @@ private fun processElementNodes(
 
                     "span" -> {
                         val start = builder.length
-                        processElementNodes(node, builder, onLinkClick)
+                        processElementNodes(node, builder)
 
                         // Handle inline styles
                         val style = node.attr("style")
@@ -421,7 +543,7 @@ private fun processElementNodes(
 
                     "font" -> {
                         val start = builder.length
-                        processElementNodes(node, builder, onLinkClick)
+                        processElementNodes(node, builder)
 
                         // Handle font color attribute
                         val color = node.attr("color")
@@ -438,7 +560,7 @@ private fun processElementNodes(
                     }
 
                     else -> {
-                        processElementNodes(node, builder, onLinkClick)
+                        processElementNodes(node, builder)
                     }
                 }
             }
@@ -633,7 +755,6 @@ private fun RenderProgress(
 @Composable
 private fun RenderTable(
     tableElement: Element,
-    onLinkClick: (String) -> Unit
 ) {
     val rows = mutableListOf<List<@Composable () -> Unit>>()
     var headers = emptyList<@Composable () -> Unit>()
@@ -644,7 +765,7 @@ private fun RenderTable(
 
         tr.select("th, td").forEach { cell ->
             cells.add {
-                val annotatedString = buildAnnotatedStringFromElement(cell, onLinkClick)
+                val annotatedString = buildAnnotatedStringFromElement(cell)
                 if (annotatedString.text.isNotBlank()) {
                     Text(
                         text = annotatedString,

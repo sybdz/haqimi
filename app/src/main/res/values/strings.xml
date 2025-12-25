@@ -712,4 +712,8 @@
   <string name="injection_selector_lorebooks_empty">No lorebooks available</string>
   <string name="setting_display_page_show_line_numbers_title">Show Line Numbers</string>
   <string name="setting_display_page_show_line_numbers_desc">Display line numbers in code blocks</string>
+  <string name="setting_display_page_enable_html_rendering_title">Render HTML Blocks</string>
+  <string name="setting_display_page_enable_html_rendering_desc">Render HTML blocks in chat messages</string>
+  <string name="setting_display_page_enable_svg_rendering_title">Render SVG</string>
+  <string name="setting_display_page_enable_svg_rendering_desc">Render SVG images and inline SVG</string>
 </resources>
