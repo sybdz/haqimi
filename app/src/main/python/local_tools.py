@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import re
+import sys
 import textwrap
 import traceback
 from typing import Any, Dict, Iterable, List, Optional
@@ -101,6 +102,29 @@ def _encode_images(images: Iterable[Any]) -> List[str]:
     return encoded
 
 
+def _capture_matplotlib_figures() -> List[str]:
+    """Capture all current matplotlib figures as base64 data URLs."""
+    try:
+        import matplotlib.pyplot as plt  # noqa: WPS433
+    except Exception:
+        return []
+
+    captured: List[str] = []
+    try:
+        for fig_num in plt.get_fignums():
+            fig = plt.figure(fig_num)
+            encoded = _encode_image(fig)
+            if encoded:
+                captured.append(encoded)
+    finally:
+        try:
+            plt.close("all")
+        except Exception:
+            pass
+
+    return captured
+
+
 def _safe_default(value: Any) -> str:
     """Fallback serializer to keep JSON encoding resilient."""
     return str(value)
@@ -133,6 +157,7 @@ def run_python_tool(code: str) -> str:
     Expected variables set by the code:
     - result: any serializable object returned to the model.
     - image / images: Pillow image, matplotlib/plotly figure, numpy array, raw base64 string, or bytes.
+    If no image/images are provided, current matplotlib figures (if any) will be captured automatically.
     Pre-installed libraries: pillow, numpy, matplotlib, pandas, seaborn.
     """
     # Use a shared namespace for globals/locals so that `import` and definitions
@@ -145,6 +170,14 @@ def run_python_tool(code: str) -> str:
     }
     stdout_buffer = io.StringIO()
     try:
+        try:
+            if "matplotlib.pyplot" in sys.modules:
+                import matplotlib.pyplot as plt  # noqa: WPS433
+
+                plt.close("all")
+        except Exception:
+            pass
+
         normalized_code = _normalize_code(code)
         if not normalized_code:
             raise ValueError("Python code is empty after normalization")
@@ -167,6 +200,17 @@ def run_python_tool(code: str) -> str:
         images_var = namespace.get("images")
         if isinstance(images_var, (list, tuple)):
             images.extend(_encode_images(images_var))
+
+        if not images:
+            images.extend(_capture_matplotlib_figures())
+
+        try:
+            if "matplotlib.pyplot" in sys.modules:
+                import matplotlib.pyplot as plt  # noqa: WPS433
+
+                plt.close("all")
+        except Exception:
+            pass
 
         payload = {
             "ok": True,
