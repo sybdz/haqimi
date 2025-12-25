@@ -68,13 +68,13 @@ class LocalTools(private val context: Context) {
     val pythonTool by lazy {
         Tool(
             name = "eval_python",
-            description = "Execute Python code locally via Chaquopy. Use `result` for output and `image`/`images` for images. The working directory is `OUTPUT_DIR`; image files saved there will be captured automatically. If `image`/`images` is not provided, matplotlib figures and saved image files will be captured automatically (max 4 images / 20MB).",
+            description = "Execute Python code locally via Chaquopy. Common imports are preloaded: np, plt, pd, sns, Image. The working directory is `OUTPUT_DIR`; image files saved there will be captured automatically. If `image`/`images` is not provided, matplotlib figures and saved image files will be captured automatically (max 4 images / 20MB). Matplotlib will try to auto-configure a CJK font for Chinese text when available.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
                         put("code", buildJsonObject {
                             put("type", "string")
-                            put("description", "The Python code to execute. Set `result` for output. For visual output, set `image`/`images`, or save image files to `OUTPUT_DIR` (current working directory).")
+                            put("description", "The Python code to execute. Common libs are already imported (np/plt/pd/sns/Image). Set `result` for output. For visual output, set `image`/`images`, or save image files to `OUTPUT_DIR` (current working directory).")
                         })
                     }
                 )

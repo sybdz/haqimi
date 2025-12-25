@@ -24,7 +24,114 @@ _EXT_TO_MIME = {
     ".bmp": "image/bmp",
 }
 
-_AUTO_CAPTURE_VAR_NAMES = ("img", "image", "fig", "figure", "plot")
+_AUTO_CAPTURE_VAR_NAMES = ("img", "image", "fig", "figure")
+
+
+def _configure_matplotlib_cjk_font() -> None:
+    try:
+        import matplotlib.pyplot as plt  # noqa: WPS433
+        from matplotlib import font_manager  # noqa: WPS433
+    except Exception:
+        return
+
+    font_candidates = [
+        "/system/fonts/NotoSansCJK-Regular.ttc",
+        "/system/fonts/NotoSansSC-Regular.otf",
+        "/system/fonts/NotoSansSC-Regular.ttf",
+        "/system/fonts/NotoSansCJKsc-Regular.otf",
+        "/system/fonts/NotoSansCJKsc-Regular.ttc",
+        "/system/fonts/DroidSansFallback.ttf",
+        "/system/fonts/DroidSansFallbackFull.ttf",
+    ]
+
+    try:
+        for file_name in os.listdir("/system/fonts"):
+            if "NotoSansCJK" in file_name or "DroidSansFallback" in file_name:
+                font_candidates.append(os.path.join("/system/fonts", file_name))
+    except Exception:
+        pass
+
+    for path in font_candidates:
+        if not os.path.exists(path):
+            continue
+        try:
+            font_manager.fontManager.addfont(path)
+        except Exception:
+            pass
+        try:
+            font_name = font_manager.FontProperties(fname=path).get_name()
+        except Exception:
+            continue
+
+        plt.rcParams["font.family"] = "sans-serif"
+        plt.rcParams["font.sans-serif"] = [font_name]
+        plt.rcParams["axes.unicode_minus"] = False
+        return
+
+    try:
+        plt.rcParams["axes.unicode_minus"] = False
+    except Exception:
+        pass
+
+
+def _inject_default_imports(namespace: Dict[str, Any]) -> None:
+    import datetime  # noqa: WPS433
+    import math  # noqa: WPS433
+    import random  # noqa: WPS433
+    import time  # noqa: WPS433
+
+    namespace.setdefault("os", os)
+    namespace.setdefault("sys", sys)
+    namespace.setdefault("json", json)
+    namespace.setdefault("re", re)
+    namespace.setdefault("math", math)
+    namespace.setdefault("random", random)
+    namespace.setdefault("time", time)
+    namespace.setdefault("datetime", datetime)
+
+    try:
+        import numpy as np  # noqa: WPS433
+
+        namespace.setdefault("np", np)
+    except Exception:
+        pass
+
+    try:
+        import pandas as pd  # noqa: WPS433
+
+        namespace.setdefault("pd", pd)
+    except Exception:
+        pass
+
+    try:
+        from PIL import Image  # noqa: WPS433
+
+        namespace.setdefault("Image", Image)
+    except Exception:
+        pass
+
+    try:
+        os.environ.setdefault("MPLBACKEND", "Agg")
+        import matplotlib  # noqa: WPS433
+
+        try:
+            matplotlib.use("Agg")
+        except Exception:
+            pass
+
+        import matplotlib.pyplot as plt  # noqa: WPS433
+
+        namespace.setdefault("plt", plt)
+        _configure_matplotlib_cjk_font()
+    except Exception:
+        pass
+
+    try:
+        import seaborn as sns  # noqa: WPS433
+
+        namespace.setdefault("sns", sns)
+    except Exception:
+        pass
 
 
 def _to_data_url(mime: str, data: bytes) -> Tuple[str, int]:
@@ -322,7 +429,9 @@ def run_python_tool(code: str) -> str:
     - result: any serializable object returned to the model.
     - image / images: Pillow image, matplotlib/plotly figure, numpy array, raw base64 string, or bytes.
     If no image/images are provided, current matplotlib figures (if any) will be captured automatically.
-    Images saved to files (png/jpg/webp/gif/bmp) in OUTPUT_DIR / current working directory will be captured automatically.
+    Images saved to files (png/jpg/webp/gif/bmp) in OUTPUT_DIR (current working directory) will be captured automatically.
+    Common imports are preloaded: np, plt, pd, sns, Image.
+    Matplotlib will try to auto-configure a CJK font for Chinese text when available.
     Pre-installed libraries: pillow, numpy, matplotlib, pandas, seaborn.
     """
     # Use a shared namespace for globals/locals so that `import` and definitions
@@ -359,6 +468,7 @@ def run_python_tool(code: str) -> str:
                 pass
 
             try:
+                _inject_default_imports(namespace)
                 with contextlib.redirect_stdout(stdout_buffer):
                     try:
                         exec(normalized_code, namespace, namespace)
