@@ -88,6 +88,11 @@ class SettingsStore(
         val ASSISTANTS = stringPreferencesKey("assistants")
         val ASSISTANT_TAGS = stringPreferencesKey("assistant_tags")
 
+        // 悬浮球
+        val FLOATING_BALL_ENABLED = booleanPreferencesKey("floating_ball_enabled")
+        val FLOATING_BALL_MODEL = stringPreferencesKey("floating_ball_model")
+        val FLOATING_BALL_ASSISTANT = stringPreferencesKey("floating_ball_assistant")
+
         // 搜索
         val SEARCH_SERVICES = stringPreferencesKey("search_services")
         val SEARCH_COMMON = stringPreferencesKey("search_common")
@@ -142,6 +147,9 @@ class SettingsStore(
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
                     ?: DEFAULT_ASSISTANT_ID,
+                floatingBallEnabled = preferences[FLOATING_BALL_ENABLED] == true,
+                floatingBallModelId = preferences[FLOATING_BALL_MODEL]?.let { Uuid.parse(it) },
+                floatingBallAssistantId = preferences[FLOATING_BALL_ASSISTANT]?.let { Uuid.parse(it) },
                 assistantTags = preferences[ASSISTANT_TAGS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -217,6 +225,8 @@ class SettingsStore(
             val validMcpServerIds = settings.mcpServers.map { it.id }.toSet()
             val validModeInjectionIds = settings.modeInjections.map { it.id }.toSet()
             val validLorebookIds = settings.lorebooks.map { it.id }.toSet()
+            val validModelIds = settings.providers.flatMap { it.models }.map { it.id }.toSet()
+            val validAssistantIds = settings.assistants.map { it.id }.toSet()
             settings.copy(
                 providers = settings.providers.distinctBy { it.id }.map { provider ->
                     when (provider) {
@@ -252,7 +262,9 @@ class SettingsStore(
                 ttsProviders = settings.ttsProviders.distinctBy { it.id },
                 favoriteModels = settings.favoriteModels.filter { uuid ->
                     settings.providers.flatMap { it.models }.any { it.id == uuid }
-                }
+                },
+                floatingBallModelId = settings.floatingBallModelId?.takeIf { it in validModelIds },
+                floatingBallAssistantId = settings.floatingBallAssistantId?.takeIf { it in validAssistantIds },
             )
         }
         .onEach {
@@ -294,6 +306,14 @@ class SettingsStore(
             preferences[ASSISTANTS] = JsonInstant.encodeToString(settings.assistants)
             preferences[SELECT_ASSISTANT] = settings.assistantId.toString()
             preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settings.assistantTags)
+
+            preferences[FLOATING_BALL_ENABLED] = settings.floatingBallEnabled
+            settings.floatingBallModelId?.let {
+                preferences[FLOATING_BALL_MODEL] = it.toString()
+            } ?: preferences.remove(FLOATING_BALL_MODEL)
+            settings.floatingBallAssistantId?.let {
+                preferences[FLOATING_BALL_ASSISTANT] = it.toString()
+            } ?: preferences.remove(FLOATING_BALL_ASSISTANT)
 
             preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settings.searchServices)
             preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settings.searchCommonOptions)
@@ -343,6 +363,9 @@ data class Settings(
     val ocrModelId: Uuid = Uuid.random(),
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
+    val floatingBallEnabled: Boolean = false,
+    val floatingBallModelId: Uuid? = null,
+    val floatingBallAssistantId: Uuid? = null,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
     val assistantTags: List<Tag> = emptyList(),

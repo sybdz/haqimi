@@ -5,6 +5,9 @@
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-permission android:name="android.permission.CAMERA" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
   <uses-feature
     android:name="android.hardware.camera"
@@ -65,6 +68,20 @@
     <activity
       android:name="com.yalantis.ucrop.UCropActivity"
       android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+
+    <activity
+      android:name=".ui.activity.FloatingChatActivity"
+      android:configChanges="keyboardHidden|orientation|screenSize"
+      android:excludeFromRecents="true"
+      android:exported="false"
+      android:launchMode="singleTask"
+      android:theme="@style/Theme.Rikkahub.FloatingChat"
+      android:windowSoftInputMode="adjustResize" />
+
+    <service
+      android:name=".service.floating.FloatingBallService"
+      android:exported="false"
+      android:foregroundServiceType="mediaProjection" />
 
     <provider
       android:name="androidx.core.content.FileProvider"

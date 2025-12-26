@@ -40,6 +40,7 @@ import androidx.navigation.NavHostController
 import com.composables.icons.lucide.BadgeInfo
 import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.Boxes
+import com.composables.icons.lucide.CircleDot
 import com.composables.icons.lucide.Database
 import com.composables.icons.lucide.Drama
 import com.composables.icons.lucide.Earth
@@ -162,6 +163,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     description = { Text(stringResource(R.string.setting_page_display_setting_desc)) },
                     icon = { Icon(Lucide.Monitor, "Display Setting") },
                     link = Screen.SettingDisplay
+                )
+            }
+
+            item {
+                SettingItem(
+                    navController = navController,
+                    title = { Text("悬浮小球") },
+                    description = { Text("点小球自动截图并提问") },
+                    icon = { Icon(Lucide.CircleDot, "Floating Ball") },
+                    link = Screen.SettingFloatingBall
                 )
             }
 
