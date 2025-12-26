@@ -679,7 +679,7 @@ class ChatService(
                             }
                         }.onFailure {
                             it.printStackTrace()
-                            _errorFlow.emit(it)
+                            addError(it)
                             Logging.log(TAG, "handleGroupedMessageComplete: $it")
                             Logging.log(TAG, it.stackTraceToString())
                         }
@@ -688,7 +688,7 @@ class ChatService(
             }
         }.onFailure {
             it.printStackTrace()
-            _errorFlow.emit(it)
+            addError(it)
             Logging.log(TAG, "handleGroupedMessageComplete: $it")
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
