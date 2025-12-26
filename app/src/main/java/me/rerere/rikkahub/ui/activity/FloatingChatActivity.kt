@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.activity
 
 import android.os.Bundle
+import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -16,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,8 +37,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -284,7 +285,8 @@ private fun FloatingChatDialog(
                         modifier = Modifier
                             .weight(1f)
                             .onKeyEvent { event ->
-                                if (event.type == KeyEventType.KeyDown && event.key == Key.Enter) {
+                                val native = event.nativeKeyEvent
+                                if (native.action == AndroidKeyEvent.ACTION_DOWN && native.keyCode == AndroidKeyEvent.KEYCODE_ENTER) {
                                     send()
                                     true
                                 } else {
@@ -294,10 +296,8 @@ private fun FloatingChatDialog(
                         placeholder = { Text("输入问题，回车发送") },
                         singleLine = true,
                         enabled = !generating,
-                        keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                            onSend = { send() }
-                        )
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { send() }),
                     )
 
                     IconButton(

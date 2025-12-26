@@ -307,7 +307,7 @@ class FloatingBallService : Service() {
             bitmap.recycle()
             file
         } finally {
-            runCatching { virtualDisplay.release() }
+            runCatching { virtualDisplay?.release() }
             runCatching { imageReader.close() }
         }
     }
