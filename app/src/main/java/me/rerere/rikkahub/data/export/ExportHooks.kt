@@ -32,11 +32,14 @@ class ExporterState<T>(
     val value: String
         get() = serializer.exportToJson(data)
 
-    fun exportToFile(fileName: String = "${serializer.type}.json") {
+    val fileName: String
+        get() = serializer.getExportFileName(data)
+
+    fun exportToFile(fileName: String = this.fileName) {
         createDocumentLauncher.launch(fileName)
     }
 
-    fun exportAndShare(fileName: String = "${serializer.type}.json") {
+    fun exportAndShare(fileName: String = this.fileName) {
         scope.launch {
             val file = withContext(Dispatchers.IO) {
                 val cacheDir = File(context.cacheDir, "export")
@@ -105,10 +108,6 @@ class ImporterState<T>(
     private val openDocumentLauncher: ManagedActivityResultLauncher<Array<String>, Uri?>,
     private val onResult: (Result<T>) -> Unit,
 ) {
-    fun importJson(json: String): Result<T> {
-        return serializer.importFromJson(json)
-    }
-
     fun importFromFile() {
         openDocumentLauncher.launch(arrayOf("application/json"))
     }
@@ -116,13 +115,7 @@ class ImporterState<T>(
     internal fun handleUri(uri: Uri) {
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val json = context.contentResolver.openInputStream(uri)
-                        ?.bufferedReader()
-                        ?.use { it.readText() }
-                        ?: error("Failed to read file")
-                    serializer.importFromJson(json).getOrThrow()
-                }
+                serializer.import(context, uri)
             }
             onResult(result)
         }

@@ -263,6 +263,8 @@ class SettingsStore(
                 favoriteModels = settings.favoriteModels.filter { uuid ->
                     settings.providers.flatMap { it.models }.any { it.id == uuid }
                 },
+                modeInjections = settings.modeInjections.distinctBy { it.id },
+                lorebooks = settings.lorebooks.distinctBy { it.id },
                 floatingBallModelId = settings.floatingBallModelId?.takeIf { it in validModelIds },
                 floatingBallAssistantId = settings.floatingBallAssistantId?.takeIf { it in validAssistantIds },
             )

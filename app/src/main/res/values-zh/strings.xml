@@ -193,7 +193,9 @@
   <string name="chat_message_tool_search_web">搜索网页: %1$s</string>
   <string name="chat_page_cancel">取消</string>
   <string name="chat_page_clear_context">清空上下文</string>
+  <string name="chat_page_clear_all_errors">清除全部</string>
   <string name="chat_page_delete">删除</string>
+  <string name="chat_page_dismiss_error">关闭错误</string>
   <string name="chat_page_edit_nickname">编辑昵称</string>
   <string name="chat_page_edit_title">编辑标题</string>
   <string name="chat_page_edit_title_warning">请先聊天再编辑标题吧</string>
@@ -712,4 +714,19 @@
   <string name="injection_selector_lorebooks_empty">无可用的lorebooks</string>
   <string name="setting_display_page_show_line_numbers_title">显示行号</string>
   <string name="setting_display_page_show_line_numbers_desc">在代码块中显示行号</string>
+  <string name="export_title">导出</string>
+  <string name="export_to_file">导出到文件</string>
+  <string name="export_to_file_desc">保存为JSON文件</string>
+  <string name="export_share">分享</string>
+  <string name="export_share_desc">通过其他应用分享</string>
+  <string name="export_cancel">取消</string>
+  <string name="export_import_success">导入成功</string>
+  <string name="export_import_failed">导入失败：%s</string>
+  <string name="text_area_import_success">文件导入成功</string>
+  <string name="text_area_import_failed">导入文件失败</string>
+  <string name="text_area_fullscreen_edit">全屏编辑</string>
+  <string name="text_area_import_from_file">从文件导入</string>
+  <string name="text_area_save">保存</string>
+  <string name="prompt_page_position_at_depth">在深度</string>
+  <string name="prompt_page_inject_depth">注入深度</string>
 </resources>

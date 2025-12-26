@@ -90,8 +90,10 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.message.ChatMessageCards
+import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
@@ -110,6 +112,9 @@ fun ChatList(
     loading: Boolean,
     previewMode: Boolean,
     settings: Settings,
+    errors: List<ChatError> = emptyList(),
+    onDismissError: (Uuid) -> Unit = {},
+    onClearAllErrors: () -> Unit = {},
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
@@ -143,6 +148,9 @@ fun ChatList(
                 state = state,
                 loading = loading,
                 settings = settings,
+                errors = errors,
+                onDismissError = onDismissError,
+                onClearAllErrors = onClearAllErrors,
                 onRegenerate = onRegenerate,
                 onEdit = onEdit,
                 onForkMessage = onForkMessage,
@@ -165,6 +173,9 @@ private fun ChatListNormal(
     state: LazyListState,
     loading: Boolean,
     settings: Settings,
+    errors: List<ChatError>,
+    onDismissError: (Uuid) -> Unit,
+    onClearAllErrors: () -> Unit,
     onRegenerate: (UIMessage) -> Unit,
     onEdit: (UIMessage) -> Unit,
     onForkMessage: (UIMessage) -> Unit,
@@ -415,6 +426,16 @@ private fun ChatListNormal(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
+            // 错误消息卡片
+            ErrorCardsDisplay(
+                errors = errors,
+                onDismissError = onDismissError,
+                onClearAllErrors = onClearAllErrors,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .zIndex(5f)
+            )
+
             // 完成选择
             AnimatedVisibility(
                 visible = selecting,

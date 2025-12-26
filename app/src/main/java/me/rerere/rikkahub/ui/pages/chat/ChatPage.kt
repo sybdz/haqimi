@@ -63,6 +63,7 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -86,22 +87,15 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
         }
     )
     val navController = LocalNavController.current
-    val toaster = LocalToaster.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
-    // Handle Error
-    LaunchedEffect(Unit) {
-        vm.errorFlow.collect { error ->
-            toaster.show(error.message ?: "Error", type = ToastType.Error)
-        }
-    }
 
     val setting by vm.settings.collectAsStateWithLifecycle()
     val conversation by vm.conversation.collectAsStateWithLifecycle()
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -179,7 +173,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                     chatListState = chatListState,
                     enableWebSearch = enableWebSearch,
                     currentChatModel = currentChatModel,
-                    bigScreen = true
+                    bigScreen = true,
+                    errors = errors,
+                    onDismissError = { vm.dismissError(it) },
+                    onClearAllErrors = { vm.clearAllErrors() },
                 )
             }
         }
@@ -207,7 +204,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                     chatListState = chatListState,
                     enableWebSearch = enableWebSearch,
                     currentChatModel = currentChatModel,
-                    bigScreen = false
+                    bigScreen = false,
+                    errors = errors,
+                    onDismissError = { vm.dismissError(it) },
+                    onClearAllErrors = { vm.clearAllErrors() },
                 )
             }
             BackHandler(drawerState.isOpen) {
@@ -230,6 +230,9 @@ private fun ChatPageContent(
     chatListState: LazyListState,
     enableWebSearch: Boolean,
     currentChatModel: Model?,
+    errors: List<ChatError>,
+    onDismissError: (Uuid) -> Unit,
+    onClearAllErrors: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -371,6 +374,9 @@ private fun ChatPageContent(
                 loading = loadingJob != null,
                 previewMode = previewMode,
                 settings = setting,
+                errors = errors,
+                onDismissError = onDismissError,
+                onClearAllErrors = onClearAllErrors,
                 onRegenerate = {
                     vm.regenerateAtMessage(it)
                 },

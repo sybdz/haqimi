@@ -193,7 +193,9 @@
   <string name="chat_message_tool_search_web">Search web: %1$s</string>
   <string name="chat_page_cancel">Cancel</string>
   <string name="chat_page_clear_context">Clear Context</string>
+  <string name="chat_page_clear_all_errors">Clear all</string>
   <string name="chat_page_delete">Delete</string>
+  <string name="chat_page_dismiss_error">Dismiss error</string>
   <string name="chat_page_edit_nickname">Edit Nickname</string>
   <string name="chat_page_edit_title">Edit title</string>
   <string name="chat_page_edit_title_warning">Please chat first before editing the title</string>
@@ -716,4 +718,19 @@
   <string name="setting_display_page_enable_html_rendering_desc">Render HTML blocks in chat messages</string>
   <string name="setting_display_page_enable_svg_rendering_title">Render SVG</string>
   <string name="setting_display_page_enable_svg_rendering_desc">Render SVG images and inline SVG</string>
+  <string name="export_title">Export</string>
+  <string name="export_to_file">Export to file</string>
+  <string name="export_to_file_desc">Save as JSON file</string>
+  <string name="export_share">Share</string>
+  <string name="export_share_desc">Share via other apps</string>
+  <string name="export_cancel">Cancel</string>
+  <string name="export_import_success">Imported successfully</string>
+  <string name="export_import_failed">Import failed: %s</string>
+  <string name="text_area_import_success">File imported successfully</string>
+  <string name="text_area_import_failed">Failed to import file</string>
+  <string name="text_area_fullscreen_edit">Fullscreen edit</string>
+  <string name="text_area_import_from_file">Import from file</string>
+  <string name="text_area_save">Save</string>
+  <string name="prompt_page_position_at_depth">At Depth</string>
+  <string name="prompt_page_inject_depth">Inject Depth</string>
 </resources>

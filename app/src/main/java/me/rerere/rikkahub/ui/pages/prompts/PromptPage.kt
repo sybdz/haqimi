@@ -40,7 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
@@ -55,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,22 +67,32 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.composables.icons.lucide.Book
 import com.composables.icons.lucide.ChevronDown
+import com.composables.icons.lucide.Download
+import com.composables.icons.lucide.FileDown
+import com.composables.icons.lucide.Import
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Settings2
+import com.composables.icons.lucide.Share2
 import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.Wand
 import com.composables.icons.lucide.X
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.export.LorebookSerializer
+import me.rerere.rikkahub.data.export.ModeInjectionSerializer
+import me.rerere.rikkahub.data.export.rememberExporter
+import me.rerere.rikkahub.data.export.rememberImporter
 import me.rerere.rikkahub.data.model.InjectionPosition
-import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.Lorebook
+import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.ExportDialog
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -134,6 +144,7 @@ fun PromptPage(vm: PromptVM = koinViewModel()) {
                     modeInjections = settings.modeInjections,
                     onUpdate = { vm.updateSettings(settings.copy(modeInjections = it)) }
                 )
+
                 1 -> LorebookTab(
                     lorebooks = settings.lorebooks,
                     onUpdate = { vm.updateSettings(settings.copy(lorebooks = it)) }
@@ -150,6 +161,8 @@ private fun ModeInjectionTab(
 ) {
     var expanded by rememberSaveable { mutableStateOf(true) }
     val lazyListState = rememberLazyListState()
+    val toaster = LocalToaster.current
+    val currentModeInjections by rememberUpdatedState(modeInjections)
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         val newList = modeInjections.toMutableList()
         val item = newList.removeAt(from.index)
@@ -162,6 +175,16 @@ private fun ModeInjectionTab(
             onUpdate(modeInjections.toMutableList().apply { set(index, edited) })
         } else {
             onUpdate(modeInjections + edited)
+        }
+    }
+    val importSuccessMsg = stringResource(R.string.export_import_success)
+    val importFailedMsg = stringResource(R.string.export_import_failed)
+    val importer = rememberImporter(ModeInjectionSerializer) { result ->
+        result.onSuccess { imported ->
+            onUpdate(currentModeInjections + imported)
+            toaster.show(importSuccessMsg)
+        }.onFailure { error ->
+            toaster.show(importFailedMsg.format(error.message))
         }
     }
 
@@ -227,7 +250,12 @@ private fun ModeInjectionTab(
             expanded = expanded,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .offset(y = -ScreenOffset)
+                .offset(y = -ScreenOffset),
+            leadingContent = {
+                IconButton(onClick = { importer.importFromFile() }) {
+                    Icon(Lucide.Import, null)
+                }
+            },
         ) {
             Button(onClick = { editState.open(PromptInjection.ModeInjection()) }) {
                 Row(
@@ -267,6 +295,8 @@ private fun ModeInjectionCard(
 ) {
     val swipeState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
+    var showExportDialog by remember { mutableStateOf(false) }
+    val exporter = rememberExporter(injection, ModeInjectionSerializer)
 
     SwipeToDismissBox(
         state = swipeState,
@@ -332,11 +362,21 @@ private fun ModeInjectionCard(
                         }
                     }
                 }
+                IconButton(onClick = { showExportDialog = true }) {
+                    Icon(Lucide.Share2, stringResource(R.string.export_title))
+                }
                 IconButton(onClick = onEdit) {
                     Icon(Lucide.Settings2, stringResource(R.string.prompt_page_edit))
                 }
             }
         }
+    }
+
+    if (showExportDialog) {
+        ExportDialog(
+            exporter = exporter,
+            onDismiss = { showExportDialog = false }
+        )
     }
 }
 
@@ -420,6 +460,18 @@ private fun ModeInjectionEditSheet(
                     onSelect = { onEdit(injection.copy(position = it)) }
                 )
 
+                AnimatedVisibility(visible = injection.position == InjectionPosition.AT_DEPTH) {
+                    OutlinedTextField(
+                        value = injection.injectDepth.toString(),
+                        onValueChange = {
+                            it.toIntOrNull()?.let { d -> onEdit(injection.copy(injectDepth = d)) }
+                        },
+                        label = { Text(stringResource(R.string.prompt_page_inject_depth)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+
                 OutlinedTextField(
                     value = injection.content,
                     onValueChange = { onEdit(injection.copy(content = it)) },
@@ -466,6 +518,7 @@ private fun getPositionLabel(position: InjectionPosition): String = when (positi
     InjectionPosition.AFTER_SYSTEM_PROMPT -> stringResource(R.string.prompt_page_position_after_system)
     InjectionPosition.TOP_OF_CHAT -> stringResource(R.string.prompt_page_position_top_of_chat)
     InjectionPosition.BOTTOM_OF_CHAT -> stringResource(R.string.prompt_page_position_bottom_of_chat)
+    InjectionPosition.AT_DEPTH -> stringResource(R.string.prompt_page_position_at_depth)
 }
 
 // ==================== Lorebook Tab ====================
@@ -477,6 +530,8 @@ private fun LorebookTab(
 ) {
     var expanded by rememberSaveable { mutableStateOf(true) }
     val lazyListState = rememberLazyListState()
+    val toaster = LocalToaster.current
+    val currentLorebooks by rememberUpdatedState(lorebooks)
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         val newList = lorebooks.toMutableList()
         val item = newList.removeAt(from.index)
@@ -489,6 +544,16 @@ private fun LorebookTab(
             onUpdate(lorebooks.toMutableList().apply { set(index, edited) })
         } else {
             onUpdate(lorebooks + edited)
+        }
+    }
+    val importSuccessMsg = stringResource(R.string.export_import_success)
+    val importFailedMsg = stringResource(R.string.export_import_failed)
+    val importer = rememberImporter(LorebookSerializer) { result ->
+        result.onSuccess { imported ->
+            onUpdate(currentLorebooks + imported)
+            toaster.show(importSuccessMsg)
+        }.onFailure { error ->
+            toaster.show(importFailedMsg.format(error.message))
         }
     }
 
@@ -554,7 +619,12 @@ private fun LorebookTab(
             expanded = expanded,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .offset(y = -ScreenOffset)
+                .offset(y = -ScreenOffset),
+            leadingContent = {
+                IconButton(onClick = { importer.importFromFile() }) {
+                    Icon(Lucide.Import, null)
+                }
+            },
         ) {
             Button(onClick = { editState.open(Lorebook()) }) {
                 Row(
@@ -594,6 +664,8 @@ private fun LorebookCard(
 ) {
     val swipeState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
+    var showExportDialog by remember { mutableStateOf(false) }
+    val exporter = rememberExporter(book, LorebookSerializer)
 
     SwipeToDismissBox(
         state = swipeState,
@@ -670,11 +742,21 @@ private fun LorebookCard(
                         }
                     }
                 }
+                IconButton(onClick = { showExportDialog = true }) {
+                    Icon(Lucide.Share2, stringResource(R.string.export_title))
+                }
                 IconButton(onClick = onEdit) {
                     Icon(Lucide.Settings2, stringResource(R.string.prompt_page_edit))
                 }
             }
         }
+    }
+
+    if (showExportDialog) {
+        ExportDialog(
+            exporter = exporter,
+            onDismiss = { showExportDialog = false }
+        )
     }
 }
 
@@ -915,6 +997,18 @@ private fun RegexInjectionEditDialog(
                     position = entry.position,
                     onSelect = { onEdit(entry.copy(position = it)) }
                 )
+
+                AnimatedVisibility(visible = entry.position == InjectionPosition.AT_DEPTH) {
+                    OutlinedTextField(
+                        value = entry.injectDepth.toString(),
+                        onValueChange = {
+                            it.toIntOrNull()?.let { d -> onEdit(entry.copy(injectDepth = d)) }
+                        },
+                        label = { Text(stringResource(R.string.prompt_page_inject_depth)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
 
                 // 关键词
                 Text(stringResource(R.string.prompt_page_keywords_label), style = MaterialTheme.typography.titleSmall)
