@@ -165,7 +165,10 @@ kotlin {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime)
+    implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.savedstate)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.browser)
     implementation(libs.androidx.profileinstaller)

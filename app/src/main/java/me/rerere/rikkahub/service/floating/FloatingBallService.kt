@@ -609,11 +609,14 @@ private class FloatingOverlayLifecycleOwner : LifecycleOwner, ViewModelStoreOwne
         store.clear()
     }
 
-    override fun getLifecycle(): Lifecycle = lifecycleRegistry
+    override val lifecycle: Lifecycle
+        get() = lifecycleRegistry
 
-    override fun getViewModelStore(): ViewModelStore = store
+    override val viewModelStore: ViewModelStore
+        get() = store
 
-    override fun getSavedStateRegistry() = savedStateRegistryController.savedStateRegistry
+    override val savedStateRegistry
+        get() = savedStateRegistryController.savedStateRegistry
 }
 
 private object ActivityResultCode {
