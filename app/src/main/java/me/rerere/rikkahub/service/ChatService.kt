@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -141,6 +142,7 @@ class ChatService(
     val errors: StateFlow<List<ChatError>> = _errors.asStateFlow()
 
     fun addError(error: Throwable) {
+        if (error is CancellationException) return
         _errors.update { it + ChatError(error = error) }
     }
 
