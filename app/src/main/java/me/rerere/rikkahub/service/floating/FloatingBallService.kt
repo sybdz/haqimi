@@ -95,6 +95,7 @@ class FloatingBallService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val windowManager by lazy { getSystemService(Context.WINDOW_SERVICE) as WindowManager }
+    private val displayManager by lazy { getSystemService(Context.DISPLAY_SERVICE) as DisplayManager }
     private var ballView: View? = null
     private var ballLayoutParams: WindowManager.LayoutParams? = null
     private var dialogView: View? = null
@@ -110,6 +111,16 @@ class FloatingBallService : Service() {
 
     private var mediaProjection: MediaProjection? = null
     private val overlayViewTreeOwner = FloatingOverlayViewTreeOwner()
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+
+        override fun onDisplayRemoved(displayId: Int) = Unit
+
+        override fun onDisplayChanged(displayId: Int) {
+            if (displayId != DisplayManager.DEFAULT_DISPLAY) return
+            updateDisplayBoundsAndClamp()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -117,6 +128,7 @@ class FloatingBallService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification())
         initLayoutDefaults()
         showBallInternal()
+        displayManager.registerDisplayListener(displayListener, Handler(Looper.getMainLooper()))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -142,6 +154,7 @@ class FloatingBallService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        runCatching { displayManager.unregisterDisplayListener(displayListener) }
         serviceScope.launch {
             runCatching { hideBallInternal() }
             runCatching { stopMediaProjection() }
@@ -475,6 +488,32 @@ class FloatingBallService : Service() {
         updateDialogLayout()
     }
 
+    private fun clampBallInBounds() {
+        val ballParams = ballLayoutParams ?: return
+        val maxX = (screenWidth - ballSizePx).coerceAtLeast(0)
+        val maxY = (screenHeight - ballSizePx).coerceAtLeast(0)
+        val newX = ballParams.x.coerceIn(0, maxX)
+        val newY = ballParams.y.coerceIn(0, maxY)
+        if (newX == ballParams.x && newY == ballParams.y) return
+        ballParams.x = newX
+        ballParams.y = newY
+        updateBallLayout()
+    }
+
+    private fun adjustDialogSizeForScreen() {
+        val dialogParams = dialogLayoutParams ?: return
+        val minWidth = dpToPx(200)
+        val minHeight = dpToPx(200)
+        val maxWidth = (screenWidth - dpToPx(16)).coerceAtLeast(minWidth)
+        val maxHeight = (screenHeight - dpToPx(16)).coerceAtLeast(minHeight)
+        val newWidth = dialogParams.width.coerceIn(minWidth, maxWidth)
+        val newHeight = dialogParams.height.coerceIn(minHeight, maxHeight)
+        if (newWidth == dialogParams.width && newHeight == dialogParams.height) return
+        dialogParams.width = newWidth
+        dialogParams.height = newHeight
+        updateDialogLayout()
+    }
+
     private fun updateDialogLayout() {
         val view = dialogView ?: return
         val params = dialogLayoutParams ?: return
@@ -633,6 +672,17 @@ class FloatingBallService : Service() {
         if (width <= 0 || height <= 0) return
         screenWidth = width
         screenHeight = height
+    }
+
+    private fun updateDisplayBoundsAndClamp() {
+        val (width, height, _) = getDisplaySize()
+        if (width <= 0 || height <= 0) return
+        if (width == screenWidth && height == screenHeight) return
+        screenWidth = width
+        screenHeight = height
+        adjustDialogSizeForScreen()
+        ensureDialogInBounds()
+        clampBallInBounds()
     }
 
     private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
