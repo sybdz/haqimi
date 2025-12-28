@@ -234,7 +234,6 @@ fun FloatingChatPanel(
                 val dragModifier = if (onMove != null) {
                     Modifier.pointerInput(onMove) {
                         detectDragGestures { change, dragAmount ->
-                            change.consume()
                             onMove(dragAmount.x, dragAmount.y)
                         }
                     }
