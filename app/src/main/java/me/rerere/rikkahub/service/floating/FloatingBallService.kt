@@ -120,7 +120,7 @@ class FloatingBallService : Service() {
         override fun onDisplayRemoved(displayId: Int) = Unit
 
         override fun onDisplayChanged(displayId: Int) {
-            if (displayId != DisplayManager.DEFAULT_DISPLAY) return
+            if (displayId != android.view.Display.DEFAULT_DISPLAY) return
             updateDisplayBoundsAndClamp()
         }
     }
