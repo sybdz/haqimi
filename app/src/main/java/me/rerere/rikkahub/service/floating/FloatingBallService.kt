@@ -337,15 +337,20 @@ class FloatingBallService : Service() {
 
     private fun copyLogsToClipboard() {
         serviceScope.launch {
-            val logs = withContext(Dispatchers.IO) { readLogcatDump() }
-            if (logs.isBlank()) {
-                Toast.makeText(this@FloatingBallService, "日志为空", Toast.LENGTH_SHORT).show()
-                return@launch
+            runCatching {
+                val logs = withContext(Dispatchers.IO) { readLogcatDump() }
+                if (logs.isBlank()) {
+                    Toast.makeText(this@FloatingBallService, "日志为空", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    ?: throw IllegalStateException("Clipboard service unavailable")
+                val clip = ClipData.newPlainText("RikkaHub Logs", logs)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this@FloatingBallService, "日志已复制到剪贴板", Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                Toast.makeText(this@FloatingBallService, "复制日志失败", Toast.LENGTH_SHORT).show()
             }
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("RikkaHub Logs", logs)
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(this@FloatingBallService, "日志已复制到剪贴板", Toast.LENGTH_SHORT).show()
         }
     }
 
