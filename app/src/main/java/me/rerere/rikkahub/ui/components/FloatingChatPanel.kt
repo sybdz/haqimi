@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.Camera
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Send
+import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.X
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -103,6 +104,17 @@ fun FloatingChatPanel(
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
         }
+    }
+
+    fun clearConversation() {
+        job?.cancel()
+        job = null
+        generating = false
+        capturing = false
+        input = ""
+        errorText = null
+        attachments.clear()
+        messages = emptyList()
     }
 
     fun send() {
@@ -226,6 +238,12 @@ fun FloatingChatPanel(
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f)
                     )
+                    IconButton(
+                        onClick = { clearConversation() },
+                        enabled = messages.isNotEmpty() || attachments.isNotEmpty() || input.isNotBlank(),
+                    ) {
+                        Icon(Lucide.Trash2, contentDescription = "Clear")
+                    }
                     IconButton(onClick = onClose) {
                         Icon(Lucide.X, contentDescription = "Close")
                     }

@@ -7,8 +7,10 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
+import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
@@ -372,7 +374,8 @@ class FloatingBallService : Service() {
         val view = dialogView ?: return
         val params = dialogLayoutParams ?: return
         dialogVisible = true
-        updateDialogPositionForBall()
+        refreshDisplaySize()
+        ensureDialogInBounds()
         runCatching { windowManager.updateViewLayout(view, params) }
         view.animate().cancel()
         view.translationY = params.height.toFloat()
@@ -402,6 +405,7 @@ class FloatingBallService : Service() {
     private fun moveBallTo(x: Int, y: Int) {
         val ballParams = ballLayoutParams ?: return
 
+        refreshDisplaySize()
         val maxX = (screenWidth - ballSizePx).coerceAtLeast(0)
         val maxY = (screenHeight - ballSizePx).coerceAtLeast(0)
         val newX = x.coerceIn(0, maxX)
@@ -412,37 +416,12 @@ class FloatingBallService : Service() {
         ballParams.x = newX
         ballParams.y = newY
         updateBallLayout()
-        if (dialogVisible) {
-            updateDialogPositionForBall()
-        }
-    }
-
-    private fun updateDialogPositionForBall() {
-        val dialogParams = dialogLayoutParams ?: return
-        val ballParams = ballLayoutParams ?: return
-
-        val maxX = (screenWidth - dialogParams.width).coerceAtLeast(0)
-        val maxY = (screenHeight - dialogParams.height).coerceAtLeast(0)
-
-        val newX = ballParams.x.coerceIn(0, maxX)
-        val aboveY = ballParams.y - dialogParams.height - dialogGapPx
-        val belowY = ballParams.y + ballSizePx + dialogGapPx
-        val newY = when {
-            aboveY >= 0 -> aboveY
-            belowY + dialogParams.height <= screenHeight -> belowY
-            else -> maxY
-        }
-
-        if (dialogParams.x == newX && dialogParams.y == newY) return
-
-        dialogParams.x = newX
-        dialogParams.y = newY
-        updateDialogLayout()
     }
 
     private fun resizeDialog(fromLeft: Boolean, dx: Float, dy: Float) {
         val dialogParams = dialogLayoutParams ?: return
 
+        refreshDisplaySize()
         val minWidth = dpToPx(200)
         val minHeight = dpToPx(200)
         val maxWidth = (screenWidth - dpToPx(16)).coerceAtLeast(minWidth)
@@ -466,6 +445,18 @@ class FloatingBallService : Service() {
         dialogParams.width = newWidth
         dialogParams.height = newHeight
         dialogParams.x = newX
+        updateDialogLayout()
+    }
+
+    private fun ensureDialogInBounds() {
+        val dialogParams = dialogLayoutParams ?: return
+        val maxX = (screenWidth - dialogParams.width).coerceAtLeast(0)
+        val maxY = (screenHeight - dialogParams.height).coerceAtLeast(0)
+        val newX = dialogParams.x.coerceIn(0, maxX)
+        val newY = dialogParams.y.coerceIn(0, maxY)
+        if (newX == dialogParams.x && newY == dialogParams.y) return
+        dialogParams.x = newX
+        dialogParams.y = newY
         updateDialogLayout()
     }
 
@@ -510,6 +501,7 @@ class FloatingBallService : Service() {
     }
 
     private suspend fun captureScreenshotToFile(projection: MediaProjection): File = withContext(Dispatchers.IO) {
+        refreshDisplaySize()
         val (width, height, densityDpi) = getDisplaySize()
         val imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
         val virtualDisplay = projection.createVirtualDisplay(
@@ -524,31 +516,27 @@ class FloatingBallService : Service() {
         )
 
         try {
-            val image = awaitImage(imageReader)
-            val bitmap = try {
-                val plane = image.planes[0]
-                val buffer = plane.buffer
-                val pixelStride = plane.pixelStride
-                val rowStride = plane.rowStride
-                val rowPadding = rowStride - pixelStride * width
-                val raw = Bitmap.createBitmap(
-                    width + rowPadding / pixelStride,
-                    height,
-                    Bitmap.Config.ARGB_8888
-                )
-                raw.copyPixelsFromBuffer(buffer)
-                Bitmap.createBitmap(raw, 0, 0, width, height).also { raw.recycle() }
-            } finally {
-                runCatching { image.close() }
+            delay(80)
+            var bitmap: Bitmap? = null
+            for (attempt in 0 until 3) {
+                val image = awaitImage(imageReader)
+                val candidate = imageToBitmap(image, width, height)
+                if (!isBitmapBlank(candidate)) {
+                    bitmap = candidate
+                    break
+                }
+                candidate.recycle()
+                if (attempt < 2) delay(80)
             }
+            val result = bitmap ?: throw IllegalStateException("截图内容为空")
 
             val dir = File(cacheDir, "floating_ball")
             if (!dir.exists()) dir.mkdirs()
             val file = File(dir, "screenshot_${System.currentTimeMillis()}.png")
             FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                result.compress(Bitmap.CompressFormat.PNG, 100, out)
             }
-            bitmap.recycle()
+            result.recycle()
             file
         } finally {
             runCatching { virtualDisplay?.release() }
@@ -556,7 +544,7 @@ class FloatingBallService : Service() {
         }
     }
 
-    private suspend fun awaitImage(imageReader: ImageReader): android.media.Image =
+    private suspend fun awaitImage(imageReader: ImageReader): Image =
         kotlinx.coroutines.withTimeout(1500) {
             kotlinx.coroutines.suspendCancellableCoroutine { cont ->
                 val handler = Handler(Looper.getMainLooper())
@@ -573,6 +561,43 @@ class FloatingBallService : Service() {
             }
         }
 
+    private fun imageToBitmap(image: Image, width: Int, height: Int): Bitmap {
+        return try {
+            val plane = image.planes[0]
+            val buffer = plane.buffer
+            val pixelStride = plane.pixelStride
+            val rowStride = plane.rowStride
+            val rowPadding = rowStride - pixelStride * width
+            val raw = Bitmap.createBitmap(
+                width + rowPadding / pixelStride,
+                height,
+                Bitmap.Config.ARGB_8888
+            )
+            buffer.rewind()
+            raw.copyPixelsFromBuffer(buffer)
+            Bitmap.createBitmap(raw, 0, 0, width, height).also { raw.recycle() }
+        } finally {
+            runCatching { image.close() }
+        }
+    }
+
+    private fun isBitmapBlank(bitmap: Bitmap): Boolean {
+        if (bitmap.width == 0 || bitmap.height == 0) return true
+        val width = bitmap.width
+        val height = bitmap.height
+        val xs = intArrayOf(0, width / 4, width / 2, (width * 3) / 4, width - 1)
+        val ys = intArrayOf(0, height / 4, height / 2, (height * 3) / 4, height - 1)
+        for (x in xs) {
+            for (y in ys) {
+                val color = bitmap.getPixel(x, y)
+                val alpha = Color.alpha(color)
+                val luminance = Color.red(color) + Color.green(color) + Color.blue(color)
+                if (alpha > 16 && luminance > 20) return false
+            }
+        }
+        return true
+    }
+
     private fun getDisplaySize(): Triple<Int, Int, Int> {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val metrics = resources.displayMetrics
@@ -586,6 +611,13 @@ class FloatingBallService : Service() {
             display.getRealMetrics(metrics)
             Triple(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi)
         }
+    }
+
+    private fun refreshDisplaySize() {
+        val (width, height, _) = getDisplaySize()
+        if (width <= 0 || height <= 0) return
+        screenWidth = width
+        screenHeight = height
     }
 
     private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
