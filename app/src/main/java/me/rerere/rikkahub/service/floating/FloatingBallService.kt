@@ -276,19 +276,19 @@ class FloatingBallService : Service() {
 
         var touchX = 0f
         var touchY = 0f
-        var startDialogX = 0
-        var startDialogY = 0
+        var startBallX = 0
+        var startBallY = 0
 
         container.setOnTouchListener { _, event ->
-            val dialogParams = dialogLayoutParams ?: return@setOnTouchListener false
+            val ballParams = ballLayoutParams ?: return@setOnTouchListener false
             gestureDetector.onTouchEvent(event)
 
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     touchX = event.rawX
                     touchY = event.rawY
-                    startDialogX = dialogParams.x
-                    startDialogY = dialogParams.y
+                    startBallX = ballParams.x
+                    startBallY = ballParams.y
                     isDragging = false
                     hasDragged = false
                     true
@@ -305,7 +305,7 @@ class FloatingBallService : Service() {
                         }
                     }
                     hasDragged = true
-                    moveDialogTo(startDialogX + dx, startDialogY + dy)
+                    moveBallTo(startBallX + dx, startBallY + dy)
                     true
                 }
 
@@ -372,6 +372,7 @@ class FloatingBallService : Service() {
         val view = dialogView ?: return
         val params = dialogLayoutParams ?: return
         dialogVisible = true
+        updateDialogPositionForBall()
         runCatching { windowManager.updateViewLayout(view, params) }
         view.animate().cancel()
         view.translationY = params.height.toFloat()
@@ -398,33 +399,54 @@ class FloatingBallService : Service() {
             .start()
     }
 
-    private fun moveDialogTo(x: Int, y: Int) {
+    private fun moveBallTo(x: Int, y: Int) {
+        val ballParams = ballLayoutParams ?: return
+
+        val maxX = (screenWidth - ballSizePx).coerceAtLeast(0)
+        val maxY = (screenHeight - ballSizePx).coerceAtLeast(0)
+        val newX = x.coerceIn(0, maxX)
+        val newY = y.coerceIn(0, maxY)
+
+        if (ballParams.x == newX && ballParams.y == newY) return
+
+        ballParams.x = newX
+        ballParams.y = newY
+        updateBallLayout()
+        if (dialogVisible) {
+            updateDialogPositionForBall()
+        }
+    }
+
+    private fun updateDialogPositionForBall() {
         val dialogParams = dialogLayoutParams ?: return
         val ballParams = ballLayoutParams ?: return
 
         val maxX = (screenWidth - dialogParams.width).coerceAtLeast(0)
-        val maxY = (screenHeight - dialogParams.height - ballSizePx - dialogGapPx).coerceAtLeast(0)
-        val newX = x.coerceIn(0, maxX)
-        val newY = y.coerceIn(0, maxY)
+        val maxY = (screenHeight - dialogParams.height).coerceAtLeast(0)
+
+        val newX = ballParams.x.coerceIn(0, maxX)
+        val aboveY = ballParams.y - dialogParams.height - dialogGapPx
+        val belowY = ballParams.y + ballSizePx + dialogGapPx
+        val newY = when {
+            aboveY >= 0 -> aboveY
+            belowY + dialogParams.height <= screenHeight -> belowY
+            else -> maxY
+        }
 
         if (dialogParams.x == newX && dialogParams.y == newY) return
 
         dialogParams.x = newX
         dialogParams.y = newY
-        ballParams.x = newX
-        ballParams.y = newY + dialogParams.height + dialogGapPx
         updateDialogLayout()
-        updateBallLayout()
     }
 
     private fun resizeDialog(fromLeft: Boolean, dx: Float, dy: Float) {
         val dialogParams = dialogLayoutParams ?: return
-        val ballParams = ballLayoutParams ?: return
 
         val minWidth = dpToPx(200)
         val minHeight = dpToPx(200)
         val maxWidth = (screenWidth - dpToPx(16)).coerceAtLeast(minWidth)
-        val maxHeight = (screenHeight - dialogParams.y - ballSizePx - dialogGapPx).coerceAtLeast(minHeight)
+        val maxHeight = (screenHeight - dialogParams.y - dpToPx(16)).coerceAtLeast(minHeight)
 
         val deltaX = dx.toInt()
         val deltaY = dy.toInt()
@@ -444,10 +466,7 @@ class FloatingBallService : Service() {
         dialogParams.width = newWidth
         dialogParams.height = newHeight
         dialogParams.x = newX
-        ballParams.x = newX
-        ballParams.y = dialogParams.y + newHeight + dialogGapPx
         updateDialogLayout()
-        updateBallLayout()
     }
 
     private fun updateDialogLayout() {
