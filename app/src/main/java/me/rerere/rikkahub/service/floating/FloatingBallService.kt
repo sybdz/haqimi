@@ -22,11 +22,16 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
-import android.widget.TextView
 import android.widget.Toast
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import java.io.File
+import java.io.FileOutputStream
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,9 +41,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.activity.FloatingChatActivity
-import java.io.File
-import java.io.FileOutputStream
+import me.rerere.rikkahub.ui.components.FloatingChatPanel
+import me.rerere.rikkahub.ui.theme.RikkahubTheme
 
 class FloatingBallService : Service() {
     companion object {
@@ -77,8 +81,18 @@ class FloatingBallService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val windowManager by lazy { getSystemService(Context.WINDOW_SERVICE) as WindowManager }
-    private var ballView: View? = null
-    private var ballLayoutParams: WindowManager.LayoutParams? = null
+    private var barView: View? = null
+    private var barLayoutParams: WindowManager.LayoutParams? = null
+    private var dialogView: View? = null
+    private var dialogLayoutParams: WindowManager.LayoutParams? = null
+    private var dialogVisible = false
+
+    private var screenWidth = 0
+    private var screenHeight = 0
+    private var barHeightPx = 0
+    private var dialogGapPx = 0
+
+    private val screenshotFiles = mutableSetOf<File>()
 
     private var mediaProjection: MediaProjection? = null
 
@@ -86,7 +100,8 @@ class FloatingBallService : Service() {
         super.onCreate()
         ensureNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
-        showBallInternal()
+        initLayoutDefaults()
+        showBarInternal()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -100,7 +115,7 @@ class FloatingBallService : Service() {
             }
 
             ACTION_SHOW_BALL -> {
-                showBallInternal()
+                showBarInternal()
             }
 
             ACTION_STOP -> {
@@ -113,8 +128,10 @@ class FloatingBallService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.launch {
-            runCatching { hideBallInternal() }
+            runCatching { hideBarInternal() }
             runCatching { stopMediaProjection() }
+            screenshotFiles.forEach { file -> runCatching { if (file.exists()) file.delete() } }
+            screenshotFiles.clear()
         }
         serviceScope.coroutineContext.cancel()
     }
@@ -132,17 +149,41 @@ class FloatingBallService : Service() {
         mediaProjection = null
     }
 
-    private fun showBallInternal() {
-        if (ballView != null) {
-            ballView?.visibility = View.VISIBLE
-            return
+    private fun initLayoutDefaults() {
+        val (width, height, _) = getDisplaySize()
+        screenWidth = width
+        screenHeight = height
+        barHeightPx = dpToPx(22)
+        dialogGapPx = dpToPx(6)
+
+        val minWidth = dpToPx(220)
+        val minHeight = dpToPx(220)
+        val maxWidth = (screenWidth - dpToPx(24)).coerceAtLeast(minWidth)
+        val maxHeight = (screenHeight - barHeightPx - dialogGapPx - dpToPx(64)).coerceAtLeast(minHeight)
+
+        val dialogWidth = dpToPx(320).coerceIn(minWidth, maxWidth)
+        val dialogHeight = dpToPx(420).coerceIn(minHeight, maxHeight)
+        val defaultX = ((screenWidth - dialogWidth) / 2).coerceAtLeast(0)
+        val defaultY = (screenHeight - dialogHeight - barHeightPx - dialogGapPx - dpToPx(48)).coerceAtLeast(0)
+
+        dialogLayoutParams = WindowManager.LayoutParams(
+            dialogWidth,
+            dialogHeight,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = defaultX
+            y = defaultY
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         }
 
-        val sizePx = dpToPx(48)
-        val view = createBallView(sizePx)
-        val params = WindowManager.LayoutParams(
-            sizePx,
-            sizePx,
+        barLayoutParams = WindowManager.LayoutParams(
+            dialogWidth,
+            barHeightPx,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
@@ -150,14 +191,26 @@ class FloatingBallService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 0
-            y = dpToPx(160)
+            x = defaultX
+            y = defaultY + dialogHeight + dialogGapPx
         }
+    }
+
+    private fun showBarInternal() {
+        if (barView != null) {
+            barView?.visibility = View.VISIBLE
+            return
+        }
+        if (barLayoutParams == null || dialogLayoutParams == null) {
+            initLayoutDefaults()
+        }
+
+        val view = createBarView()
+        val params = barLayoutParams ?: return
 
         runCatching {
             windowManager.addView(view, params)
-            ballView = view
-            ballLayoutParams = params
+            barView = view
         }.onFailure {
             it.printStackTrace()
             Toast.makeText(this, "无法显示悬浮窗，请检查权限", Toast.LENGTH_SHORT).show()
@@ -165,73 +218,76 @@ class FloatingBallService : Service() {
         }
     }
 
-    private fun hideBallInternal() {
-        val view = ballView ?: return
-        runCatching { windowManager.removeView(view) }
-        ballView = null
-        ballLayoutParams = null
+    private fun hideBarInternal() {
+        dialogView?.let { view ->
+            runCatching { windowManager.removeView(view) }
+        }
+        dialogView = null
+        dialogVisible = false
+
+        barView?.let { view ->
+            runCatching { windowManager.removeView(view) }
+        }
+        barView = null
+        barLayoutParams = null
+        dialogLayoutParams = null
     }
 
-    private fun createBallView(sizePx: Int): View {
+    private fun createBarView(): View {
         val container = FrameLayout(this).apply {
-            setBackgroundResource(R.drawable.floating_ball_bg)
-            elevation = dpToPx(8).toFloat()
+            setBackgroundResource(R.drawable.floating_bar_bg)
+            elevation = dpToPx(6).toFloat()
         }
-        val label = TextView(this).apply {
-            text = "AI"
-            setTextColor(0xFFFFFFFF.toInt())
-            textSize = 14f
-            gravity = Gravity.CENTER
-        }
-        container.addView(
-            label,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        )
 
+        var isDragging = false
         val gestureDetector = GestureDetector(
             this,
             object : GestureDetector.SimpleOnGestureListener() {
                 override fun onDown(e: MotionEvent): Boolean = true
 
                 override fun onSingleTapUp(e: MotionEvent): Boolean {
-                    onBallClick()
+                    toggleDialog()
                     return true
+                }
+
+                override fun onLongPress(e: MotionEvent) {
+                    isDragging = true
                 }
             }
         )
 
-        var startX = 0
-        var startY = 0
         var touchX = 0f
         var touchY = 0f
+        var startDialogX = 0
+        var startDialogY = 0
 
         container.setOnTouchListener { _, event ->
-            val params = ballLayoutParams ?: return@setOnTouchListener false
+            val dialogParams = dialogLayoutParams ?: return@setOnTouchListener false
             gestureDetector.onTouchEvent(event)
 
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    startX = params.x
-                    startY = params.y
                     touchX = event.rawX
                     touchY = event.rawY
+                    startDialogX = dialogParams.x
+                    startDialogY = dialogParams.y
+                    isDragging = false
                     true
                 }
 
                 MotionEvent.ACTION_MOVE -> {
+                    if (!isDragging) return@setOnTouchListener true
                     val dx = (event.rawX - touchX).toInt()
                     val dy = (event.rawY - touchY).toInt()
-                    params.x = startX + dx
-                    params.y = startY + dy
-                    runCatching { windowManager.updateViewLayout(container, params) }
+                    moveDialogTo(startDialogX + dx, startDialogY + dy)
                     true
                 }
 
                 MotionEvent.ACTION_UP,
-                MotionEvent.ACTION_CANCEL -> true
+                MotionEvent.ACTION_CANCEL -> {
+                    isDragging = false
+                    true
+                }
 
                 else -> false
             }
@@ -240,28 +296,161 @@ class FloatingBallService : Service() {
         return container
     }
 
-    private fun onBallClick() {
-        val projection = mediaProjection
-        if (projection == null) {
-            Toast.makeText(this, "未授权屏幕录制，请在设置里重新开启悬浮小球", Toast.LENGTH_SHORT).show()
-            return
+    private fun toggleDialog() {
+        if (dialogVisible) {
+            hideDialog()
+        } else {
+            showDialog()
+        }
+    }
+
+    private fun ensureDialogView() {
+        if (dialogView != null) return
+        val params = dialogLayoutParams ?: return
+        val view = ComposeView(this).apply {
+            visibility = View.GONE
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            setContent {
+                RikkahubTheme {
+                    FloatingChatPanel(
+                        modifier = Modifier.fillMaxSize(),
+                        onClose = { hideDialog() },
+                        onRequestScreenshot = { captureScreenshotForChat() },
+                        onResize = { fromLeft, dx, dy -> resizeDialog(fromLeft, dx, dy) },
+                    )
+                }
+            }
+        }
+        runCatching {
+            windowManager.addView(view, params)
+            dialogView = view
+        }.onFailure {
+            it.printStackTrace()
+            Toast.makeText(this, "无法显示悬浮窗，请检查权限", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showDialog() {
+        ensureDialogView()
+        val view = dialogView ?: return
+        val params = dialogLayoutParams ?: return
+        dialogVisible = true
+        runCatching { windowManager.updateViewLayout(view, params) }
+        view.animate().cancel()
+        view.translationY = params.height.toFloat()
+        view.alpha = 0f
+        view.visibility = View.VISIBLE
+        view.animate()
+            .translationY(0f)
+            .alpha(1f)
+            .setDuration(220)
+            .start()
+    }
+
+    private fun hideDialog() {
+        val view = dialogView ?: return
+        val params = dialogLayoutParams
+        dialogVisible = false
+        view.animate().cancel()
+        val offset = params?.height ?: view.height
+        view.animate()
+            .translationY(offset.toFloat())
+            .alpha(0f)
+            .setDuration(180)
+            .withEndAction { view.visibility = View.GONE }
+            .start()
+    }
+
+    private fun moveDialogTo(x: Int, y: Int) {
+        val dialogParams = dialogLayoutParams ?: return
+        val barParams = barLayoutParams ?: return
+
+        val maxX = (screenWidth - dialogParams.width).coerceAtLeast(0)
+        val maxY = (screenHeight - dialogParams.height - barHeightPx - dialogGapPx).coerceAtLeast(0)
+        val newX = x.coerceIn(0, maxX)
+        val newY = y.coerceIn(0, maxY)
+
+        if (dialogParams.x == newX && dialogParams.y == newY) return
+
+        dialogParams.x = newX
+        dialogParams.y = newY
+        barParams.x = newX
+        barParams.y = newY + dialogParams.height + dialogGapPx
+        updateDialogLayout()
+        updateBarLayout()
+    }
+
+    private fun resizeDialog(fromLeft: Boolean, dx: Float, dy: Float) {
+        val dialogParams = dialogLayoutParams ?: return
+        val barParams = barLayoutParams ?: return
+
+        val minWidth = dpToPx(220)
+        val minHeight = dpToPx(220)
+        val maxWidth = (screenWidth - dpToPx(16)).coerceAtLeast(minWidth)
+        val maxHeight = (screenHeight - dialogParams.y - barHeightPx - dialogGapPx).coerceAtLeast(minHeight)
+
+        val deltaX = dx.toInt()
+        val deltaY = dy.toInt()
+
+        val targetWidth = if (fromLeft) dialogParams.width - deltaX else dialogParams.width + deltaX
+        val targetHeight = dialogParams.height + deltaY
+        val newWidth = targetWidth.coerceIn(minWidth, maxWidth)
+        val newHeight = targetHeight.coerceIn(minHeight, maxHeight)
+
+        val rightEdge = dialogParams.x + dialogParams.width
+        val newX = if (fromLeft) {
+            (rightEdge - newWidth).coerceIn(0, screenWidth - newWidth)
+        } else {
+            dialogParams.x.coerceIn(0, screenWidth - newWidth)
         }
 
-        serviceScope.launch {
-            ballView?.visibility = View.INVISIBLE
-            delay(80)
-            val screenshot = runCatching { captureScreenshotToFile(projection) }.getOrNull()
-            if (screenshot == null) {
-                ballView?.visibility = View.VISIBLE
-                Toast.makeText(this@FloatingBallService, "截图失败", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
+        dialogParams.width = newWidth
+        dialogParams.height = newHeight
+        dialogParams.x = newX
+        barParams.width = newWidth
+        barParams.x = newX
+        barParams.y = dialogParams.y + newHeight + dialogGapPx
+        updateDialogLayout()
+        updateBarLayout()
+    }
 
-            val intent = Intent(this@FloatingBallService, FloatingChatActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                putExtra(FloatingChatActivity.EXTRA_SCREENSHOT_URI, screenshot.toUri().toString())
-            }
-            startActivity(intent)
+    private fun updateDialogLayout() {
+        val view = dialogView ?: return
+        val params = dialogLayoutParams ?: return
+        runCatching { windowManager.updateViewLayout(view, params) }
+    }
+
+    private fun updateBarLayout() {
+        val view = barView ?: return
+        val params = barLayoutParams ?: return
+        runCatching { windowManager.updateViewLayout(view, params) }
+    }
+
+    private suspend fun captureScreenshotForChat(): Result<String> {
+        val projection = mediaProjection
+            ?: return Result.failure(IllegalStateException("未授权屏幕录制，请在设置里重新开启悬浮小球"))
+        val bar = barView
+        val dialog = dialogView
+        val wasDialogVisible = dialogVisible
+
+        bar?.visibility = View.INVISIBLE
+        dialog?.visibility = View.INVISIBLE
+        delay(90)
+        val screenshot = runCatching { captureScreenshotToFile(projection) }.getOrNull()
+        bar?.visibility = View.VISIBLE
+        if (wasDialogVisible) {
+            dialog?.visibility = View.VISIBLE
+            dialog?.alpha = 1f
+            dialog?.translationY = 0f
+        } else {
+            dialog?.visibility = View.GONE
+        }
+
+        return if (screenshot == null) {
+            Result.failure(IllegalStateException("截图失败"))
+        } else {
+            screenshotFiles.add(screenshot)
+            Result.success(screenshot.toUri().toString())
         }
     }
 
@@ -360,8 +549,8 @@ class FloatingBallService : Service() {
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("悬浮小球运行中")
-            .setContentText("点击小球可截图并提问")
+            .setContentTitle("悬浮条运行中")
+            .setContentText("点击悬浮条展开对话框")
             .setOngoing(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
