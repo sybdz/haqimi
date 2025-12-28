@@ -113,6 +113,8 @@ class FloatingBallService : Service() {
     private val screenshotFiles = mutableSetOf<File>()
 
     private var mediaProjection: MediaProjection? = null
+    private var mediaProjectionCallback: MediaProjection.Callback? = null
+    private var mediaProjectionActive = false
     private val overlayViewTreeOwner = FloatingOverlayViewTreeOwner()
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) = Unit
@@ -173,12 +175,41 @@ class FloatingBallService : Service() {
     private fun startMediaProjection(resultCode: Int, data: Intent) {
         stopMediaProjection()
         val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        mediaProjection = manager.getMediaProjection(resultCode, data)
+        val projection = manager.getMediaProjection(resultCode, data)
+        if (projection == null) {
+            mediaProjectionActive = false
+            Log.w(TAG, "media projection is null")
+            return
+        }
+        mediaProjection = projection
+        mediaProjectionActive = true
+        val callback = object : MediaProjection.Callback() {
+            override fun onStop() {
+                Log.w(TAG, "media projection stopped")
+                mediaProjectionActive = false
+                val current = mediaProjection
+                val currentCallback = mediaProjectionCallback
+                mediaProjection = null
+                mediaProjectionCallback = null
+                if (current != null && currentCallback != null) {
+                    runCatching { current.unregisterCallback(currentCallback) }
+                }
+            }
+        }
+        mediaProjectionCallback = callback
+        projection.registerCallback(callback, Handler(Looper.getMainLooper()))
     }
 
     private fun stopMediaProjection() {
-        runCatching { mediaProjection?.stop() }
+        mediaProjectionActive = false
+        val projection = mediaProjection ?: return
+        val callback = mediaProjectionCallback
         mediaProjection = null
+        mediaProjectionCallback = null
+        if (callback != null) {
+            runCatching { projection.unregisterCallback(callback) }
+        }
+        runCatching { projection.stop() }
     }
 
     private fun initLayoutDefaults() {
@@ -532,6 +563,9 @@ class FloatingBallService : Service() {
     private suspend fun captureScreenshotForChat(): Result<String> {
         val projection = mediaProjection
             ?: return Result.failure(IllegalStateException("未授权屏幕录制，请在设置里重新开启悬浮小球"))
+        if (!mediaProjectionActive) {
+            return Result.failure(IllegalStateException("屏幕录制权限失效，请在设置里重新开启悬浮小球"))
+        }
         val ball = ballView
         val dialog = dialogView
         val wasDialogVisible = dialogVisible
@@ -622,7 +656,7 @@ class FloatingBallService : Service() {
     }
 
     private suspend fun awaitImage(imageReader: ImageReader, handler: Handler): Image =
-        kotlinx.coroutines.withTimeout(2500) {
+        imageReader.acquireLatestImage() ?: kotlinx.coroutines.withTimeout(3000) {
             kotlinx.coroutines.suspendCancellableCoroutine { cont ->
                 val listener = ImageReader.OnImageAvailableListener { reader ->
                     val image = runCatching { reader.acquireLatestImage() }.getOrNull()
