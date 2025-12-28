@@ -29,8 +29,22 @@ jobs:
 
       - name: Gradle Build
         run: |
+          set -o pipefail
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace | tee gradle.log
+
+      - name: Upload Gradle log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-log
+          path: gradle.log
+
+      - name: Failure summary
+        if: failure()
+        run: |
+          echo "### Gradle failure (last 200 lines)" >> "$GITHUB_STEP_SUMMARY"
+          tail -n 200 gradle.log >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

@@ -40,12 +40,9 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.ViewTreeLifecycleOwner
-import androidx.lifecycle.ViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.ViewTreeSavedStateRegistryOwner
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
@@ -355,8 +352,9 @@ class FloatingBallService : Service() {
     private fun readLogcatDump(): String {
         val pid = android.os.Process.myPid()
         val preferred = listOf("logcat", "-d", "-v", "time", "--pid=$pid", "-t", "200")
-        return runLogcatCommand(preferred).takeIf { it.isNotBlank() }
-            ?: runLogcatCommand(listOf("logcat", "-d", "-v", "time", "-t", "200")).orEmpty()
+        val preferredLog = runLogcatCommand(preferred)
+        if (!preferredLog.isNullOrBlank()) return preferredLog
+        return runLogcatCommand(listOf("logcat", "-d", "-v", "time", "-t", "200")).orEmpty()
     }
 
     private fun runLogcatCommand(args: List<String>): String? {
@@ -375,9 +373,7 @@ class FloatingBallService : Service() {
         val params = dialogLayoutParams ?: return
         val view = ComposeView(this).apply {
             visibility = View.GONE
-            ViewTreeLifecycleOwner.set(this, overlayViewTreeOwner)
-            ViewTreeSavedStateRegistryOwner.set(this, overlayViewTreeOwner)
-            ViewTreeViewModelStoreOwner.set(this, overlayViewTreeOwner)
+            setViewTreeOwners(this)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
                 CompositionLocalProvider(LocalLifecycleOwner provides overlayViewTreeOwner) {
@@ -400,6 +396,12 @@ class FloatingBallService : Service() {
             it.printStackTrace()
             Toast.makeText(this, "无法显示悬浮窗，请检查权限", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun setViewTreeOwners(view: View) {
+        view.setTag(androidx.lifecycle.runtime.R.id.view_tree_lifecycle_owner, overlayViewTreeOwner)
+        view.setTag(androidx.savedstate.R.id.view_tree_saved_state_registry_owner, overlayViewTreeOwner)
+        view.setTag(androidx.lifecycle.viewmodel.R.id.view_tree_view_model_store_owner, overlayViewTreeOwner)
     }
 
     private fun showDialog() {
@@ -634,7 +636,7 @@ private class FloatingOverlayViewTreeOwner :
     ViewModelStoreOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
-    private val viewModelStore = ViewModelStore()
+    private val store = ViewModelStore()
     private var started = false
 
     init {
@@ -652,7 +654,7 @@ private class FloatingOverlayViewTreeOwner :
 
     fun onDestroy() {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        viewModelStore.clear()
+        store.clear()
     }
 
     override val lifecycle: Lifecycle
@@ -662,7 +664,7 @@ private class FloatingOverlayViewTreeOwner :
         get() = savedStateRegistryController.savedStateRegistry
 
     override val viewModelStore: ViewModelStore
-        get() = viewModelStore
+        get() = store
 }
 
 private object ActivityResultCode {
