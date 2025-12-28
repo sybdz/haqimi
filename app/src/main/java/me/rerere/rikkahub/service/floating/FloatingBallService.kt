@@ -25,8 +25,10 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -34,13 +36,6 @@ import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.ViewTreeLifecycleOwner
-import androidx.lifecycle.ViewTreeViewModelStoreOwner
-import androidx.savedstate.SavedStateRegistryController
-import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.ViewTreeSavedStateRegistryOwner
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.coroutines.resume
@@ -336,18 +331,17 @@ class FloatingBallService : Service() {
         val params = dialogLayoutParams ?: return
         val view = ComposeView(this).apply {
             visibility = View.GONE
-            ViewTreeLifecycleOwner.set(this, overlayLifecycleOwner)
-            ViewTreeViewModelStoreOwner.set(this, overlayLifecycleOwner)
-            ViewTreeSavedStateRegistryOwner.set(this, overlayLifecycleOwner)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
-                RikkahubTheme {
-                    FloatingChatPanel(
-                        modifier = Modifier.fillMaxSize(),
-                        onClose = { hideDialog() },
-                        onRequestScreenshot = { captureScreenshotForChat() },
-                        onResize = { fromLeft, dx, dy -> resizeDialog(fromLeft, dx, dy) },
-                    )
+                CompositionLocalProvider(LocalLifecycleOwner provides overlayLifecycleOwner) {
+                    RikkahubTheme {
+                        FloatingChatPanel(
+                            modifier = Modifier.fillMaxSize(),
+                            onClose = { hideDialog() },
+                            onRequestScreenshot = { captureScreenshotForChat() },
+                            onResize = { fromLeft, dx, dy -> resizeDialog(fromLeft, dx, dy) },
+                        )
+                    }
                 }
             }
         }
@@ -588,14 +582,10 @@ private fun buildNotification(): Notification {
     }
 }
 
-private class FloatingOverlayLifecycleOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
+private class FloatingOverlayLifecycleOwner : LifecycleOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
-    private val savedStateRegistryController = SavedStateRegistryController.create(this)
-    private val store = ViewModelStore()
 
     init {
-        savedStateRegistryController.performAttach()
-        savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
     }
 
@@ -606,17 +596,10 @@ private class FloatingOverlayLifecycleOwner : LifecycleOwner, ViewModelStoreOwne
 
     fun onDestroy() {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        store.clear()
     }
 
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
-
-    override val viewModelStore: ViewModelStore
-        get() = store
-
-    override val savedStateRegistry
-        get() = savedStateRegistryController.savedStateRegistry
 }
 
 private object ActivityResultCode {
