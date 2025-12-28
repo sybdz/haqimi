@@ -34,8 +34,8 @@ class FloatingChatActivity : ComponentActivity() {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         FloatingChatPanel(
                             modifier = Modifier
-                                .fillMaxWidth(0.9f)
-                                .fillMaxHeight(0.6f),
+                                .fillMaxWidth(0.85f)
+                                .fillMaxHeight(0.55f),
                             initialImages = initialImages,
                             onClose = { finish() },
                         )

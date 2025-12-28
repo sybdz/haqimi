@@ -20,6 +20,7 @@ import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -30,9 +31,20 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.ViewTreeLifecycleOwner
+import androidx.lifecycle.ViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.ViewTreeSavedStateRegistryOwner
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.coroutines.resume
+import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -95,6 +107,7 @@ class FloatingBallService : Service() {
     private val screenshotFiles = mutableSetOf<File>()
 
     private var mediaProjection: MediaProjection? = null
+    private val overlayLifecycleOwner = FloatingOverlayLifecycleOwner()
 
     override fun onCreate() {
         super.onCreate()
@@ -133,6 +146,7 @@ class FloatingBallService : Service() {
             screenshotFiles.forEach { file -> runCatching { if (file.exists()) file.delete() } }
             screenshotFiles.clear()
         }
+        overlayLifecycleOwner.onDestroy()
         serviceScope.coroutineContext.cancel()
     }
 
@@ -153,18 +167,18 @@ class FloatingBallService : Service() {
         val (width, height, _) = getDisplaySize()
         screenWidth = width
         screenHeight = height
-        barHeightPx = dpToPx(22)
-        dialogGapPx = dpToPx(6)
+        barHeightPx = dpToPx(16)
+        dialogGapPx = dpToPx(4)
 
-        val minWidth = dpToPx(220)
-        val minHeight = dpToPx(220)
-        val maxWidth = (screenWidth - dpToPx(24)).coerceAtLeast(minWidth)
-        val maxHeight = (screenHeight - barHeightPx - dialogGapPx - dpToPx(64)).coerceAtLeast(minHeight)
+        val minWidth = dpToPx(200)
+        val minHeight = dpToPx(200)
+        val maxWidth = (screenWidth - dpToPx(16)).coerceAtLeast(minWidth)
+        val maxHeight = (screenHeight - barHeightPx - dialogGapPx - dpToPx(56)).coerceAtLeast(minHeight)
 
-        val dialogWidth = dpToPx(320).coerceIn(minWidth, maxWidth)
-        val dialogHeight = dpToPx(420).coerceIn(minHeight, maxHeight)
+        val dialogWidth = dpToPx(280).coerceIn(minWidth, maxWidth)
+        val dialogHeight = dpToPx(320).coerceIn(minHeight, maxHeight)
         val defaultX = ((screenWidth - dialogWidth) / 2).coerceAtLeast(0)
-        val defaultY = (screenHeight - dialogHeight - barHeightPx - dialogGapPx - dpToPx(48)).coerceAtLeast(0)
+        val defaultY = (screenHeight - dialogHeight - barHeightPx - dialogGapPx - dpToPx(40)).coerceAtLeast(0)
 
         dialogLayoutParams = WindowManager.LayoutParams(
             dialogWidth,
@@ -239,19 +253,23 @@ class FloatingBallService : Service() {
             elevation = dpToPx(6).toFloat()
         }
 
+        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop
         var isDragging = false
+        var hasDragged = false
         val gestureDetector = GestureDetector(
             this,
             object : GestureDetector.SimpleOnGestureListener() {
                 override fun onDown(e: MotionEvent): Boolean = true
 
                 override fun onSingleTapUp(e: MotionEvent): Boolean {
+                    if (hasDragged) return true
                     toggleDialog()
                     return true
                 }
 
                 override fun onLongPress(e: MotionEvent) {
                     isDragging = true
+                    hasDragged = true
                 }
             }
         )
@@ -272,13 +290,21 @@ class FloatingBallService : Service() {
                     startDialogX = dialogParams.x
                     startDialogY = dialogParams.y
                     isDragging = false
+                    hasDragged = false
                     true
                 }
 
                 MotionEvent.ACTION_MOVE -> {
-                    if (!isDragging) return@setOnTouchListener true
                     val dx = (event.rawX - touchX).toInt()
                     val dy = (event.rawY - touchY).toInt()
+                    if (!isDragging) {
+                        if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
+                            isDragging = true
+                        } else {
+                            return@setOnTouchListener true
+                        }
+                    }
+                    hasDragged = true
                     moveDialogTo(startDialogX + dx, startDialogY + dy)
                     true
                 }
@@ -286,6 +312,7 @@ class FloatingBallService : Service() {
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_CANCEL -> {
                     isDragging = false
+                    hasDragged = false
                     true
                 }
 
@@ -309,6 +336,9 @@ class FloatingBallService : Service() {
         val params = dialogLayoutParams ?: return
         val view = ComposeView(this).apply {
             visibility = View.GONE
+            ViewTreeLifecycleOwner.set(this, overlayLifecycleOwner)
+            ViewTreeViewModelStoreOwner.set(this, overlayLifecycleOwner)
+            ViewTreeSavedStateRegistryOwner.set(this, overlayLifecycleOwner)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
                 RikkahubTheme {
@@ -324,6 +354,7 @@ class FloatingBallService : Service() {
         runCatching {
             windowManager.addView(view, params)
             dialogView = view
+            overlayLifecycleOwner.onStart()
         }.onFailure {
             it.printStackTrace()
             Toast.makeText(this, "无法显示悬浮窗，请检查权限", Toast.LENGTH_SHORT).show()
@@ -384,8 +415,8 @@ class FloatingBallService : Service() {
         val dialogParams = dialogLayoutParams ?: return
         val barParams = barLayoutParams ?: return
 
-        val minWidth = dpToPx(220)
-        val minHeight = dpToPx(220)
+        val minWidth = dpToPx(200)
+        val minHeight = dpToPx(200)
         val maxWidth = (screenWidth - dpToPx(16)).coerceAtLeast(minWidth)
         val maxHeight = (screenHeight - dialogParams.y - barHeightPx - dialogGapPx).coerceAtLeast(minHeight)
 
@@ -546,7 +577,7 @@ class FloatingBallService : Service() {
         nm.createNotificationChannel(channel)
     }
 
-    private fun buildNotification(): Notification {
+private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("悬浮条运行中")
@@ -555,6 +586,34 @@ class FloatingBallService : Service() {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
+}
+
+private class FloatingOverlayLifecycleOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    private val store = ViewModelStore()
+
+    init {
+        savedStateRegistryController.performAttach()
+        savedStateRegistryController.performRestore(null)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+    }
+
+    fun onStart() {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    }
+
+    fun onDestroy() {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        store.clear()
+    }
+
+    override fun getLifecycle(): Lifecycle = lifecycleRegistry
+
+    override fun getViewModelStore(): ViewModelStore = store
+
+    override fun getSavedStateRegistry() = savedStateRegistryController.savedStateRegistry
 }
 
 private object ActivityResultCode {

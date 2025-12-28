@@ -311,6 +311,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 )
             }
 
+            item {
+                SettingItem(
+                    navController = navController,
+                    title = { Text("查看 Logcat") },
+                    description = { Text("查看当前应用日志") },
+                    icon = { Icon(Lucide.Terminal, "Logcat") },
+                    link = Screen.SettingLogcat
+                )
+            }
+
             stickyHeader {
                 Text(
                     text = stringResource(R.string.setting_page_about),
