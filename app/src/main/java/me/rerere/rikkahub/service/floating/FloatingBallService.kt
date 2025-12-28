@@ -348,6 +348,7 @@ class FloatingBallService : Service() {
                             onClose = { hideDialog() },
                             onRequestScreenshot = { captureScreenshotForChat() },
                             onResize = { fromLeft, dx, dy -> resizeDialog(fromLeft, dx, dy) },
+                            onMove = { dx, dy -> moveDialogBy(dx, dy) },
                         )
                     }
                 }
@@ -445,6 +446,20 @@ class FloatingBallService : Service() {
         dialogParams.width = newWidth
         dialogParams.height = newHeight
         dialogParams.x = newX
+        updateDialogLayout()
+    }
+
+    private fun moveDialogBy(dx: Float, dy: Float) {
+        val dialogParams = dialogLayoutParams ?: return
+
+        refreshDisplaySize()
+        val maxX = (screenWidth - dialogParams.width).coerceAtLeast(0)
+        val maxY = (screenHeight - dialogParams.height).coerceAtLeast(0)
+        val newX = (dialogParams.x + dx.toInt()).coerceIn(0, maxX)
+        val newY = (dialogParams.y + dy.toInt()).coerceIn(0, maxY)
+        if (newX == dialogParams.x && newY == dialogParams.y) return
+        dialogParams.x = newX
+        dialogParams.y = newY
         updateDialogLayout()
     }
 

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -41,8 +42,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.Camera
@@ -81,6 +82,7 @@ fun FloatingChatPanel(
     onClose: () -> Unit,
     onRequestScreenshot: (suspend () -> Result<String>)? = null,
     onResize: ((fromLeft: Boolean, dx: Float, dy: Float) -> Unit)? = null,
+    onMove: ((dx: Float, dy: Float) -> Unit)? = null,
 ) {
     val settingsStore = org.koin.compose.koinInject<SettingsStore>()
     val generationHandler = org.koin.compose.koinInject<GenerationHandler>()
@@ -226,23 +228,44 @@ fun FloatingChatPanel(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                val dragModifier = if (onMove != null) {
+                    Modifier.pointerInput(onMove) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            onMove(dragAmount.x, dragAmount.y)
+                        }
+                    }
+                } else {
+                    Modifier
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = "截图提问",
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(dragModifier)
+                    ) {
+                        Text(
+                            text = "截图提问",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    }
                     IconButton(
                         onClick = { clearConversation() },
                         enabled = messages.isNotEmpty() || attachments.isNotEmpty() || input.isNotBlank(),
+                        modifier = Modifier.size(32.dp),
                     ) {
-                        Icon(Lucide.Trash2, contentDescription = "Clear")
+                        Icon(
+                            Lucide.Trash2,
+                            contentDescription = "Clear",
+                            modifier = Modifier.size(18.dp),
+                        )
                     }
                     IconButton(onClick = onClose) {
                         Icon(Lucide.X, contentDescription = "Close")
@@ -289,12 +312,13 @@ fun FloatingChatPanel(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     if (onRequestScreenshot != null) {
                         IconButton(
                             onClick = { requestScreenshot() },
                             enabled = !capturing,
+                            modifier = Modifier.size(36.dp),
                         ) {
                             if (capturing) {
                                 CircularProgressIndicator(
@@ -302,7 +326,11 @@ fun FloatingChatPanel(
                                     strokeWidth = 2.dp,
                                 )
                             } else {
-                                Icon(Lucide.Camera, contentDescription = "Screenshot")
+                                Icon(
+                                    Lucide.Camera,
+                                    contentDescription = "Screenshot",
+                                    modifier = Modifier.size(18.dp),
+                                )
                             }
                         }
                     }
@@ -312,6 +340,7 @@ fun FloatingChatPanel(
                         onValueChange = { input = it },
                         modifier = Modifier
                             .weight(1f)
+                            .heightIn(min = 44.dp)
                             .onKeyEvent { event ->
                                 val native = event.nativeKeyEvent
                                 if (native.action == AndroidKeyEvent.ACTION_DOWN && native.keyCode == AndroidKeyEvent.KEYCODE_ENTER) {
@@ -324,18 +353,27 @@ fun FloatingChatPanel(
                         placeholder = { Text("输入问题，回车发送") },
                         singleLine = true,
                         enabled = !generating,
+                        textStyle = MaterialTheme.typography.bodySmall,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = { send() }),
                     )
 
                     IconButton(
                         onClick = { send() },
-                        enabled = !generating && input.isNotBlank()
+                        enabled = !generating && input.isNotBlank(),
+                        modifier = Modifier.size(36.dp),
                     ) {
                         if (generating) {
-                            CircularProgressIndicator(modifier = Modifier.padding(2.dp))
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                            )
                         } else {
-                            Icon(Lucide.Send, contentDescription = "Send")
+                            Icon(
+                                Lucide.Send,
+                                contentDescription = "Send",
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
                     }
                 }
