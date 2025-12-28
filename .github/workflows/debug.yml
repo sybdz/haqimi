@@ -31,7 +31,7 @@ jobs:
         run: |
           set -o pipefail
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace | tee gradle.log
+          ./gradlew assembleDebug --stacktrace -PskipGoogleServices=true | tee gradle.log
 
       - name: Upload Gradle log
         if: always()

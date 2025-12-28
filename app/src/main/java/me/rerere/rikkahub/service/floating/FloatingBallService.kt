@@ -4,8 +4,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -45,7 +43,6 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import java.io.File
 import java.io.FileOutputStream
-import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
@@ -266,7 +263,6 @@ class FloatingBallService : Service() {
 
                 override fun onSingleTapUp(e: MotionEvent): Boolean {
                     if (hasDragged) return true
-                    copyLogsToClipboard()
                     toggleDialog()
                     return true
                 }
@@ -333,44 +329,6 @@ class FloatingBallService : Service() {
         } else {
             showDialog()
         }
-    }
-
-    private fun copyLogsToClipboard() {
-        serviceScope.launch {
-            runCatching {
-                val logs = withContext(Dispatchers.IO) { readLogcatDump() }
-                if (logs.isBlank()) {
-                    Toast.makeText(this@FloatingBallService, "日志为空", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                    ?: throw IllegalStateException("Clipboard service unavailable")
-                val clip = ClipData.newPlainText("RikkaHub Logs", logs)
-                clipboard.setPrimaryClip(clip)
-                Toast.makeText(this@FloatingBallService, "日志已复制到剪贴板", Toast.LENGTH_SHORT).show()
-            }.onFailure {
-                Toast.makeText(this@FloatingBallService, "复制日志失败", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun readLogcatDump(): String {
-        val pid = android.os.Process.myPid()
-        val preferred = listOf("logcat", "-d", "-v", "time", "--pid=$pid", "-t", "200")
-        val preferredLog = runLogcatCommand(preferred)
-        if (!preferredLog.isNullOrBlank()) return preferredLog
-        return runLogcatCommand(listOf("logcat", "-d", "-v", "time", "-t", "200")).orEmpty()
-    }
-
-    private fun runLogcatCommand(args: List<String>): String? {
-        return runCatching {
-            val process = ProcessBuilder(args)
-                .redirectErrorStream(true)
-                .start()
-            val output = process.inputStream.bufferedReader().use { it.readText() }
-            process.waitFor(2, TimeUnit.SECONDS)
-            output.trim()
-        }.getOrNull()
     }
 
     private fun ensureDialogView() {
@@ -645,9 +603,9 @@ private class FloatingOverlayViewTreeOwner :
     private var started = false
 
     init {
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         savedStateRegistryController.performAttach()
         savedStateRegistryController.performRestore(null)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
     }
 
     fun onStart() {

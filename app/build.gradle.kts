@@ -162,6 +162,12 @@ kotlin {
     }
 }
 
+val skipGoogleServices = providers.gradleProperty("skipGoogleServices").orNull == "true"
+if (skipGoogleServices) {
+    tasks.matching { it.name.endsWith("GoogleServices") && it.name.contains("Debug") }
+        .configureEach { enabled = false }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
