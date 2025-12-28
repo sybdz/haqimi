@@ -16,8 +16,10 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
@@ -60,6 +62,7 @@ import me.rerere.rikkahub.ui.theme.RikkahubTheme
 
 class FloatingBallService : Service() {
     companion object {
+        private const val TAG = "FloatingBallService"
         private const val ACTION_START = "me.rerere.rikkahub.action.FLOATING_BALL_START"
         private const val ACTION_STOP = "me.rerere.rikkahub.action.FLOATING_BALL_STOP"
         private const val ACTION_SHOW_BALL = "me.rerere.rikkahub.action.FLOATING_BALL_SHOW"
@@ -532,11 +535,14 @@ class FloatingBallService : Service() {
         val ball = ballView
         val dialog = dialogView
         val wasDialogVisible = dialogVisible
+        val startTime = System.currentTimeMillis()
 
         ball?.visibility = View.INVISIBLE
         dialog?.visibility = View.INVISIBLE
         delay(90)
-        val screenshot = runCatching { captureScreenshotToFile(projection) }.getOrNull()
+        val screenshot = runCatching { captureScreenshotToFile(projection) }
+            .onFailure { Log.w(TAG, "capture failed", it) }
+            .getOrNull()
         ball?.visibility = View.VISIBLE
         if (wasDialogVisible) {
             dialog?.visibility = View.VISIBLE
@@ -546,6 +552,10 @@ class FloatingBallService : Service() {
             dialog?.visibility = View.GONE
         }
 
+        Log.d(
+            TAG,
+            "capture done success=${screenshot != null} cost=${System.currentTimeMillis() - startTime}ms"
+        )
         return if (screenshot == null) {
             Result.failure(IllegalStateException("截图失败"))
         } else {
@@ -558,6 +568,8 @@ class FloatingBallService : Service() {
         refreshDisplaySize()
         val (width, height, densityDpi) = getDisplaySize()
         val imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+        val handlerThread = HandlerThread("FloatingBallCapture").apply { start() }
+        val handler = Handler(handlerThread.looper)
         val virtualDisplay = projection.createVirtualDisplay(
             "rikkahub_floating_ball",
             width,
@@ -570,19 +582,29 @@ class FloatingBallService : Service() {
         )
 
         try {
-            delay(80)
+            Log.d(TAG, "capture createVirtualDisplay size=${width}x${height} density=$densityDpi")
+            delay(180)
             var bitmap: Bitmap? = null
-            for (attempt in 0 until 3) {
-                val image = awaitImage(imageReader)
+            var lastError: Throwable? = null
+            for (attempt in 0 until 5) {
+                val image = runCatching { awaitImage(imageReader, handler) }
+                    .onFailure { lastError = it }
+                    .getOrNull()
+                if (image == null) {
+                    if (attempt < 4) delay(120)
+                    continue
+                }
                 val candidate = imageToBitmap(image, width, height)
-                if (!isBitmapBlank(candidate)) {
+                val blank = isBitmapBlank(candidate)
+                Log.d(TAG, "capture attempt=${attempt + 1} blank=$blank")
+                if (!blank) {
                     bitmap = candidate
                     break
                 }
                 candidate.recycle()
-                if (attempt < 2) delay(80)
+                if (attempt < 4) delay(120)
             }
-            val result = bitmap ?: throw IllegalStateException("截图内容为空")
+            val result = bitmap ?: throw (lastError ?: IllegalStateException("截图内容为空"))
 
             val dir = File(cacheDir, "floating_ball")
             if (!dir.exists()) dir.mkdirs()
@@ -595,13 +617,13 @@ class FloatingBallService : Service() {
         } finally {
             runCatching { virtualDisplay?.release() }
             runCatching { imageReader.close() }
+            runCatching { handlerThread.quitSafely() }
         }
     }
 
-    private suspend fun awaitImage(imageReader: ImageReader): Image =
-        kotlinx.coroutines.withTimeout(1500) {
+    private suspend fun awaitImage(imageReader: ImageReader, handler: Handler): Image =
+        kotlinx.coroutines.withTimeout(2500) {
             kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-                val handler = Handler(Looper.getMainLooper())
                 val listener = ImageReader.OnImageAvailableListener { reader ->
                     val image = runCatching { reader.acquireLatestImage() }.getOrNull()
                     if (image == null) return@OnImageAvailableListener
