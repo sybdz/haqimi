@@ -94,9 +94,9 @@ private fun JsonElement.toOrgJsonValue(): Any? {
         JsonNull -> JSONObject.NULL
         is JsonPrimitive -> when {
             isString -> content
-            booleanOrNull != null -> boolean
-            longOrNull != null -> long
-            doubleOrNull != null -> double
+            booleanValueOrNull() != null -> booleanValueOrNull()
+            longValueOrNull() != null -> longValueOrNull()
+            doubleValueOrNull() != null -> doubleValueOrNull()
             else -> content
         }
         is JsonObject -> {
@@ -115,4 +115,19 @@ private fun JsonElement.toOrgJsonValue(): Any? {
         }
         else -> JSONObject.NULL
     }
+}
+
+private fun JsonPrimitive.booleanValueOrNull(): Boolean? {
+    if (isString) return null
+    return content.toBooleanStrictOrNull()
+}
+
+private fun JsonPrimitive.longValueOrNull(): Long? {
+    if (isString) return null
+    return content.toLongOrNull()
+}
+
+private fun JsonPrimitive.doubleValueOrNull(): Double? {
+    if (isString) return null
+    return content.toDoubleOrNull()
 }
