@@ -4,12 +4,13 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.json.Json
 import me.rerere.tts.model.AudioChunk
 import me.rerere.tts.model.AudioFormat
 import me.rerere.tts.model.TTSRequest
 import me.rerere.tts.provider.TTSProvider
 import me.rerere.tts.provider.TTSProviderSetting
+import me.rerere.tts.util.mergeCustomBody
+import me.rerere.tts.util.toHeaders
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -34,12 +35,13 @@ class OpenAITTSProvider : TTSProvider<TTSProviderSetting.OpenAI> {
             put("input", request.text)
             put("voice", providerSetting.voice)
             put("response_format", "mp3") // Default to MP3
-        }
+        }.mergeCustomBody(providerSetting.customBody)
 
         Log.i(TAG, "generateSpeech: $requestBody")
 
         val httpRequest = Request.Builder()
             .url("${providerSetting.baseUrl}/audio/speech")
+            .headers(providerSetting.customHeaders.toHeaders())
             .addHeader("Authorization", "Bearer ${providerSetting.apiKey}")
             .addHeader("Content-Type", "application/json")
             .post(requestBody.toString().toRequestBody("application/json".toMediaType()))

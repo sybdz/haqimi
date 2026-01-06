@@ -10,6 +10,8 @@ import me.rerere.tts.model.AudioFormat
 import me.rerere.tts.model.TTSRequest
 import me.rerere.tts.provider.TTSProvider
 import me.rerere.tts.provider.TTSProviderSetting
+import me.rerere.tts.util.mergeCustomBody
+import me.rerere.tts.util.toHeaders
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -36,12 +38,13 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
                 put("voice", providerSetting.voice)
                 put("language_type", providerSetting.languageType)
             })
-        }
+        }.mergeCustomBody(providerSetting.customBody)
 
         Log.i(TAG, "generateSpeech: $requestBody")
 
         val httpRequest = Request.Builder()
             .url("${providerSetting.baseUrl}/services/aigc/multimodal-generation/generation")
+            .headers(providerSetting.customHeaders.toHeaders())
             .addHeader("Authorization", "Bearer ${providerSetting.apiKey}")
             .addHeader("Content-Type", "application/json")
             .addHeader("X-DashScope-SSE", "enable")

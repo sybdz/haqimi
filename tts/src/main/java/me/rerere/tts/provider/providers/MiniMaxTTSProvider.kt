@@ -15,6 +15,8 @@ import me.rerere.tts.model.AudioFormat
 import me.rerere.tts.model.TTSRequest
 import me.rerere.tts.provider.TTSProvider
 import me.rerere.tts.provider.TTSProviderSetting
+import me.rerere.tts.util.mergeCustomBody
+import me.rerere.tts.util.toHeaders
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -63,12 +65,13 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
                 put("emotion", providerSetting.emotion)
                 put("speed", providerSetting.speed)
             })
-        }
+        }.mergeCustomBody(providerSetting.customBody)
 
         Log.i(TAG, "generateSpeech: $requestBody")
 
         val httpRequest = Request.Builder()
             .url("${providerSetting.baseUrl}/t2a_v2")
+            .headers(providerSetting.customHeaders.toHeaders())
             .addHeader("Authorization", "Bearer ${providerSetting.apiKey}")
             .addHeader("Content-Type", "application/json")
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))

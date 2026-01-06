@@ -22,6 +22,7 @@ import me.rerere.tts.model.PlaybackStatus
 import me.rerere.tts.model.TTSResponse
 import me.rerere.tts.provider.TTSManager
 import me.rerere.tts.provider.TTSProviderSetting
+import me.rerere.tts.provider.validate
 import java.util.UUID
 
 private const val TAG = "TtsController"
@@ -96,7 +97,9 @@ class TtsController(
     /** 选择/取消选择 Provider */
     fun setProvider(provider: TTSProviderSetting?) {
         currentProvider = provider
-        _isAvailable.update { provider != null }
+        val validationError = provider?.validate()
+        _isAvailable.update { provider != null && validationError == null }
+        _error.update { validationError }
         if (provider == null) stop()
     }
 
@@ -112,6 +115,13 @@ class TtsController(
             _error.update { "No TTS provider selected" }
             return
         }
+        val validationError = provider.validate()
+        if (validationError != null) {
+            _error.update { validationError }
+            _isAvailable.update { false }
+            return
+        }
+        _isAvailable.update { true }
 
         val newChunks = chunker.split(text)
         if (newChunks.isEmpty()) return

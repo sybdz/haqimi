@@ -8,8 +8,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,6 +25,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
 import me.rerere.tts.provider.TTSProviderSetting
+import me.rerere.tts.provider.TtsCustomBody
+import me.rerere.tts.provider.TtsCustomHeader
 
 @Composable
 fun TTSProviderConfigure(
@@ -30,6 +34,30 @@ fun TTSProviderConfigure(
     modifier: Modifier = Modifier,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
+    val updateCustomHeaders: (List<TtsCustomHeader>) -> Unit = { headers ->
+        val updated = when (setting) {
+            is TTSProviderSetting.OpenAI -> setting.copy(customHeaders = headers)
+            is TTSProviderSetting.Gemini -> setting.copy(customHeaders = headers)
+            is TTSProviderSetting.SystemTTS -> setting.copy(customHeaders = headers)
+            is TTSProviderSetting.MiniMax -> setting.copy(customHeaders = headers)
+            is TTSProviderSetting.Qwen -> setting.copy(customHeaders = headers)
+            is TTSProviderSetting.Doubao -> setting.copy(customHeaders = headers)
+        }
+        onValueChange(updated)
+    }
+
+    val updateCustomBody: (List<TtsCustomBody>) -> Unit = { bodies ->
+        val updated = when (setting) {
+            is TTSProviderSetting.OpenAI -> setting.copy(customBody = bodies)
+            is TTSProviderSetting.Gemini -> setting.copy(customBody = bodies)
+            is TTSProviderSetting.SystemTTS -> setting.copy(customBody = bodies)
+            is TTSProviderSetting.MiniMax -> setting.copy(customBody = bodies)
+            is TTSProviderSetting.Qwen -> setting.copy(customBody = bodies)
+            is TTSProviderSetting.Doubao -> setting.copy(customBody = bodies)
+        }
+        onValueChange(updated)
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.verticalScroll(rememberScrollState())
@@ -53,6 +81,7 @@ fun TTSProviderConfigure(
                         is TTSProviderSetting.SystemTTS -> "System TTS"
                         is TTSProviderSetting.MiniMax -> "MiniMax"
                         is TTSProviderSetting.Qwen -> "Qwen"
+                        is TTSProviderSetting.Doubao -> "Doubao"
                     },
                     onValueChange = {},
                     readOnly = true,
@@ -77,6 +106,7 @@ fun TTSProviderConfigure(
                                         TTSProviderSetting.SystemTTS::class -> "System TTS"
                                         TTSProviderSetting.MiniMax::class -> "MiniMax"
                                         TTSProviderSetting.Qwen::class -> "Qwen"
+                                        TTSProviderSetting.Doubao::class -> "Doubao"
                                         else -> providerClass.simpleName ?: "Unknown"
                                     }
                                 )
@@ -107,6 +137,11 @@ fun TTSProviderConfigure(
                                     TTSProviderSetting.Qwen::class -> TTSProviderSetting.Qwen(
                                         id = setting.id,
                                         name = "Qwen TTS"
+                                    )
+
+                                    TTSProviderSetting.Doubao::class -> TTSProviderSetting.Doubao(
+                                        id = setting.id,
+                                        name = "Doubao TTS"
                                     )
 
                                     else -> setting
@@ -141,6 +176,14 @@ fun TTSProviderConfigure(
             is TTSProviderSetting.MiniMax -> MiniMaxTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.SystemTTS -> SystemTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.Qwen -> QwenTTSConfiguration(setting, onValueChange)
+            is TTSProviderSetting.Doubao -> DoubaoTTSConfiguration(setting, onValueChange)
+        }
+
+        if (setting !is TTSProviderSetting.SystemTTS) {
+            HorizontalDivider()
+            TtsCustomHeaders(headers = setting.customHeaders, onUpdate = updateCustomHeaders)
+            HorizontalDivider()
+            TtsCustomBodies(customBodies = setting.customBody, onUpdate = updateCustomBody)
         }
     }
 }
@@ -641,5 +684,292 @@ private fun QwenTTSConfiguration(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DoubaoTTSConfiguration(
+    setting: TTSProviderSetting.Doubao,
+    onValueChange: (TTSProviderSetting) -> Unit
+) {
+    // App ID
+    FormItem(
+        label = { Text("App ID") },
+        description = { Text("X-Api-App-Id request header") }
+    ) {
+        OutlinedTextField(
+            value = setting.appId,
+            onValueChange = { onValueChange(setting.copy(appId = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("your-app-id") }
+        )
+    }
+
+    // Access Key
+    FormItem(
+        label = { Text("Access Key") },
+        description = { Text("X-Api-Access-Key request header") }
+    ) {
+        OutlinedTextField(
+            value = setting.accessKey,
+            onValueChange = { onValueChange(setting.copy(accessKey = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("your-access-key") }
+        )
+    }
+
+    // Base URL
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.baseUrl,
+            onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("https://openspeech.bytedance.com") }
+        )
+    }
+
+    // Resource ID
+    FormItem(
+        label = { Text("Resource ID") },
+        description = { Text("X-Api-Resource-Id request header") }
+    ) {
+        OutlinedTextField(
+            value = setting.resourceId,
+            onValueChange = { onValueChange(setting.copy(resourceId = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("volc.service_type.10029") }
+        )
+    }
+
+    // Request ID
+    FormItem(
+        label = { Text("Request ID") },
+        description = { Text("Optional X-Api-Request-Id header") }
+    ) {
+        OutlinedTextField(
+            value = setting.requestId,
+            onValueChange = { onValueChange(setting.copy(requestId = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("optional-request-id") }
+        )
+    }
+
+    // Require Usage Tokens Return
+    FormItem(
+        label = { Text("Return Usage Tokens") },
+        description = { Text("Enable X-Control-Require-Usage-Tokens-Return") }
+    ) {
+        Switch(
+            checked = setting.requireUsageTokensReturn,
+            onCheckedChange = { onValueChange(setting.copy(requireUsageTokensReturn = it)) }
+        )
+    }
+
+    // UID
+    FormItem(
+        label = { Text("User UID") },
+        description = { Text("user.uid in request body") }
+    ) {
+        OutlinedTextField(
+            value = setting.uid,
+            onValueChange = { onValueChange(setting.copy(uid = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("rikkahub") }
+        )
+    }
+
+    // Namespace
+    FormItem(
+        label = { Text("Namespace") },
+        description = { Text("namespace in request body") }
+    ) {
+        OutlinedTextField(
+            value = setting.namespace,
+            onValueChange = { onValueChange(setting.copy(namespace = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("BidirectionalTTS") }
+        )
+    }
+
+    // Model
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_model)) },
+        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.model,
+            onValueChange = { onValueChange(setting.copy(model = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("seed-tts-1.0") }
+        )
+    }
+
+    // Voice Type
+    FormItem(
+        label = { Text("Voice Type") },
+        description = { Text("req_params.voice_type") }
+    ) {
+        OutlinedTextField(
+            value = setting.voiceType,
+            onValueChange = { onValueChange(setting.copy(voiceType = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("voice-id") }
+        )
+    }
+
+    // Use SSML
+    FormItem(
+        label = { Text("Use SSML") },
+        description = { Text("Send text as ssml instead of text") }
+    ) {
+        Switch(
+            checked = setting.useSsml,
+            onCheckedChange = { onValueChange(setting.copy(useSsml = it)) }
+        )
+    }
+
+    // Audio Format
+    var formatExpanded by remember { mutableStateOf(false) }
+    val formats = listOf("mp3", "ogg_opus", "pcm")
+
+    FormItem(
+        label = { Text("Audio Format") },
+        description = { Text("audio_params.format") }
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = formatExpanded,
+            onExpandedChange = { formatExpanded = !formatExpanded }
+        ) {
+            OutlinedTextField(
+                value = setting.format,
+                onValueChange = { onValueChange(setting.copy(format = it)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(MenuAnchorType.PrimaryEditable),
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = formatExpanded)
+                }
+            )
+            ExposedDropdownMenu(
+                expanded = formatExpanded,
+                onDismissRequest = { formatExpanded = false }
+            ) {
+                formats.forEach { format ->
+                    DropdownMenuItem(
+                        text = { Text(format) },
+                        onClick = {
+                            formatExpanded = false
+                            onValueChange(setting.copy(format = format))
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // Sample Rate
+    FormItem(
+        label = { Text("Sample Rate") },
+        description = { Text("audio_params.sample_rate") }
+    ) {
+        OutlinedNumberInput(
+            value = setting.sampleRate,
+            onValueChange = { onValueChange(setting.copy(sampleRate = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            label = "Sample Rate"
+        )
+    }
+
+    // Bit Rate
+    FormItem(
+        label = { Text("Bit Rate") },
+        description = { Text("audio_params.bit_rate (0 = auto)") }
+    ) {
+        OutlinedNumberInput(
+            value = setting.bitRate,
+            onValueChange = { onValueChange(setting.copy(bitRate = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            label = "Bit Rate"
+        )
+    }
+
+    // Speech Rate
+    FormItem(
+        label = { Text("Speech Rate") },
+        description = { Text("audio_params.speech_rate (-50 ~ 100)") }
+    ) {
+        OutlinedNumberInput(
+            value = setting.speechRate,
+            onValueChange = { onValueChange(setting.copy(speechRate = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            label = "Speech Rate"
+        )
+    }
+
+    // Loudness Rate
+    FormItem(
+        label = { Text("Loudness Rate") },
+        description = { Text("audio_params.loudness_rate (-50 ~ 100)") }
+    ) {
+        OutlinedNumberInput(
+            value = setting.loudnessRate,
+            onValueChange = { onValueChange(setting.copy(loudnessRate = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            label = "Loudness Rate"
+        )
+    }
+
+    // Emotion
+    FormItem(
+        label = { Text("Emotion") },
+        description = { Text("audio_params.emotion") }
+    ) {
+        OutlinedTextField(
+            value = setting.emotion,
+            onValueChange = { onValueChange(setting.copy(emotion = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("happy") }
+        )
+    }
+
+    // Emotion Scale
+    FormItem(
+        label = { Text("Emotion Scale") },
+        description = { Text("audio_params.emotion_scale (1 ~ 5)") }
+    ) {
+        OutlinedNumberInput(
+            value = setting.emotionScale,
+            onValueChange = { onValueChange(setting.copy(emotionScale = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            label = "Emotion Scale"
+        )
+    }
+
+    // Enable Timestamp
+    FormItem(
+        label = { Text("Enable Timestamp") },
+        description = { Text("audio_params.enable_timestamp") }
+    ) {
+        Switch(
+            checked = setting.enableTimestamp,
+            onCheckedChange = { onValueChange(setting.copy(enableTimestamp = it)) }
+        )
+    }
+
+    // Additions
+    FormItem(
+        label = { Text("Additions") },
+        description = { Text("req_params.additions (JSON string)") }
+    ) {
+        OutlinedTextField(
+            value = setting.additions,
+            onValueChange = { onValueChange(setting.copy(additions = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("{\"disable_default_bit_rate\":true}") },
+            minLines = 2
+        )
     }
 }

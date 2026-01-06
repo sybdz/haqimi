@@ -8,6 +8,8 @@ import kotlin.uuid.Uuid
 sealed class TTSProviderSetting {
     abstract val id: Uuid
     abstract val name: String
+    abstract val customHeaders: List<TtsCustomHeader>
+    abstract val customBody: List<TtsCustomBody>
 
     abstract fun copyProvider(
         id: Uuid = this.id,
@@ -22,7 +24,9 @@ sealed class TTSProviderSetting {
         val apiKey: String = "",
         val baseUrl: String = "https://api.openai.com/v1",
         val model: String = "gpt-4o-mini-tts",
-        val voice: String = "alloy"
+        val voice: String = "alloy",
+        override val customHeaders: List<TtsCustomHeader> = emptyList(),
+        override val customBody: List<TtsCustomBody> = emptyList(),
     ) : TTSProviderSetting() {
         override fun copyProvider(
             id: Uuid,
@@ -43,7 +47,9 @@ sealed class TTSProviderSetting {
         val apiKey: String = "",
         val baseUrl: String = "https://generativelanguage.googleapis.com/v1beta",
         val model: String = "gemini-2.5-flash-preview-tts",
-        val voiceName: String = "Kore"
+        val voiceName: String = "Kore",
+        override val customHeaders: List<TtsCustomHeader> = emptyList(),
+        override val customBody: List<TtsCustomBody> = emptyList(),
     ) : TTSProviderSetting() {
         override fun copyProvider(
             id: Uuid,
@@ -63,6 +69,8 @@ sealed class TTSProviderSetting {
         override var name: String = "System TTS",
         val speechRate: Float = 1.0f,
         val pitch: Float = 1.0f,
+        override val customHeaders: List<TtsCustomHeader> = emptyList(),
+        override val customBody: List<TtsCustomBody> = emptyList(),
     ) : TTSProviderSetting() {
         override fun copyProvider(
             id: Uuid,
@@ -85,7 +93,9 @@ sealed class TTSProviderSetting {
         val model: String = "speech-2.5-hd-preview",
         val voiceId: String = "female-shaonv",
         val emotion: String = "calm",
-        val speed: Float = 1.0f
+        val speed: Float = 1.0f,
+        override val customHeaders: List<TtsCustomHeader> = emptyList(),
+        override val customBody: List<TtsCustomBody> = emptyList(),
     ) : TTSProviderSetting() {
         override fun copyProvider(
             id: Uuid,
@@ -107,7 +117,48 @@ sealed class TTSProviderSetting {
         val baseUrl: String = "https://dashscope.aliyuncs.com/api/v1",
         val model: String = "qwen3-tts-flash",
         val voice: String = "Cherry",
-        val languageType: String = "Auto"
+        val languageType: String = "Auto",
+        override val customHeaders: List<TtsCustomHeader> = emptyList(),
+        override val customBody: List<TtsCustomBody> = emptyList(),
+    ) : TTSProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            name: String,
+        ): TTSProviderSetting {
+            return this.copy(
+                id = id,
+                name = name,
+            )
+        }
+    }
+
+    @Serializable
+    @SerialName("doubao")
+    data class Doubao(
+        override var id: Uuid = Uuid.random(),
+        override var name: String = "Doubao TTS",
+        val appId: String = "",
+        val accessKey: String = "",
+        val baseUrl: String = "https://openspeech.bytedance.com",
+        val resourceId: String = "volc.service_type.10029",
+        val requestId: String = "",
+        val requireUsageTokensReturn: Boolean = false,
+        val uid: String = "rikkahub",
+        val namespace: String = "BidirectionalTTS",
+        val model: String = "",
+        val voiceType: String = "",
+        val useSsml: Boolean = false,
+        val format: String = "mp3",
+        val sampleRate: Int = 24000,
+        val bitRate: Int = 0,
+        val speechRate: Int = 0,
+        val loudnessRate: Int = 0,
+        val emotion: String = "",
+        val emotionScale: Int = 4,
+        val enableTimestamp: Boolean = false,
+        val additions: String = "",
+        override val customHeaders: List<TtsCustomHeader> = emptyList(),
+        override val customBody: List<TtsCustomBody> = emptyList(),
     ) : TTSProviderSetting() {
         override fun copyProvider(
             id: Uuid,
@@ -128,6 +179,7 @@ sealed class TTSProviderSetting {
                 SystemTTS::class,
                 MiniMax::class,
                 Qwen::class,
+                Doubao::class,
             )
         }
     }

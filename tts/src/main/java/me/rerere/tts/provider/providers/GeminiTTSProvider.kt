@@ -12,6 +12,8 @@ import me.rerere.tts.model.AudioFormat
 import me.rerere.tts.model.TTSRequest
 import me.rerere.tts.provider.TTSProvider
 import me.rerere.tts.provider.TTSProviderSetting
+import me.rerere.tts.util.mergeCustomBody
+import me.rerere.tts.util.toHeaders
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -82,12 +84,13 @@ class GeminiTTSProvider : TTSProvider<TTSProviderSetting.Gemini> {
                 })
             })
             put("model", providerSetting.model)
-        }
+        }.mergeCustomBody(providerSetting.customBody)
 
         Log.i(TAG, "generateSpeech: $requestBody")
 
         val httpRequest = Request.Builder()
             .url("${providerSetting.baseUrl}/models/${providerSetting.model}:generateContent")
+            .headers(providerSetting.customHeaders.toHeaders())
             .addHeader("x-goog-api-key", providerSetting.apiKey)
             .addHeader("Content-Type", "application/json")
             .post(requestBody.toString().toRequestBody("application/json".toMediaType()))

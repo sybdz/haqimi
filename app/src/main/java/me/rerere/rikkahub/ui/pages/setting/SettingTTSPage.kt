@@ -66,6 +66,7 @@ import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.pages.setting.components.TTSProviderConfigure
 import me.rerere.rikkahub.utils.plus
 import me.rerere.tts.provider.TTSProviderSetting
+import me.rerere.tts.provider.validate
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -319,6 +320,7 @@ private fun TTSProviderItem(
     val tts = LocalTTSState.current
     val isSpeaking by tts.isSpeaking.collectAsState()
     val isAvailable by tts.isAvailable.collectAsState()
+    val validationError = provider.validate()
 
     Card(
         modifier = modifier,
@@ -363,6 +365,7 @@ private fun TTSProviderItem(
                             is TTSProviderSetting.MiniMax -> "MiniMax"
                             is TTSProviderSetting.SystemTTS -> stringResource(R.string.setting_tts_page_provider_system)
                             is TTSProviderSetting.Qwen -> "Qwen"
+                            is TTSProviderSetting.Doubao -> "Doubao"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -385,6 +388,11 @@ private fun TTSProviderItem(
                 if (isSelected) {
                     Tag(type = TagType.SUCCESS) {
                         Text(stringResource(R.string.setting_tts_page_selected))
+                    }
+                }
+                if (validationError != null) {
+                    Tag(type = TagType.ERROR) {
+                        Text("Invalid")
                     }
                 }
 
@@ -444,6 +452,14 @@ private fun TTSProviderItem(
                         )
                     }
                 }
+            }
+
+            if (validationError != null) {
+                Text(
+                    text = validationError,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
