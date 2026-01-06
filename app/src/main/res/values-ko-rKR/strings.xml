@@ -578,6 +578,51 @@
   <string name="setting_tts_page_base_url">기본 URL</string>
   <string name="setting_tts_page_base_url_description">API 기본 URL 엔드포인트</string>
   <string name="setting_tts_page_base_url_placeholder">https://api.openai.com/v1</string>
+  <string name="setting_tts_page_doubao_access_key">액세스 키</string>
+  <string name="setting_tts_page_doubao_access_key_description">X-Api-Access-Key 요청 헤더</string>
+  <string name="setting_tts_page_doubao_access_key_placeholder">your-access-key</string>
+  <string name="setting_tts_page_doubao_additions">추가 파라미터</string>
+  <string name="setting_tts_page_doubao_additions_description">req_params.additions (JSON 문자열)</string>
+  <string name="setting_tts_page_doubao_additions_placeholder">{\"disable_default_bit_rate\":true}</string>
+  <string name="setting_tts_page_doubao_app_id">앱 ID</string>
+  <string name="setting_tts_page_doubao_app_id_description">X-Api-App-Id 요청 헤더</string>
+  <string name="setting_tts_page_doubao_app_id_placeholder">your-app-id</string>
+  <string name="setting_tts_page_doubao_audio_format">오디오 형식</string>
+  <string name="setting_tts_page_doubao_audio_format_description">audio_params.format</string>
+  <string name="setting_tts_page_doubao_bit_rate">비트레이트</string>
+  <string name="setting_tts_page_doubao_bit_rate_description">audio_params.bit_rate (0 = 자동)</string>
+  <string name="setting_tts_page_doubao_emotion">감정</string>
+  <string name="setting_tts_page_doubao_emotion_description">audio_params.emotion</string>
+  <string name="setting_tts_page_doubao_emotion_placeholder">happy</string>
+  <string name="setting_tts_page_doubao_emotion_scale">감정 강도</string>
+  <string name="setting_tts_page_doubao_emotion_scale_description">audio_params.emotion_scale (1 ~ 5)</string>
+  <string name="setting_tts_page_doubao_enable_timestamp">타임스탬프 사용</string>
+  <string name="setting_tts_page_doubao_enable_timestamp_description">audio_params.enable_timestamp</string>
+  <string name="setting_tts_page_doubao_loudness_rate">라우드니스</string>
+  <string name="setting_tts_page_doubao_loudness_rate_description">audio_params.loudness_rate (-50 ~ 100)</string>
+  <string name="setting_tts_page_doubao_namespace">네임스페이스</string>
+  <string name="setting_tts_page_doubao_namespace_description">요청 본문 내 namespace</string>
+  <string name="setting_tts_page_doubao_namespace_placeholder">BidirectionalTTS</string>
+  <string name="setting_tts_page_doubao_request_id">요청 ID</string>
+  <string name="setting_tts_page_doubao_request_id_description">선택적 X-Api-Request-Id 헤더</string>
+  <string name="setting_tts_page_doubao_request_id_placeholder">optional-request-id</string>
+  <string name="setting_tts_page_doubao_resource_id">리소스 ID</string>
+  <string name="setting_tts_page_doubao_resource_id_description">X-Api-Resource-Id 요청 헤더</string>
+  <string name="setting_tts_page_doubao_resource_id_placeholder">volc.service_type.10029</string>
+  <string name="setting_tts_page_doubao_return_usage_tokens">사용량 토큰 반환</string>
+  <string name="setting_tts_page_doubao_return_usage_tokens_description">X-Control-Require-Usage-Tokens-Return 활성화</string>
+  <string name="setting_tts_page_doubao_sample_rate">샘플 레이트</string>
+  <string name="setting_tts_page_doubao_sample_rate_description">audio_params.sample_rate</string>
+  <string name="setting_tts_page_doubao_speech_rate">말하기 속도</string>
+  <string name="setting_tts_page_doubao_speech_rate_description">audio_params.speech_rate (-50 ~ 100)</string>
+  <string name="setting_tts_page_doubao_use_ssml">SSML 사용</string>
+  <string name="setting_tts_page_doubao_use_ssml_description">text 대신 ssml로 전송</string>
+  <string name="setting_tts_page_doubao_user_uid">사용자 UID</string>
+  <string name="setting_tts_page_doubao_user_uid_description">요청 본문 내 user.uid</string>
+  <string name="setting_tts_page_doubao_user_uid_placeholder">rikkahub</string>
+  <string name="setting_tts_page_doubao_voice_type">음성 유형</string>
+  <string name="setting_tts_page_doubao_voice_type_description">req_params.voice_type</string>
+  <string name="setting_tts_page_doubao_voice_type_placeholder">voice-id</string>
   <string name="setting_tts_page_default_name">시스템 TTS</string>
   <string name="setting_tts_page_edit_provider">제공업체 편집</string>
   <string name="setting_tts_page_emotion">감정</string>
@@ -731,4 +776,3 @@
   <string name="backup_page_s3_backup_files">S3 백업 파일</string>
   <string name="backup_page_s3_backup">S3 백업</string>
 </resources>
-

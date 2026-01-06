@@ -578,6 +578,51 @@
   <string name="setting_tts_page_base_url">ベースURL</string>
   <string name="setting_tts_page_base_url_description">APIベースURLエンドポイント</string>
   <string name="setting_tts_page_base_url_placeholder">https://api.openai.com/v1</string>
+  <string name="setting_tts_page_doubao_access_key">アクセスキー</string>
+  <string name="setting_tts_page_doubao_access_key_description">X-Api-Access-Key リクエストヘッダー</string>
+  <string name="setting_tts_page_doubao_access_key_placeholder">your-access-key</string>
+  <string name="setting_tts_page_doubao_additions">追加パラメータ</string>
+  <string name="setting_tts_page_doubao_additions_description">req_params.additions (JSON 文字列)</string>
+  <string name="setting_tts_page_doubao_additions_placeholder">{\"disable_default_bit_rate\":true}</string>
+  <string name="setting_tts_page_doubao_app_id">アプリID</string>
+  <string name="setting_tts_page_doubao_app_id_description">X-Api-App-Id リクエストヘッダー</string>
+  <string name="setting_tts_page_doubao_app_id_placeholder">your-app-id</string>
+  <string name="setting_tts_page_doubao_audio_format">オーディオ形式</string>
+  <string name="setting_tts_page_doubao_audio_format_description">audio_params.format</string>
+  <string name="setting_tts_page_doubao_bit_rate">ビットレート</string>
+  <string name="setting_tts_page_doubao_bit_rate_description">audio_params.bit_rate (0 = 自動)</string>
+  <string name="setting_tts_page_doubao_emotion">感情</string>
+  <string name="setting_tts_page_doubao_emotion_description">audio_params.emotion</string>
+  <string name="setting_tts_page_doubao_emotion_placeholder">happy</string>
+  <string name="setting_tts_page_doubao_emotion_scale">感情スケール</string>
+  <string name="setting_tts_page_doubao_emotion_scale_description">audio_params.emotion_scale (1 ~ 5)</string>
+  <string name="setting_tts_page_doubao_enable_timestamp">タイムスタンプを有効化</string>
+  <string name="setting_tts_page_doubao_enable_timestamp_description">audio_params.enable_timestamp</string>
+  <string name="setting_tts_page_doubao_loudness_rate">ラウドネス</string>
+  <string name="setting_tts_page_doubao_loudness_rate_description">audio_params.loudness_rate (-50 ~ 100)</string>
+  <string name="setting_tts_page_doubao_namespace">ネームスペース</string>
+  <string name="setting_tts_page_doubao_namespace_description">リクエストボディ内の namespace</string>
+  <string name="setting_tts_page_doubao_namespace_placeholder">BidirectionalTTS</string>
+  <string name="setting_tts_page_doubao_request_id">リクエストID</string>
+  <string name="setting_tts_page_doubao_request_id_description">任意の X-Api-Request-Id ヘッダー</string>
+  <string name="setting_tts_page_doubao_request_id_placeholder">optional-request-id</string>
+  <string name="setting_tts_page_doubao_resource_id">リソースID</string>
+  <string name="setting_tts_page_doubao_resource_id_description">X-Api-Resource-Id リクエストヘッダー</string>
+  <string name="setting_tts_page_doubao_resource_id_placeholder">volc.service_type.10029</string>
+  <string name="setting_tts_page_doubao_return_usage_tokens">使用量トークンを返す</string>
+  <string name="setting_tts_page_doubao_return_usage_tokens_description">X-Control-Require-Usage-Tokens-Return を有効化</string>
+  <string name="setting_tts_page_doubao_sample_rate">サンプルレート</string>
+  <string name="setting_tts_page_doubao_sample_rate_description">audio_params.sample_rate</string>
+  <string name="setting_tts_page_doubao_speech_rate">読み上げ速度</string>
+  <string name="setting_tts_page_doubao_speech_rate_description">audio_params.speech_rate (-50 ~ 100)</string>
+  <string name="setting_tts_page_doubao_use_ssml">SSMLを使用</string>
+  <string name="setting_tts_page_doubao_use_ssml_description">text の代わりに ssml で送信</string>
+  <string name="setting_tts_page_doubao_user_uid">ユーザーUID</string>
+  <string name="setting_tts_page_doubao_user_uid_description">リクエストボディ内の user.uid</string>
+  <string name="setting_tts_page_doubao_user_uid_placeholder">rikkahub</string>
+  <string name="setting_tts_page_doubao_voice_type">ボイスタイプ</string>
+  <string name="setting_tts_page_doubao_voice_type_description">req_params.voice_type</string>
+  <string name="setting_tts_page_doubao_voice_type_placeholder">voice-id</string>
   <string name="setting_tts_page_default_name">システムTTS</string>
   <string name="setting_tts_page_edit_provider">プロバイダーを編集</string>
   <string name="setting_tts_page_emotion">感情</string>
@@ -731,4 +776,3 @@
   <string name="backup_page_s3_backup_files">S3バックアップファイル</string>
   <string name="backup_page_s3_backup">S3バックアップ</string>
 </resources>
-

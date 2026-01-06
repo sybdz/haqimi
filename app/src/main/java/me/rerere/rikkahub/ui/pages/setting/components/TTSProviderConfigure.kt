@@ -694,27 +694,27 @@ private fun DoubaoTTSConfiguration(
 ) {
     // App ID
     FormItem(
-        label = { Text("App ID") },
-        description = { Text("X-Api-App-Id request header") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_app_id)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_app_id_description)) }
     ) {
         OutlinedTextField(
             value = setting.appId,
             onValueChange = { onValueChange(setting.copy(appId = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("your-app-id") }
+            placeholder = { Text(stringResource(R.string.setting_tts_page_doubao_app_id_placeholder)) }
         )
     }
 
     // Access Key
     FormItem(
-        label = { Text("Access Key") },
-        description = { Text("X-Api-Access-Key request header") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_access_key)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_access_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.accessKey,
             onValueChange = { onValueChange(setting.copy(accessKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("your-access-key") }
+            placeholder = { Text(stringResource(R.string.setting_tts_page_doubao_access_key_placeholder)) }
         )
     }
 
@@ -733,34 +733,34 @@ private fun DoubaoTTSConfiguration(
 
     // Resource ID
     FormItem(
-        label = { Text("Resource ID") },
-        description = { Text("X-Api-Resource-Id request header") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_resource_id)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_resource_id_description)) }
     ) {
         OutlinedTextField(
             value = setting.resourceId,
             onValueChange = { onValueChange(setting.copy(resourceId = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("volc.service_type.10029") }
+            placeholder = { Text(stringResource(R.string.setting_tts_page_doubao_resource_id_placeholder)) }
         )
     }
 
     // Request ID
     FormItem(
-        label = { Text("Request ID") },
-        description = { Text("Optional X-Api-Request-Id header") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_request_id)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_request_id_description)) }
     ) {
         OutlinedTextField(
             value = setting.requestId,
             onValueChange = { onValueChange(setting.copy(requestId = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("optional-request-id") }
+            placeholder = { Text(stringResource(R.string.setting_tts_page_doubao_request_id_placeholder)) }
         )
     }
 
     // Require Usage Tokens Return
     FormItem(
-        label = { Text("Return Usage Tokens") },
-        description = { Text("Enable X-Control-Require-Usage-Tokens-Return") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_return_usage_tokens)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_return_usage_tokens_description)) }
     ) {
         Switch(
             checked = setting.requireUsageTokensReturn,
@@ -770,27 +770,27 @@ private fun DoubaoTTSConfiguration(
 
     // UID
     FormItem(
-        label = { Text("User UID") },
-        description = { Text("user.uid in request body") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_user_uid)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_user_uid_description)) }
     ) {
         OutlinedTextField(
             value = setting.uid,
             onValueChange = { onValueChange(setting.copy(uid = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("rikkahub") }
+            placeholder = { Text(stringResource(R.string.setting_tts_page_doubao_user_uid_placeholder)) }
         )
     }
 
     // Namespace
     FormItem(
-        label = { Text("Namespace") },
-        description = { Text("namespace in request body") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_namespace)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_namespace_description)) }
     ) {
         OutlinedTextField(
             value = setting.namespace,
             onValueChange = { onValueChange(setting.copy(namespace = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("BidirectionalTTS") }
+            placeholder = { Text(stringResource(R.string.setting_tts_page_doubao_namespace_placeholder)) }
         )
     }
 
@@ -809,21 +809,21 @@ private fun DoubaoTTSConfiguration(
 
     // Voice Type
     FormItem(
-        label = { Text("Voice Type") },
-        description = { Text("req_params.voice_type") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_voice_type)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_voice_type_description)) }
     ) {
         OutlinedTextField(
             value = setting.voiceType,
             onValueChange = { onValueChange(setting.copy(voiceType = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("voice-id") }
+            placeholder = { Text(stringResource(R.string.setting_tts_page_doubao_voice_type_placeholder)) }
         )
     }
 
     // Use SSML
     FormItem(
-        label = { Text("Use SSML") },
-        description = { Text("Send text as ssml instead of text") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_use_ssml)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_use_ssml_description)) }
     ) {
         Switch(
             checked = setting.useSsml,
@@ -836,8 +836,8 @@ private fun DoubaoTTSConfiguration(
     val formats = listOf("mp3", "ogg_opus", "pcm")
 
     FormItem(
-        label = { Text("Audio Format") },
-        description = { Text("audio_params.format") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_audio_format)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_audio_format_description)) }
     ) {
         ExposedDropdownMenuBox(
             expanded = formatExpanded,
@@ -872,86 +872,86 @@ private fun DoubaoTTSConfiguration(
 
     // Sample Rate
     FormItem(
-        label = { Text("Sample Rate") },
-        description = { Text("audio_params.sample_rate") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_sample_rate)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_sample_rate_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.sampleRate,
             onValueChange = { onValueChange(setting.copy(sampleRate = it)) },
             modifier = Modifier.fillMaxWidth(),
-            label = "Sample Rate"
+            label = stringResource(R.string.setting_tts_page_doubao_sample_rate)
         )
     }
 
     // Bit Rate
     FormItem(
-        label = { Text("Bit Rate") },
-        description = { Text("audio_params.bit_rate (0 = auto)") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_bit_rate)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_bit_rate_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.bitRate,
             onValueChange = { onValueChange(setting.copy(bitRate = it)) },
             modifier = Modifier.fillMaxWidth(),
-            label = "Bit Rate"
+            label = stringResource(R.string.setting_tts_page_doubao_bit_rate)
         )
     }
 
     // Speech Rate
     FormItem(
-        label = { Text("Speech Rate") },
-        description = { Text("audio_params.speech_rate (-50 ~ 100)") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_speech_rate)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_speech_rate_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.speechRate,
             onValueChange = { onValueChange(setting.copy(speechRate = it)) },
             modifier = Modifier.fillMaxWidth(),
-            label = "Speech Rate"
+            label = stringResource(R.string.setting_tts_page_doubao_speech_rate)
         )
     }
 
     // Loudness Rate
     FormItem(
-        label = { Text("Loudness Rate") },
-        description = { Text("audio_params.loudness_rate (-50 ~ 100)") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_loudness_rate)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_loudness_rate_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.loudnessRate,
             onValueChange = { onValueChange(setting.copy(loudnessRate = it)) },
             modifier = Modifier.fillMaxWidth(),
-            label = "Loudness Rate"
+            label = stringResource(R.string.setting_tts_page_doubao_loudness_rate)
         )
     }
 
     // Emotion
     FormItem(
-        label = { Text("Emotion") },
-        description = { Text("audio_params.emotion") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_emotion)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_emotion_description)) }
     ) {
         OutlinedTextField(
             value = setting.emotion,
             onValueChange = { onValueChange(setting.copy(emotion = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("happy") }
+            placeholder = { Text(stringResource(R.string.setting_tts_page_doubao_emotion_placeholder)) }
         )
     }
 
     // Emotion Scale
     FormItem(
-        label = { Text("Emotion Scale") },
-        description = { Text("audio_params.emotion_scale (1 ~ 5)") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_emotion_scale)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_emotion_scale_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.emotionScale,
             onValueChange = { onValueChange(setting.copy(emotionScale = it)) },
             modifier = Modifier.fillMaxWidth(),
-            label = "Emotion Scale"
+            label = stringResource(R.string.setting_tts_page_doubao_emotion_scale)
         )
     }
 
     // Enable Timestamp
     FormItem(
-        label = { Text("Enable Timestamp") },
-        description = { Text("audio_params.enable_timestamp") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_enable_timestamp)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_enable_timestamp_description)) }
     ) {
         Switch(
             checked = setting.enableTimestamp,
@@ -961,14 +961,14 @@ private fun DoubaoTTSConfiguration(
 
     // Additions
     FormItem(
-        label = { Text("Additions") },
-        description = { Text("req_params.additions (JSON string)") }
+        label = { Text(stringResource(R.string.setting_tts_page_doubao_additions)) },
+        description = { Text(stringResource(R.string.setting_tts_page_doubao_additions_description)) }
     ) {
         OutlinedTextField(
             value = setting.additions,
             onValueChange = { onValueChange(setting.copy(additions = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("{\"disable_default_bit_rate\":true}") },
+            placeholder = { Text(stringResource(R.string.setting_tts_page_doubao_additions_placeholder)) },
             minLines = 2
         )
     }

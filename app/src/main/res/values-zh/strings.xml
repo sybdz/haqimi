@@ -578,6 +578,51 @@
   <string name="setting_tts_page_base_url">基础URL</string>
   <string name="setting_tts_page_base_url_description">API基础URL端点</string>
   <string name="setting_tts_page_base_url_placeholder">https://api.openai.com/v1</string>
+  <string name="setting_tts_page_doubao_access_key">访问密钥</string>
+  <string name="setting_tts_page_doubao_access_key_description">X-Api-Access-Key 请求头</string>
+  <string name="setting_tts_page_doubao_access_key_placeholder">your-access-key</string>
+  <string name="setting_tts_page_doubao_additions">附加参数</string>
+  <string name="setting_tts_page_doubao_additions_description">req_params.additions（JSON 字符串）</string>
+  <string name="setting_tts_page_doubao_additions_placeholder">{\"disable_default_bit_rate\":true}</string>
+  <string name="setting_tts_page_doubao_app_id">应用 ID</string>
+  <string name="setting_tts_page_doubao_app_id_description">X-Api-App-Id 请求头</string>
+  <string name="setting_tts_page_doubao_app_id_placeholder">your-app-id</string>
+  <string name="setting_tts_page_doubao_audio_format">音频格式</string>
+  <string name="setting_tts_page_doubao_audio_format_description">audio_params.format</string>
+  <string name="setting_tts_page_doubao_bit_rate">比特率</string>
+  <string name="setting_tts_page_doubao_bit_rate_description">audio_params.bit_rate (0 = 自动)</string>
+  <string name="setting_tts_page_doubao_emotion">情感</string>
+  <string name="setting_tts_page_doubao_emotion_description">audio_params.emotion</string>
+  <string name="setting_tts_page_doubao_emotion_placeholder">happy</string>
+  <string name="setting_tts_page_doubao_emotion_scale">情感强度</string>
+  <string name="setting_tts_page_doubao_emotion_scale_description">audio_params.emotion_scale (1 ~ 5)</string>
+  <string name="setting_tts_page_doubao_enable_timestamp">启用时间戳</string>
+  <string name="setting_tts_page_doubao_enable_timestamp_description">audio_params.enable_timestamp</string>
+  <string name="setting_tts_page_doubao_loudness_rate">响度</string>
+  <string name="setting_tts_page_doubao_loudness_rate_description">audio_params.loudness_rate (-50 ~ 100)</string>
+  <string name="setting_tts_page_doubao_namespace">命名空间</string>
+  <string name="setting_tts_page_doubao_namespace_description">请求体中的 namespace</string>
+  <string name="setting_tts_page_doubao_namespace_placeholder">BidirectionalTTS</string>
+  <string name="setting_tts_page_doubao_request_id">请求 ID</string>
+  <string name="setting_tts_page_doubao_request_id_description">可选的 X-Api-Request-Id 请求头</string>
+  <string name="setting_tts_page_doubao_request_id_placeholder">optional-request-id</string>
+  <string name="setting_tts_page_doubao_resource_id">资源 ID</string>
+  <string name="setting_tts_page_doubao_resource_id_description">X-Api-Resource-Id 请求头</string>
+  <string name="setting_tts_page_doubao_resource_id_placeholder">volc.service_type.10029</string>
+  <string name="setting_tts_page_doubao_return_usage_tokens">返回用量信息</string>
+  <string name="setting_tts_page_doubao_return_usage_tokens_description">启用 X-Control-Require-Usage-Tokens-Return</string>
+  <string name="setting_tts_page_doubao_sample_rate">采样率</string>
+  <string name="setting_tts_page_doubao_sample_rate_description">audio_params.sample_rate</string>
+  <string name="setting_tts_page_doubao_speech_rate">语速</string>
+  <string name="setting_tts_page_doubao_speech_rate_description">audio_params.speech_rate (-50 ~ 100)</string>
+  <string name="setting_tts_page_doubao_use_ssml">使用 SSML</string>
+  <string name="setting_tts_page_doubao_use_ssml_description">以 ssml 发送文本而非 text</string>
+  <string name="setting_tts_page_doubao_user_uid">用户 UID</string>
+  <string name="setting_tts_page_doubao_user_uid_description">请求体中的 user.uid</string>
+  <string name="setting_tts_page_doubao_user_uid_placeholder">rikkahub</string>
+  <string name="setting_tts_page_doubao_voice_type">音色类型</string>
+  <string name="setting_tts_page_doubao_voice_type_description">req_params.voice_type</string>
+  <string name="setting_tts_page_doubao_voice_type_placeholder">voice-id</string>
   <string name="setting_tts_page_default_name">系统TTS</string>
   <string name="setting_tts_page_edit_provider">编辑提供商</string>
   <string name="setting_tts_page_emotion">情感</string>
@@ -731,4 +776,3 @@
   <string name="backup_page_s3_backup_files">S3备份文件</string>
   <string name="backup_page_s3_backup">S3备份</string>
 </resources>
-

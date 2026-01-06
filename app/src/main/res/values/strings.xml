@@ -578,6 +578,51 @@
   <string name="setting_tts_page_base_url">Base URL</string>
   <string name="setting_tts_page_base_url_description">API base URL endpoint</string>
   <string name="setting_tts_page_base_url_placeholder">https://api.openai.com/v1</string>
+  <string name="setting_tts_page_doubao_access_key">Access Key</string>
+  <string name="setting_tts_page_doubao_access_key_description">X-Api-Access-Key request header</string>
+  <string name="setting_tts_page_doubao_access_key_placeholder">your-access-key</string>
+  <string name="setting_tts_page_doubao_additions">Additions</string>
+  <string name="setting_tts_page_doubao_additions_description">req_params.additions (JSON string)</string>
+  <string name="setting_tts_page_doubao_additions_placeholder">{\"disable_default_bit_rate\":true}</string>
+  <string name="setting_tts_page_doubao_app_id">App ID</string>
+  <string name="setting_tts_page_doubao_app_id_description">X-Api-App-Id request header</string>
+  <string name="setting_tts_page_doubao_app_id_placeholder">your-app-id</string>
+  <string name="setting_tts_page_doubao_audio_format">Audio Format</string>
+  <string name="setting_tts_page_doubao_audio_format_description">audio_params.format</string>
+  <string name="setting_tts_page_doubao_bit_rate">Bit Rate</string>
+  <string name="setting_tts_page_doubao_bit_rate_description">audio_params.bit_rate (0 = auto)</string>
+  <string name="setting_tts_page_doubao_emotion">Emotion</string>
+  <string name="setting_tts_page_doubao_emotion_description">audio_params.emotion</string>
+  <string name="setting_tts_page_doubao_emotion_placeholder">happy</string>
+  <string name="setting_tts_page_doubao_emotion_scale">Emotion Scale</string>
+  <string name="setting_tts_page_doubao_emotion_scale_description">audio_params.emotion_scale (1 ~ 5)</string>
+  <string name="setting_tts_page_doubao_enable_timestamp">Enable Timestamp</string>
+  <string name="setting_tts_page_doubao_enable_timestamp_description">audio_params.enable_timestamp</string>
+  <string name="setting_tts_page_doubao_loudness_rate">Loudness Rate</string>
+  <string name="setting_tts_page_doubao_loudness_rate_description">audio_params.loudness_rate (-50 ~ 100)</string>
+  <string name="setting_tts_page_doubao_namespace">Namespace</string>
+  <string name="setting_tts_page_doubao_namespace_description">namespace in request body</string>
+  <string name="setting_tts_page_doubao_namespace_placeholder">BidirectionalTTS</string>
+  <string name="setting_tts_page_doubao_request_id">Request ID</string>
+  <string name="setting_tts_page_doubao_request_id_description">Optional X-Api-Request-Id header</string>
+  <string name="setting_tts_page_doubao_request_id_placeholder">optional-request-id</string>
+  <string name="setting_tts_page_doubao_resource_id">Resource ID</string>
+  <string name="setting_tts_page_doubao_resource_id_description">X-Api-Resource-Id request header</string>
+  <string name="setting_tts_page_doubao_resource_id_placeholder">volc.service_type.10029</string>
+  <string name="setting_tts_page_doubao_return_usage_tokens">Return Usage Tokens</string>
+  <string name="setting_tts_page_doubao_return_usage_tokens_description">Enable X-Control-Require-Usage-Tokens-Return</string>
+  <string name="setting_tts_page_doubao_sample_rate">Sample Rate</string>
+  <string name="setting_tts_page_doubao_sample_rate_description">audio_params.sample_rate</string>
+  <string name="setting_tts_page_doubao_speech_rate">Speech Rate</string>
+  <string name="setting_tts_page_doubao_speech_rate_description">audio_params.speech_rate (-50 ~ 100)</string>
+  <string name="setting_tts_page_doubao_use_ssml">Use SSML</string>
+  <string name="setting_tts_page_doubao_use_ssml_description">Send text as ssml instead of text</string>
+  <string name="setting_tts_page_doubao_user_uid">User UID</string>
+  <string name="setting_tts_page_doubao_user_uid_description">user.uid in request body</string>
+  <string name="setting_tts_page_doubao_user_uid_placeholder">rikkahub</string>
+  <string name="setting_tts_page_doubao_voice_type">Voice Type</string>
+  <string name="setting_tts_page_doubao_voice_type_description">req_params.voice_type</string>
+  <string name="setting_tts_page_doubao_voice_type_placeholder">voice-id</string>
   <string name="setting_tts_page_default_name">System TTS</string>
   <string name="setting_tts_page_edit_provider">Edit Provider</string>
   <string name="setting_tts_page_emotion">Emotion</string>
@@ -735,4 +780,3 @@
   <string name="backup_page_s3_backup_files">S3 Backup Files</string>
   <string name="backup_page_s3_backup">S3 Backup</string>
 </resources>
-
