@@ -33,9 +33,12 @@ jobs:
         run: |
           set +e
           echo "### Maven repository check" >> "$GITHUB_STEP_SUMMARY"
-          for url in \
-            "https://repo.maven.apache.org/maven2/" \
-            "https://maven-central.storage-download.googleapis.com/maven2/"; do
+          artifact="org/ow2/asm/asm/9.8/asm-9.8.jar"
+          for base in \
+            "https://repo.maven.apache.org/maven2" \
+            "https://repo1.maven.org/maven2" \
+            "https://maven-central.storage-download.googleapis.com/maven2"; do
+            url="$base/$artifact"
             code="$(curl -L -s -o /dev/null -w "%{http_code}" "$url")"
             echo "$url -> $code"
             echo "- $url -> $code" >> "$GITHUB_STEP_SUMMARY"

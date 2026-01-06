@@ -7,7 +7,7 @@ pluginManagement {
                 includeGroupByRegex("androidx.*")
             }
         }
-        mavenCentral()
+        maven("https://repo1.maven.org/maven2")
         maven("https://maven-central.storage-download.googleapis.com/maven2")
         gradlePluginPortal()
         maven("https://repo.itextsupport.com/android")
@@ -25,7 +25,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
-        mavenCentral()
+        maven("https://repo1.maven.org/maven2")
         maven("https://maven-central.storage-download.googleapis.com/maven2")
         maven("https://jitpack.io")
         mavenLocal()
