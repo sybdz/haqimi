@@ -29,6 +29,18 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
 
+      - name: Check Maven repositories
+        run: |
+          set +e
+          echo "### Maven repository check" >> "$GITHUB_STEP_SUMMARY"
+          for url in \
+            "https://repo.maven.apache.org/maven2/" \
+            "https://maven-central.storage-download.googleapis.com/maven2/"; do
+            code="$(curl -L -s -o /dev/null -w "%{http_code}" "$url")"
+            echo "$url -> $code"
+            echo "- $url -> $code" >> "$GITHUB_STEP_SUMMARY"
+          done
+
       - name: Prepare build files
         run: |
           # 解码base64编码的keystore文件

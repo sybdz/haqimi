@@ -8,6 +8,7 @@ pluginManagement {
             }
         }
         mavenCentral()
+        maven("https://maven-central.storage-download.googleapis.com/maven2")
         gradlePluginPortal()
         maven("https://repo.itextsupport.com/android")
         maven("https://chaquo.com/maven")
@@ -25,6 +26,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://maven-central.storage-download.googleapis.com/maven2")
         maven("https://jitpack.io")
         mavenLocal()
         maven("https://chaquo.com/maven")
