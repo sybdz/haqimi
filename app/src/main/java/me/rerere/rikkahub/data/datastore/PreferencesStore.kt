@@ -69,7 +69,6 @@ class SettingsStore(
         // 模型选择
         val ENABLE_WEB_SEARCH = booleanPreferencesKey("enable_web_search")
         val FAVORITE_MODELS = stringPreferencesKey("favorite_models")
-        val MODEL_ARENA_SCORES = stringPreferencesKey("model_arena_scores")
         val SELECT_MODEL = stringPreferencesKey("chat_model")
         val TITLE_MODEL = stringPreferencesKey("title_model")
         val TRANSLATE_MODEL = stringPreferencesKey("translate_model")
@@ -132,9 +131,6 @@ class SettingsStore(
                 favoriteModels = preferences[FAVORITE_MODELS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
-                modelArenaScores = preferences[MODEL_ARENA_SCORES]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: emptyMap(),
                 chatModelId = preferences[SELECT_MODEL]?.let { Uuid.parse(it) }
                     ?: SILICONFLOW_QWEN3_8B_ID,
                 titleModelId = preferences[TITLE_MODEL]?.let { Uuid.parse(it) }
@@ -298,7 +294,6 @@ class SettingsStore(
 
             preferences[ENABLE_WEB_SEARCH] = settings.enableWebSearch
             preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(settings.favoriteModels)
-            preferences[MODEL_ARENA_SCORES] = JsonInstant.encodeToString(settings.modelArenaScores)
             preferences[SELECT_MODEL] = settings.chatModelId.toString()
             preferences[TITLE_MODEL] = settings.titleModelId.toString()
             preferences[TRANSLATE_MODEL] = settings.translateModeId.toString()
@@ -361,7 +356,6 @@ data class Settings(
     val displaySetting: DisplaySetting = DisplaySetting(),
     val enableWebSearch: Boolean = false,
     val favoriteModels: List<Uuid> = emptyList(),
-    val modelArenaScores: Map<Uuid, Int> = emptyMap(),
     val chatModelId: Uuid = Uuid.random(),
     val titleModelId: Uuid = Uuid.random(),
     val imageGenerationModelId: Uuid = Uuid.random(),

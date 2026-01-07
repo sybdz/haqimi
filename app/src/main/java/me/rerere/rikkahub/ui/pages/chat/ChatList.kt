@@ -92,7 +92,6 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.message.ChatMessage
-import me.rerere.rikkahub.ui.components.message.ChatMessageCards
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import me.rerere.rikkahub.ui.components.ui.Tooltip
@@ -120,7 +119,6 @@ fun ChatList(
     onForkMessage: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
-    onArenaVote: (groupId: Uuid, votedMessageId: Uuid, votedModelId: Uuid) -> Unit = { _, _, _ -> },
     onClickSuggestion: (String) -> Unit = {},
     onTranslate: ((UIMessage, java.util.Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
@@ -156,7 +154,6 @@ fun ChatList(
                 onForkMessage = onForkMessage,
                 onDelete = onDelete,
                 onUpdateMessage = onUpdateMessage,
-                onArenaVote = onArenaVote,
                 onClickSuggestion = onClickSuggestion,
                 onTranslate = onTranslate,
                 onClearTranslation = onClearTranslation,
@@ -181,7 +178,6 @@ private fun ChatListNormal(
     onForkMessage: (UIMessage) -> Unit,
     onDelete: (UIMessage) -> Unit,
     onUpdateMessage: (MessageNode) -> Unit,
-    onArenaVote: (groupId: Uuid, votedMessageId: Uuid, votedModelId: Uuid) -> Unit,
     onClickSuggestion: (String) -> Unit,
     onTranslate: ((UIMessage, java.util.Locale) -> Unit)?,
     onClearTranslation: (UIMessage) -> Unit,
@@ -256,122 +252,56 @@ private fun ChatListNormal(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            data class RenderItem(
-                val startIndex: Int,
-                val nodes: List<MessageNode>,
-            )
-
-            val renderItems = buildList {
-                val nodes = conversation.messageNodes
-                var i = 0
-                while (i < nodes.size) {
-                    val node = nodes[i]
-                    val groupId = node.groupId
-                    val groupType = node.groupType
-                    if (groupId != null && groupType != null) {
-                        val groupNodes = mutableListOf<MessageNode>()
-                        var j = i
-                        while (j < nodes.size && nodes[j].groupId == groupId && nodes[j].groupType == groupType) {
-                            groupNodes += nodes[j]
-                            j++
-                        }
-                        add(RenderItem(startIndex = i, nodes = groupNodes))
-                        i = j
-                    } else {
-                        add(RenderItem(startIndex = i, nodes = listOf(node)))
-                        i++
-                    }
-                }
-            }
-
-            items(
-                items = renderItems,
-                key = { it.nodes.first().id },
-            ) { item ->
-                val node = item.nodes.first()
-                val endIndex = item.startIndex + item.nodes.size - 1
+            itemsIndexed(
+                items = conversation.messageNodes,
+                key = { _, node -> node.id },
+            ) { index, node ->
                 val assistant = settings.getAssistantById(conversation.assistantId)
                 Column {
                     ListSelectableItem(
                         key = node.id,
                         onSelectChange = {
-                            val ids = item.nodes.map { it.id }
-                            val allSelected = ids.all { selectedItems.contains(it) }
-                            if (allSelected) {
-                                selectedItems.removeAll(ids)
+                            if (selectedItems.contains(node.id)) {
+                                selectedItems.remove(node.id)
                             } else {
-                                ids.forEach { id ->
-                                    if (!selectedItems.contains(id)) {
-                                        selectedItems.add(id)
-                                    }
-                                }
+                                selectedItems.add(node.id)
                             }
                         },
                         selectedKeys = selectedItems,
                         enabled = selecting,
                     ) {
-                        if (node.groupId != null && node.groupType != null) {
-                            ChatMessageCards(
-                                nodes = item.nodes,
-                                conversation = conversation,
-                                settings = settings,
-                                assistant = assistant,
-                                loading = loading && endIndex == conversation.messageNodes.lastIndex,
-                                onRegenerate = onRegenerate,
-                                onEdit = onEdit,
-                                onFork = onForkMessage,
-                                onDelete = onDelete,
-                                onShare = { shareNode ->
-                                    selecting = true
-                                    selectedItems.clear()
-                                    val indexOfNode = conversation.messageNodes.indexOfFirst { it.id == shareNode.id }
-                                    if (indexOfNode >= 0) {
-                                        selectedItems.addAll(conversation.messageNodes.map { it.id }
-                                            .subList(0, indexOfNode + 1))
-                                    }
-                                },
-                                onTranslate = onTranslate,
-                                onClearTranslation = onClearTranslation,
-                                onArenaVote = { votedNode ->
-                                    val groupId = votedNode.groupId ?: return@ChatMessageCards
-                                    val votedModelId = votedNode.currentMessage.modelId ?: return@ChatMessageCards
-                                    onArenaVote(groupId, votedNode.currentMessage.id, votedModelId)
-                                },
-                            )
-                        } else {
-                            ChatMessage(
-                                node = node,
-                                conversation = conversation,
-                                model = node.currentMessage.modelId?.let { settings.findModelById(it) },
-                                assistant = assistant,
-                                loading = loading && endIndex == conversation.messageNodes.lastIndex,
-                                onRegenerate = {
-                                    onRegenerate(node.currentMessage)
-                                },
-                                onEdit = {
-                                    onEdit(node.currentMessage)
-                                },
-                                onFork = {
-                                    onForkMessage(node.currentMessage)
-                                },
-                                onDelete = {
-                                    onDelete(node.currentMessage)
-                                },
-                                onShare = {
-                                    selecting = true  // 使用 CoroutineScope 延迟状态更新
-                                    selectedItems.clear()
-                                    selectedItems.addAll(conversation.messageNodes.map { it.id }
-                                        .subList(0, conversation.messageNodes.indexOf(node) + 1))
-                                },
-                                onUpdate = {
-                                    onUpdateMessage(it)
-                                },
-                                onTranslate = onTranslate,
-                                onClearTranslation = onClearTranslation
-                            )
-                        }
+                        ChatMessage(
+                            node = node,
+                            conversation = conversation,
+                            model = node.currentMessage.modelId?.let { settings.findModelById(it) },
+                            assistant = assistant,
+                            loading = loading && index == conversation.messageNodes.lastIndex,
+                            onRegenerate = {
+                                onRegenerate(node.currentMessage)
+                            },
+                            onEdit = {
+                                onEdit(node.currentMessage)
+                            },
+                            onFork = {
+                                onForkMessage(node.currentMessage)
+                            },
+                            onDelete = {
+                                onDelete(node.currentMessage)
+                            },
+                            onShare = {
+                                selecting = true  // 使用 CoroutineScope 延迟状态更新
+                                selectedItems.clear()
+                                selectedItems.addAll(conversation.messageNodes.map { it.id }
+                                    .subList(0, conversation.messageNodes.indexOf(node) + 1))
+                            },
+                            onUpdate = {
+                                onUpdateMessage(it)
+                            },
+                            onTranslate = onTranslate,
+                            onClearTranslation = onClearTranslation
+                        )
                     }
-                    if (endIndex == conversation.truncateIndex - 1) {
+                    if (index == conversation.truncateIndex - 1) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -127,9 +127,6 @@ data class MessageNode(
     val id: Uuid = Uuid.random(),
     val messages: List<UIMessage>,
     val selectIndex: Int = 0,
-    val groupId: Uuid? = null,
-    val groupType: MessageNodeGroupType? = null,
-    val arena: ArenaGroupState? = null,
 ) {
     val currentMessage get() = if (messages.isEmpty() || selectIndex !in messages.indices) {
         throw IllegalStateException("MessageNode has no valid current message: messages.size=${messages.size}, selectIndex=$selectIndex")
@@ -146,18 +143,6 @@ data class MessageNode(
         )
     }
 }
-
-@Serializable
-enum class MessageNodeGroupType {
-    MULTI_MODEL,
-    ARENA,
-}
-
-@Serializable
-data class ArenaGroupState(
-    val revealed: Boolean = false,
-    val votedMessageId: Uuid? = null,
-)
 
 fun UIMessage.toMessageNode(): MessageNode {
     return MessageNode(

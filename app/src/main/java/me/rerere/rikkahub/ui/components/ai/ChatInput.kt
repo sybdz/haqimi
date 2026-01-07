@@ -154,12 +154,6 @@ fun ChatInput(
     onToggleSearch: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onUpdateChatModel: (Model) -> Unit,
-    multiModelMode: Boolean,
-    arenaMode: Boolean,
-    selectedChatModels: Set<Uuid>,
-    onMultiModelModeChange: (Boolean) -> Unit,
-    onArenaModeChange: (Boolean) -> Unit,
-    onSelectedChatModelsChange: (Set<Uuid>) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     onClearContext: () -> Unit,
@@ -242,13 +236,6 @@ fun ChatInput(
                         type = ModelType.CHAT,
                         onlyIcon = true,
                         modifier = Modifier,
-                        enableChatModes = true,
-                        multiModelMode = multiModelMode,
-                        arenaMode = arenaMode,
-                        selectedModels = selectedChatModels,
-                        onMultiModelModeChange = onMultiModelModeChange,
-                        onArenaModeChange = onArenaModeChange,
-                        onSelectedModelsChange = onSelectedChatModelsChange,
                     )
 
                     // Search
