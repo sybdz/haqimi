@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.composables.icons.lucide.Earth
+import com.composables.icons.lucide.Check
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.Settings2
@@ -50,6 +51,8 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.FloatingMenuDivider
+import me.rerere.rikkahub.ui.components.ui.FloatingMenuItem
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.ToggleSurface
@@ -137,6 +140,75 @@ fun SearchPickerButton(
                     onDismiss = {
                         showSearchPicker = false
                     }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchQuickConfigMenu(
+    enableSearch: Boolean,
+    settings: Settings,
+    model: Model?,
+    modifier: Modifier = Modifier,
+    onToggleSearch: (Boolean) -> Unit,
+    onUpdateSearchService: (Int) -> Unit,
+    onOpenSettings: (() -> Unit)? = null,
+) {
+    val isGemini = model != null && ModelRegistry.GEMINI_SERIES.match(model.modelId)
+    val builtInEnabled = model?.tools?.contains(BuiltInTools.Search) == true
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        if (isGemini && model != null) {
+            BuiltInSearchQuickRow(model = model)
+        }
+
+        if (!builtInEnabled) {
+            if (isGemini) {
+                FloatingMenuDivider()
+            }
+
+            FloatingMenuItem(
+                icon = Lucide.Earth,
+                text = stringResource(R.string.use_web_search),
+                trailingContent = {
+                    Switch(
+                        checked = enableSearch,
+                        onCheckedChange = onToggleSearch
+                    )
+                },
+                onClick = {
+                    onToggleSearch(!enableSearch)
+                },
+            )
+
+            settings.searchServices.forEachIndexed { index, service ->
+                val selected = settings.searchServiceSelected == index
+                val serviceName = SearchServiceOptions.TYPES[service::class] ?: "Search"
+                FloatingMenuItem(
+                    icon = if (selected) Lucide.Check else Lucide.Search,
+                    text = serviceName,
+                    contentColor = if (selected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    onClick = {
+                        onUpdateSearchService(index)
+                    },
+                )
+            }
+
+            if (onOpenSettings != null) {
+                FloatingMenuDivider()
+                FloatingMenuItem(
+                    icon = Lucide.Settings2,
+                    text = stringResource(R.string.settings),
+                    onClick = onOpenSettings,
                 )
             }
         }
@@ -335,4 +407,63 @@ private fun BuiltInSearchSetting(model: Model) {
             )
         }
     }
+}
+
+@Composable
+private fun BuiltInSearchQuickRow(
+    model: Model,
+) {
+    val settingsStore = koinInject<SettingsStore>()
+    val scope = rememberCoroutineScope()
+    val enabled = model.tools.contains(BuiltInTools.Search)
+    FloatingMenuItem(
+        icon = Lucide.Search,
+        text = stringResource(R.string.built_in_search_title),
+        trailingContent = {
+            Switch(
+                checked = enabled,
+                onCheckedChange = { checked ->
+                    val settings = settingsStore.settingsFlow.value
+                    scope.launch {
+                        settingsStore.update(
+                            settings.copy(
+                                providers = settings.providers.map { providerSetting ->
+                                    providerSetting.editModel(
+                                        model.copy(
+                                            tools = if (checked) {
+                                                model.tools + BuiltInTools.Search
+                                            } else {
+                                                model.tools - BuiltInTools.Search
+                                            }
+                                        )
+                                    )
+                                }
+                            )
+                        )
+                    }
+                }
+            )
+        },
+        onClick = {
+            val settings = settingsStore.settingsFlow.value
+            val checked = !enabled
+            scope.launch {
+                settingsStore.update(
+                    settings.copy(
+                        providers = settings.providers.map { providerSetting ->
+                            providerSetting.editModel(
+                                model.copy(
+                                    tools = if (checked) {
+                                        model.tools + BuiltInTools.Search
+                                    } else {
+                                        model.tools - BuiltInTools.Search
+                                    }
+                                )
+                            )
+                        }
+                    )
+                )
+            }
+        },
+    )
 }

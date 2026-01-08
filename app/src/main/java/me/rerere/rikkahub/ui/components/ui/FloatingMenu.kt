@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -26,8 +27,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupProperties
 
 @Composable
 fun FloatingMenu(
@@ -35,19 +38,29 @@ fun FloatingMenu(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     offset: DpOffset = DpOffset(0.dp, (-8).dp),
+    menuWidth: Dp? = null,
+    contentModifier: Modifier = Modifier,
+    shadowElevation: Dp = 12.dp,
+    properties: PopupProperties = PopupProperties(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val widthModifier = if (menuWidth == null) {
+        Modifier.widthIn(min = 200.dp, max = 280.dp)
+    } else {
+        Modifier.width(menuWidth)
+    }
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         offset = offset,
+        properties = properties,
         modifier = modifier
-            .widthIn(min = 200.dp, max = 280.dp)
-            .shadow(12.dp, RoundedCornerShape(12.dp), clip = false)
+            .then(widthModifier)
+            .shadow(shadowElevation, RoundedCornerShape(12.dp), clip = false)
             .clip(RoundedCornerShape(12.dp)),
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 4.dp),
+            modifier = contentModifier.padding(vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
             content = content,
         )

@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -38,6 +39,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -47,9 +49,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -67,34 +69,48 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.PopupProperties
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import com.composables.icons.lucide.ArrowUp
-import com.composables.icons.lucide.Camera
 import com.composables.icons.lucide.BookOpen
+import com.composables.icons.lucide.Camera
+import com.composables.icons.lucide.Check
+import com.composables.icons.lucide.ChevronLeft
+import com.composables.icons.lucide.Earth
 import com.composables.icons.lucide.Eraser
 import com.composables.icons.lucide.FileAudio
 import com.composables.icons.lucide.Files
 import com.composables.icons.lucide.Fullscreen
 import com.composables.icons.lucide.Image
+import com.composables.icons.lucide.Lightbulb
+import com.composables.icons.lucide.LightbulbOff
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Plus
+import com.composables.icons.lucide.Sparkle
+import com.composables.icons.lucide.Terminal
 import com.composables.icons.lucide.Video
 import com.composables.icons.lucide.X
 import com.composables.icons.lucide.Zap
 import com.dokar.sonner.ToastType
 import com.yalantis.ucrop.UCrop
 import com.yalantis.ucrop.UCropActivity
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
@@ -102,7 +118,10 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.android.appTempFolder
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
+import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -112,14 +131,17 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ui.FloatingMenu
 import me.rerere.rikkahub.ui.components.ui.FloatingMenuDivider
 import me.rerere.rikkahub.ui.components.ui.FloatingMenuItem
-import me.rerere.rikkahub.ui.components.ui.InjectionSelector
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.search.SearchServiceOptions
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material3.LinearWavyProgressIndicator
 import me.rerere.rikkahub.utils.createChatFilesByContents
 import me.rerere.rikkahub.utils.deleteChatFiles
 import me.rerere.rikkahub.utils.getFileMimeType
@@ -131,6 +153,13 @@ import kotlin.uuid.Uuid
 enum class ExpandState {
     Collapsed,
     Files,
+}
+
+private enum class ActionSubmenu {
+    Search,
+    Reasoning,
+    Mcp,
+    Injection,
 }
 
 @Composable
@@ -159,6 +188,7 @@ fun ChatInput(
     val context = LocalContext.current
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
+    val navController = LocalNavController.current
 
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -173,8 +203,14 @@ fun ChatInput(
     }
 
     var expand by remember { mutableStateOf(ExpandState.Collapsed) }
+    var activeSubmenu by remember { mutableStateOf<ActionSubmenu?>(null) }
     fun dismissExpand() {
         expand = ExpandState.Collapsed
+        activeSubmenu = null
+    }
+
+    fun openSubmenu(submenu: ActionSubmenu) {
+        activeSubmenu = if (activeSubmenu == submenu) null else submenu
     }
 
     fun expandToggle(type: ExpandState) {
@@ -182,6 +218,7 @@ fun ChatInput(
             dismissExpand()
         } else {
             expand = type
+            activeSubmenu = null
         }
     }
 
@@ -189,9 +226,23 @@ fun ChatInput(
     val imeVisile = WindowInsets.isImeVisible
     LaunchedEffect(imeVisile) {
         if (imeVisile) {
-            expand = ExpandState.Collapsed
+            dismissExpand()
         }
     }
+
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    var menuAnchorX by remember { mutableStateOf(0.dp) }
+    val screenWidth = configuration.screenWidthDp.dp
+    val menuEdgePadding = 12.dp
+    val menuGap = 8.dp
+    val mainMenuWidth = 240.dp
+    val subMenuWidth = 240.dp
+    val menuOffsetY = (-6).dp
+    val mainMenuX = (screenWidth - mainMenuWidth - menuEdgePadding).coerceAtLeast(menuEdgePadding)
+    val subMenuX = (mainMenuX - subMenuWidth - menuGap).coerceAtLeast(menuEdgePadding)
+    val mainMenuOffsetX = mainMenuX - menuAnchorX
+    val subMenuOffsetX = subMenuX - menuAnchorX
 
     Surface(
         color = Color.Transparent,
@@ -239,57 +290,17 @@ fun ChatInput(
                         onArenaModeChange = onArenaModeChange,
                         onSelectedModelsChange = onSelectedChatModelsChange,
                     )
-
-                    // Search
-                    val enableSearchMsg = stringResource(R.string.web_search_enabled)
-                    val disableSearchMsg = stringResource(R.string.web_search_disabled)
-                    val chatModel = settings.getCurrentChatModel()
-                    SearchPickerButton(
-                        enableSearch = enableSearch,
-                        settings = settings,
-                        onToggleSearch = { enabled ->
-                            onToggleSearch(enabled)
-                            toaster.show(
-                                message = if (enabled) enableSearchMsg else disableSearchMsg,
-                                duration = 1.seconds,
-                                type = if (enabled) {
-                                    ToastType.Success
-                                } else {
-                                    ToastType.Normal
-                                }
-                            )
-                        },
-                        onUpdateSearchService = onUpdateSearchService,
-                        model = chatModel,
-                    )
-
-                    // Reasoning
-                    val model = settings.getCurrentChatModel()
-                    if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
-                        ReasoningButton(
-                            reasoningTokens = assistant.thinkingBudget ?: 0,
-                            onUpdateReasoningTokens = {
-                                onUpdateAssistant(assistant.copy(thinkingBudget = it))
-                            },
-                            onlyIcon = true,
-                        )
-                    }
-
-                    // MCP
-                    if (settings.mcpServers.isNotEmpty()) {
-                        McpPickerButton(
-                            assistant = assistant,
-                            servers = settings.mcpServers,
-                            mcpManager = mcpManager,
-                            onUpdateAssistant = {
-                                onUpdateAssistant(it)
-                            },
-                        )
-                    }
                 }
 
                 // Insert files
-                Box {
+                val chatModel = settings.getCurrentChatModel()
+                Box(
+                    modifier = Modifier.onGloballyPositioned { coordinates ->
+                        menuAnchorX = with(density) {
+                            coordinates.positionInWindow().x.toDp()
+                        }
+                    }
+                ) {
                     IconButton(
                         onClick = {
                             expandToggle(ExpandState.Files)
@@ -303,15 +314,94 @@ fun ChatInput(
                     FloatingMenu(
                         expanded = expand == ExpandState.Files,
                         onDismissRequest = { dismissExpand() },
+                        offset = DpOffset(mainMenuOffsetX, menuOffsetY),
+                        menuWidth = mainMenuWidth,
+                        shadowElevation = menuEdgePadding,
+                        properties = PopupProperties(
+                            dismissOnClickOutside = activeSubmenu == null
+                        ),
                     ) {
                         FilesPicker(
                             conversation = conversation,
                             state = state,
                             assistant = assistant,
+                            enableSearch = enableSearch,
+                            activeSubmenu = activeSubmenu,
+                            chatModel = chatModel,
+                            onOpenSubmenu = { submenu ->
+                                openSubmenu(submenu)
+                            },
                             onClearContext = onClearContext,
-                            onUpdateAssistant = onUpdateAssistant,
                             onDismiss = { dismissExpand() }
                         )
+                    }
+                    FloatingMenu(
+                        expanded = expand == ExpandState.Files && activeSubmenu != null,
+                        onDismissRequest = { activeSubmenu = null },
+                        offset = DpOffset(subMenuOffsetX, menuOffsetY),
+                        menuWidth = subMenuWidth,
+                        shadowElevation = menuEdgePadding,
+                    ) {
+                        when (activeSubmenu) {
+                            ActionSubmenu.Search -> {
+                                val enableSearchMsg = stringResource(R.string.web_search_enabled)
+                                val disableSearchMsg = stringResource(R.string.web_search_disabled)
+                                SearchQuickConfigMenu(
+                                    enableSearch = enableSearch,
+                                    settings = settings,
+                                    model = chatModel,
+                                    modifier = Modifier
+                                        .heightIn(max = 360.dp)
+                                        .verticalScroll(rememberScrollState()),
+                                    onToggleSearch = { enabled ->
+                                        onToggleSearch(enabled)
+                                        toaster.show(
+                                            message = if (enabled) enableSearchMsg else disableSearchMsg,
+                                            duration = 1.seconds,
+                                            type = if (enabled) {
+                                                ToastType.Success
+                                            } else {
+                                                ToastType.Normal
+                                            }
+                                        )
+                                    },
+                                    onUpdateSearchService = onUpdateSearchService,
+                                    onOpenSettings = {
+                                        activeSubmenu = null
+                                        dismissExpand()
+                                        navController.navigate(Screen.SettingSearch)
+                                    },
+                                )
+                            }
+
+                            ActionSubmenu.Reasoning -> {
+                                ReasoningQuickConfigMenu(
+                                    reasoningTokens = assistant.thinkingBudget ?: 0,
+                                    onUpdateReasoningTokens = {
+                                        onUpdateAssistant(assistant.copy(thinkingBudget = it))
+                                    },
+                                )
+                            }
+
+                            ActionSubmenu.Mcp -> {
+                                McpQuickConfigMenu(
+                                    assistant = assistant,
+                                    servers = settings.mcpServers,
+                                    mcpManager = mcpManager,
+                                    onUpdateAssistant = onUpdateAssistant,
+                                )
+                            }
+
+                            ActionSubmenu.Injection -> {
+                                InjectionQuickConfigMenu(
+                                    assistant = assistant,
+                                    settings = settings,
+                                    onUpdateAssistant = onUpdateAssistant,
+                                )
+                            }
+
+                            null -> Unit
+                        }
                     }
                 }
 
@@ -361,7 +451,11 @@ fun ChatInput(
             BackHandler(
                 enabled = expand != ExpandState.Collapsed,
             ) {
-                dismissExpand()
+                if (activeSubmenu != null) {
+                    activeSubmenu = null
+                } else {
+                    dismissExpand()
+                }
             }
         }
     }
@@ -693,13 +787,108 @@ private fun FilesPicker(
     conversation: Conversation,
     assistant: Assistant,
     state: ChatInputState,
+    enableSearch: Boolean,
+    activeSubmenu: ActionSubmenu?,
+    chatModel: Model?,
+    onOpenSubmenu: (ActionSubmenu) -> Unit,
     onClearContext: () -> Unit,
-    onUpdateAssistant: (Assistant) -> Unit,
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
     val provider = settings.getCurrentChatModel()?.findProvider(providers = settings.providers)
-    var showInjectionSheet by remember { mutableStateOf(false) }
+    val reasoningAvailable = chatModel?.abilities?.contains(ModelAbility.REASONING) == true
+    val mcpAvailable = settings.mcpServers.isNotEmpty()
+    val injectionAvailable = settings.modeInjections.isNotEmpty() || settings.lorebooks.isNotEmpty()
+    val currentSearchService = settings.searchServices.getOrNull(settings.searchServiceSelected)
+
+    FloatingMenuItem(
+        icon = Lucide.Earth,
+        text = stringResource(R.string.use_web_search),
+        contentColor = if (activeSubmenu == ActionSubmenu.Search) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        trailingContent = {
+            val serviceName = currentSearchService?.let {
+                SearchServiceOptions.TYPES[it::class]
+            }
+            SubmenuIndicator(
+                label = if (enableSearch) serviceName else null,
+                active = activeSubmenu == ActionSubmenu.Search
+            )
+        },
+        onClick = { onOpenSubmenu(ActionSubmenu.Search) },
+    )
+
+    if (reasoningAvailable) {
+        val reasoningLevel = ReasoningLevel.fromBudgetTokens(assistant.thinkingBudget ?: 0)
+        val reasoningLabel = when (reasoningLevel) {
+            ReasoningLevel.OFF -> stringResource(R.string.reasoning_off)
+            ReasoningLevel.AUTO -> stringResource(R.string.reasoning_auto)
+            ReasoningLevel.LOW -> stringResource(R.string.reasoning_light)
+            ReasoningLevel.MEDIUM -> stringResource(R.string.reasoning_medium)
+            ReasoningLevel.HIGH -> stringResource(R.string.reasoning_heavy)
+        }
+        FloatingMenuItem(
+            icon = Lucide.Lightbulb,
+            text = stringResource(R.string.setting_provider_page_reasoning),
+            contentColor = if (activeSubmenu == ActionSubmenu.Reasoning) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            trailingContent = {
+                SubmenuIndicator(
+                    label = reasoningLabel,
+                    active = activeSubmenu == ActionSubmenu.Reasoning
+                )
+            },
+            onClick = { onOpenSubmenu(ActionSubmenu.Reasoning) },
+        )
+    }
+
+    if (mcpAvailable) {
+        val enabledCount = settings.mcpServers.count { assistant.mcpServers.contains(it.id) }
+        FloatingMenuItem(
+            icon = Lucide.Terminal,
+            text = stringResource(R.string.mcp_picker_title),
+            contentColor = if (activeSubmenu == ActionSubmenu.Mcp) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            trailingContent = {
+                SubmenuIndicator(
+                    label = if (enabledCount > 0) enabledCount.toString() else null,
+                    active = activeSubmenu == ActionSubmenu.Mcp
+                )
+            },
+            onClick = { onOpenSubmenu(ActionSubmenu.Mcp) },
+        )
+    }
+
+    if (injectionAvailable) {
+        val activeCount = assistant.modeInjectionIds.size + assistant.lorebookIds.size
+        FloatingMenuItem(
+            icon = Lucide.BookOpen,
+            text = stringResource(R.string.chat_page_prompt_injections),
+            contentColor = if (activeSubmenu == ActionSubmenu.Injection) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            trailingContent = {
+                SubmenuIndicator(
+                    label = if (activeCount > 0) activeCount.toString() else null,
+                    active = activeSubmenu == ActionSubmenu.Injection
+                )
+            },
+            onClick = { onOpenSubmenu(ActionSubmenu.Injection) },
+        )
+    }
+
+    FloatingMenuDivider()
 
     TakePicButton(
         onAddImages = { state.addImages(it) },
@@ -730,28 +919,6 @@ private fun FilesPicker(
 
     FloatingMenuDivider()
 
-    // Prompt Injections
-    if (settings.modeInjections.isNotEmpty() || settings.lorebooks.isNotEmpty()) {
-        val activeCount = assistant.modeInjectionIds.size + assistant.lorebookIds.size
-        FloatingMenuItem(
-            icon = Lucide.BookOpen,
-            text = stringResource(R.string.chat_page_prompt_injections),
-            trailingContent = {
-                if (activeCount > 0) {
-                    Text(
-                        text = activeCount.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            },
-            onClick = {
-                onDismiss()
-                showInjectionSheet = true
-            },
-        )
-    }
-
     FloatingMenuItem(
         icon = Lucide.Eraser,
         text = stringResource(R.string.chat_page_clear_context),
@@ -775,15 +942,245 @@ private fun FilesPicker(
             onClearContext()
         },
     )
+}
 
-    // Injection Bottom Sheet
-    if (showInjectionSheet) {
-        InjectionQuickConfigSheet(
-            assistant = assistant,
-            settings = settings,
-            onUpdateAssistant = onUpdateAssistant,
-            onDismiss = { showInjectionSheet = false }
+@Composable
+private fun SubmenuIndicator(
+    label: String?,
+    active: Boolean,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (label != null) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (active) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = Lucide.ChevronLeft,
+            contentDescription = null,
+            tint = if (active) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.outlineVariant
+            },
         )
+    }
+}
+
+@Composable
+private fun ReasoningQuickConfigMenu(
+    reasoningTokens: Int,
+    onUpdateReasoningTokens: (Int) -> Unit,
+) {
+    val currentLevel = ReasoningLevel.fromBudgetTokens(reasoningTokens)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        val options = listOf(
+            Triple(ReasoningLevel.OFF, R.string.reasoning_off, Lucide.LightbulbOff),
+            Triple(ReasoningLevel.AUTO, R.string.reasoning_auto, Lucide.Sparkle),
+            Triple(ReasoningLevel.LOW, R.string.reasoning_light, Lucide.Lightbulb),
+            Triple(ReasoningLevel.MEDIUM, R.string.reasoning_medium, Lucide.Lightbulb),
+            Triple(ReasoningLevel.HIGH, R.string.reasoning_heavy, Lucide.Lightbulb),
+        )
+        options.forEach { (level, labelRes, icon) ->
+            val selected = currentLevel == level
+            FloatingMenuItem(
+                icon = icon,
+                text = stringResource(labelRes),
+                contentColor = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                trailingContent = {
+                    if (selected) {
+                        Icon(Lucide.Check, null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                onClick = {
+                    val newTokens = when (level) {
+                        ReasoningLevel.OFF -> 0
+                        ReasoningLevel.AUTO -> -1
+                        ReasoningLevel.LOW -> 1024
+                        ReasoningLevel.MEDIUM -> 16_000
+                        ReasoningLevel.HIGH -> 32_000
+                    }
+                    onUpdateReasoningTokens(newTokens)
+                },
+            )
+        }
+
+        FloatingMenuDivider()
+
+        Text(
+            text = stringResource(R.string.reasoning_custom),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+        )
+        var input by remember(reasoningTokens) {
+            mutableStateOf(reasoningTokens.toString())
+        }
+        OutlinedTextField(
+            value = input,
+            onValueChange = { newValue ->
+                input = newValue
+                newValue.toIntOrNull()?.let { onUpdateReasoningTokens(it) }
+            },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+        )
+    }
+}
+
+@Composable
+private fun McpQuickConfigMenu(
+    assistant: Assistant,
+    servers: List<McpServerConfig>,
+    mcpManager: McpManager,
+    onUpdateAssistant: (Assistant) -> Unit,
+) {
+    Column(
+        modifier = Modifier.widthIn(max = 320.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        val status by mcpManager.syncingStatus.collectAsStateWithLifecycle()
+        val loading = status.values.any { it == McpStatus.Connecting }
+        if (loading) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                LinearWavyProgressIndicator()
+                Text(
+                    text = stringResource(id = R.string.mcp_picker_syncing),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier.heightIn(max = 320.dp)
+        ) {
+            McpPicker(
+                assistant = assistant,
+                servers = servers,
+                onUpdateAssistant = onUpdateAssistant,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun InjectionQuickConfigMenu(
+    assistant: Assistant,
+    settings: Settings,
+    onUpdateAssistant: (Assistant) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .heightIn(max = 360.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (settings.modeInjections.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.injection_selector_mode_injections),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+            settings.modeInjections.fastForEach { injection ->
+                val selected = assistant.modeInjectionIds.contains(injection.id)
+                FloatingMenuItem(
+                    icon = Lucide.BookOpen,
+                    text = injection.name.ifBlank {
+                        stringResource(R.string.injection_selector_unnamed)
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = selected,
+                            onCheckedChange = { checked ->
+                                val newIds = if (checked) {
+                                    assistant.modeInjectionIds + injection.id
+                                } else {
+                                    assistant.modeInjectionIds - injection.id
+                                }
+                                onUpdateAssistant(assistant.copy(modeInjectionIds = newIds))
+                            }
+                        )
+                    },
+                    onClick = {
+                        val newIds = if (selected) {
+                            assistant.modeInjectionIds - injection.id
+                        } else {
+                            assistant.modeInjectionIds + injection.id
+                        }
+                        onUpdateAssistant(assistant.copy(modeInjectionIds = newIds))
+                    },
+                )
+            }
+        }
+
+        if (settings.lorebooks.isNotEmpty()) {
+            if (settings.modeInjections.isNotEmpty()) {
+                FloatingMenuDivider()
+            }
+            Text(
+                text = stringResource(R.string.injection_selector_lorebooks),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+            settings.lorebooks.fastForEach { lorebook ->
+                val selected = assistant.lorebookIds.contains(lorebook.id)
+                FloatingMenuItem(
+                    icon = Lucide.BookOpen,
+                    text = lorebook.name.ifBlank {
+                        stringResource(R.string.injection_selector_unnamed_lorebook)
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = selected,
+                            onCheckedChange = { checked ->
+                                val newIds = if (checked) {
+                                    assistant.lorebookIds + lorebook.id
+                                } else {
+                                    assistant.lorebookIds - lorebook.id
+                                }
+                                onUpdateAssistant(assistant.copy(lorebookIds = newIds))
+                            }
+                        )
+                    },
+                    onClick = {
+                        val newIds = if (selected) {
+                            assistant.lorebookIds - lorebook.id
+                        } else {
+                            assistant.lorebookIds + lorebook.id
+                        }
+                        onUpdateAssistant(assistant.copy(lorebookIds = newIds))
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -1150,35 +1547,4 @@ fun FilePickButton(
             pickMedia.launch(arrayOf("*/*"))
         },
     )
-}
-
-@Composable
-private fun InjectionQuickConfigSheet(
-    assistant: Assistant,
-    settings: Settings,
-    onUpdateAssistant: (Assistant) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.75f)
-                .padding(horizontal = 16.dp),
-        ) {
-            InjectionSelector(
-                assistant = assistant,
-                settings = settings,
-                onUpdate = onUpdateAssistant,
-                modifier = Modifier.weight(1f)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
 }
