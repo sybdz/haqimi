@@ -222,10 +222,10 @@ fun ChatInput(
         }
     }
 
-    // Collapse when ime is visible
-    val imeVisile = WindowInsets.isImeVisible
-    LaunchedEffect(imeVisile) {
-        if (imeVisile) {
+    // Collapse only the main menu when IME is visible to avoid closing submenus with inputs.
+    val imeVisible = WindowInsets.isImeVisible
+    LaunchedEffect(imeVisible, expand, activeSubmenu) {
+        if (imeVisible && expand == ExpandState.Files && activeSubmenu == null) {
             dismissExpand()
         }
     }
@@ -895,29 +895,24 @@ private fun FilesPicker(
 
     TakePicButton(
         onAddImages = { state.addImages(it) },
-        onBeforePick = { onDismiss() },
     )
 
     ImagePickButton(
         onAddImages = { state.addImages(it) },
-        onBeforePick = { onDismiss() },
     )
 
     if (provider != null && provider is ProviderSetting.Google) {
         VideoPickButton(
             onAddVideos = { state.addVideos(it) },
-            onBeforePick = { onDismiss() },
         )
 
         AudioPickButton(
             onAddAudios = { state.addAudios(it) },
-            onBeforePick = { onDismiss() },
         )
     }
 
     FilePickButton(
         onAddFiles = { state.addFiles(it) },
-        onBeforePick = { onDismiss() },
     )
 
     FloatingMenuDivider()
