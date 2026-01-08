@@ -93,7 +93,7 @@ fun ChatMessageCards(
         return message.modelId?.let(settings::findModelById)
     }
 
-    var showActionsSheet by remember { mutableStateOf(false) }
+    var showActionsMenu by remember { mutableStateOf(false) }
     var showSelectCopySheet by remember { mutableStateOf(false) }
 
     Column(
@@ -239,52 +239,50 @@ fun ChatMessageCards(
                     )
                 }
 
-                IconButton(
-                    enabled = currentMessage() != null,
-                    onClick = { showActionsSheet = true }
-                ) {
-                    Icon(
-                        imageVector = Lucide.Ellipsis,
-                        contentDescription = "More",
-                        modifier = Modifier.size(18.dp),
-                    )
+                Box {
+                    IconButton(
+                        enabled = currentMessage() != null,
+                        onClick = { showActionsMenu = true }
+                    ) {
+                        Icon(
+                            imageVector = Lucide.Ellipsis,
+                            contentDescription = "More",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    val message = currentMessage()
+                    val node = currentNode()
+                    if (message != null && node != null) {
+                        ChatMessageMoreMenu(
+                            expanded = showActionsMenu,
+                            onDismissRequest = { showActionsMenu = false },
+                            message = message,
+                            model = currentModel(),
+                            onEdit = { onEdit(message) },
+                            onDelete = { onDelete(message) },
+                            onShare = { onShare(node) },
+                            onFork = { onFork(message) },
+                            onSelectAndCopy = {
+                                showSelectCopySheet = true
+                            },
+                            onWebViewPreview = {
+                                val textContent = message.parts
+                                    .filterIsInstance<UIMessagePart.Text>()
+                                    .joinToString("\n\n") { it.text }
+                                    .trim()
+                                if (textContent.isNotBlank()) {
+                                    val htmlContent = buildMarkdownPreviewHtml(
+                                        context = context,
+                                        markdown = textContent,
+                                        colorScheme = colorScheme
+                                    )
+                                    navController.navigate(Screen.WebView(content = htmlContent.base64Encode()))
+                                }
+                            },
+                        )
+                    }
                 }
             }
-        }
-    }
-
-    if (showActionsSheet) {
-        val message = currentMessage()
-        val node = currentNode()
-        if (message != null && node != null) {
-            ChatMessageActionsSheet(
-                message = message,
-                model = currentModel(),
-                onEdit = { onEdit(message) },
-                onDelete = { onDelete(message) },
-                onShare = { onShare(node) },
-                onFork = { onFork(message) },
-                onSelectAndCopy = {
-                    showSelectCopySheet = true
-                },
-                onWebViewPreview = {
-                    val textContent = message.parts
-                        .filterIsInstance<UIMessagePart.Text>()
-                        .joinToString("\n\n") { it.text }
-                        .trim()
-                    if (textContent.isNotBlank()) {
-                        val htmlContent = buildMarkdownPreviewHtml(
-                            context = context,
-                            markdown = textContent,
-                            colorScheme = colorScheme
-                        )
-                        navController.navigate(Screen.WebView(content = htmlContent.base64Encode()))
-                    }
-                },
-                onDismissRequest = {
-                    showActionsSheet = false
-                }
-            )
         }
     }
 

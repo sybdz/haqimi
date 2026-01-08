@@ -243,6 +243,7 @@ dependencies {
 
     // coil
     implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
     implementation(libs.coil.okhttp)
     implementation(libs.coil.svg)
 

@@ -5,23 +5,17 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -56,6 +50,9 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.ui.components.ui.FloatingMenu
+import me.rerere.rikkahub.ui.components.ui.FloatingMenuDivider
+import me.rerere.rikkahub.ui.components.ui.FloatingMenuItem
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.toLocalString
@@ -65,15 +62,22 @@ import java.util.Locale
 fun ColumnScope.ChatMessageActionButtons(
     message: UIMessage,
     node: MessageNode,
+    model: Model?,
     onUpdate: (MessageNode) -> Unit,
     onRegenerate: () -> Unit,
-    onOpenActionSheet: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onShare: () -> Unit,
+    onFork: () -> Unit,
+    onSelectAndCopy: () -> Unit,
+    onWebViewPreview: () -> Unit,
     onTranslate: ((UIMessage, Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
 ) {
     val context = LocalContext.current
     var isPendingDelete by remember { mutableStateOf(false) }
     var showTranslateDialog by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(isPendingDelete) {
         if (isPendingDelete) {
@@ -148,21 +152,35 @@ fun ColumnScope.ChatMessageActionButtons(
             }
         }
 
-        Icon(
-            imageVector = Lucide.Ellipsis,
-            contentDescription = "More Options",
-            modifier = Modifier
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = LocalIndication.current,
-                    onClick = {
-                        onOpenActionSheet()
-                    }
-                )
-                .padding(8.dp)
-                .size(16.dp)
-        )
+        Box {
+            Icon(
+                imageVector = Lucide.Ellipsis,
+                contentDescription = "More Options",
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = LocalIndication.current,
+                        onClick = {
+                            showMoreMenu = true
+                        }
+                    )
+                    .padding(8.dp)
+                    .size(16.dp)
+            )
+            ChatMessageMoreMenu(
+                expanded = showMoreMenu,
+                onDismissRequest = { showMoreMenu = false },
+                message = message,
+                model = model,
+                onDelete = onDelete,
+                onEdit = onEdit,
+                onShare = onShare,
+                onFork = onFork,
+                onSelectAndCopy = onSelectAndCopy,
+                onWebViewPreview = onWebViewPreview,
+            )
+        }
 
         ChatMessageBranchSelector(
             node = node,
@@ -185,6 +203,98 @@ fun ColumnScope.ChatMessageActionButtons(
                 showTranslateDialog = false
             },
         )
+    }
+}
+
+@Composable
+fun ChatMessageMoreMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    message: UIMessage,
+    model: Model?,
+    onDelete: () -> Unit,
+    onEdit: () -> Unit,
+    onShare: () -> Unit,
+    onFork: () -> Unit,
+    onSelectAndCopy: () -> Unit,
+    onWebViewPreview: () -> Unit,
+) {
+    val hasTextContent = message.parts.filterIsInstance<UIMessagePart.Text>()
+        .any { it.text.isNotBlank() }
+
+    FloatingMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+    ) {
+        FloatingMenuItem(
+            icon = Lucide.TextSelect,
+            text = stringResource(R.string.select_and_copy),
+            onClick = {
+                onDismissRequest()
+                onSelectAndCopy()
+            },
+        )
+
+        if (hasTextContent) {
+            FloatingMenuItem(
+                icon = Lucide.BookOpenText,
+                text = stringResource(R.string.render_with_webview),
+                onClick = {
+                    onDismissRequest()
+                    onWebViewPreview()
+                },
+            )
+        }
+
+        FloatingMenuDivider()
+
+        FloatingMenuItem(
+            icon = Lucide.Pencil,
+            text = stringResource(R.string.edit),
+            onClick = {
+                onDismissRequest()
+                onEdit()
+            },
+        )
+
+        FloatingMenuItem(
+            icon = Lucide.Share,
+            text = stringResource(R.string.share),
+            onClick = {
+                onDismissRequest()
+                onShare()
+            },
+        )
+
+        FloatingMenuItem(
+            icon = Lucide.GitFork,
+            text = stringResource(R.string.create_fork),
+            onClick = {
+                onDismissRequest()
+                onFork()
+            },
+        )
+
+        FloatingMenuDivider()
+
+        FloatingMenuItem(
+            icon = Lucide.Trash2,
+            text = stringResource(R.string.delete),
+            contentColor = MaterialTheme.colorScheme.error,
+            onClick = {
+                onDismissRequest()
+                onDelete()
+            },
+        )
+
+        FloatingMenuDivider()
+
+        ProvideTextStyle(MaterialTheme.typography.labelSmall) {
+            Text(message.createdAt.toJavaLocalDateTime().toLocalString())
+            if (model != null) {
+                Text(model.displayName)
+            }
+        }
     }
 }
 
@@ -267,209 +377,5 @@ fun ChatMessageLocalActionButtons(
                 showTranslateDialog = false
             },
         )
-    }
-}
-
-@Composable
-fun ChatMessageActionsSheet(
-    message: UIMessage,
-    model: Model?,
-    onDelete: () -> Unit,
-    onEdit: () -> Unit,
-    onShare: () -> Unit,
-    onFork: () -> Unit,
-    onSelectAndCopy: () -> Unit,
-    onWebViewPreview: () -> Unit,
-    onDismissRequest: () -> Unit
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            // Select and Copy
-            Card(
-                onClick = {
-                    onDismissRequest()
-                    onSelectAndCopy()
-                },
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Lucide.TextSelect,
-                        contentDescription = null,
-                        modifier = Modifier.padding(4.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.select_and_copy),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
-
-            // WebView Preview (only show if message has text content)
-            val hasTextContent = message.parts.filterIsInstance<UIMessagePart.Text>()
-                .any { it.text.isNotBlank() }
-
-            if (hasTextContent) {
-                Card(
-                    onClick = {
-                        onDismissRequest()
-                        onWebViewPreview()
-                    },
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Lucide.BookOpenText,
-                            contentDescription = null,
-                            modifier = Modifier.padding(4.dp)
-                        )
-                        Text(
-                            text = stringResource(R.string.render_with_webview),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                    }
-                }
-            }
-
-            // Edit
-            Card(
-                onClick = {
-                    onDismissRequest()
-                    onEdit()
-                },
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Lucide.Pencil,
-                        contentDescription = null,
-                        modifier = Modifier.padding(4.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.edit),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
-
-            // Share
-            Card(
-                onClick = {
-                    onDismissRequest()
-                    onShare()
-                },
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Lucide.Share,
-                        contentDescription = null,
-                        modifier = Modifier.padding(4.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.share),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
-
-            // Create a Fork
-            Card(
-                onClick = {
-                    onDismissRequest()
-                    onFork()
-                },
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Lucide.GitFork,
-                        contentDescription = null,
-                        modifier = Modifier.padding(4.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.create_fork),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
-
-            // Delete
-            Card(
-                onClick = {
-                    onDismissRequest()
-                    onDelete()
-                },
-                shape = MaterialTheme.shapes.medium,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Lucide.Trash2,
-                        contentDescription = null,
-                        modifier = Modifier.padding(4.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.delete),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
-
-            // Message Info
-            ProvideTextStyle(MaterialTheme.typography.labelSmall) {
-                Text(message.createdAt.toJavaLocalDateTime().toLocalString())
-                if (model != null) {
-                    Text(model.displayName)
-                }
-            }
-        }
     }
 }

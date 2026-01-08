@@ -9,8 +9,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -20,11 +18,9 @@ import androidx.compose.foundation.content.consume
 import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,24 +37,20 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -78,11 +70,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.window.DialogProperties
@@ -97,7 +85,6 @@ import com.composables.icons.lucide.Eraser
 import com.composables.icons.lucide.FileAudio
 import com.composables.icons.lucide.Files
 import com.composables.icons.lucide.Fullscreen
-import com.composables.icons.lucide.GraduationCap
 import com.composables.icons.lucide.Image
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Music
@@ -122,7 +109,9 @@ import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
-import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.FloatingMenu
+import me.rerere.rikkahub.ui.components.ui.FloatingMenuDivider
+import me.rerere.rikkahub.ui.components.ui.FloatingMenuItem
 import me.rerere.rikkahub.ui.components.ui.InjectionSelector
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
@@ -300,15 +289,30 @@ fun ChatInput(
                 }
 
                 // Insert files
-                IconButton(
-                    onClick = {
-                        expandToggle(ExpandState.Files)
+                Box {
+                    IconButton(
+                        onClick = {
+                            expandToggle(ExpandState.Files)
+                        }
+                    ) {
+                        Icon(
+                            if (expand == ExpandState.Files) Lucide.X else Lucide.Plus,
+                            stringResource(R.string.more_options)
+                        )
                     }
-                ) {
-                    Icon(
-                        if (expand == ExpandState.Files) Lucide.X else Lucide.Plus,
-                        stringResource(R.string.more_options)
-                    )
+                    FloatingMenu(
+                        expanded = expand == ExpandState.Files,
+                        onDismissRequest = { dismissExpand() },
+                    ) {
+                        FilesPicker(
+                            conversation = conversation,
+                            state = state,
+                            assistant = assistant,
+                            onClearContext = onClearContext,
+                            onUpdateAssistant = onUpdateAssistant,
+                            onDismiss = { dismissExpand() }
+                        )
+                    }
                 }
 
                 // Send Button
@@ -354,32 +358,10 @@ fun ChatInput(
                 }
             }
 
-            // Expanded content
-            Box(
-                modifier = Modifier
-                    .animateContentSize()
-                    .fillMaxWidth()
+            BackHandler(
+                enabled = expand != ExpandState.Collapsed,
             ) {
-                BackHandler(
-                    enabled = expand != ExpandState.Collapsed,
-                ) {
-                    dismissExpand()
-                }
-                if (expand == ExpandState.Files) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        FilesPicker(
-                            conversation = conversation,
-                            state = state,
-                            assistant = assistant,
-                            onClearContext = onClearContext,
-                            onUpdateAssistant = onUpdateAssistant,
-                            onDismiss = { dismissExpand() }
-                        )
-                    }
-                }
+                dismissExpand()
             }
         }
     }
@@ -719,115 +701,80 @@ private fun FilesPicker(
     val provider = settings.getCurrentChatModel()?.findProvider(providers = settings.providers)
     var showInjectionSheet by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        FlowRow(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            TakePicButton {
-                state.addImages(it)
-                onDismiss()
-            }
+    TakePicButton(
+        onAddImages = { state.addImages(it) },
+        onBeforePick = { onDismiss() },
+    )
 
-            ImagePickButton {
-                state.addImages(it)
-                onDismiss()
-            }
+    ImagePickButton(
+        onAddImages = { state.addImages(it) },
+        onBeforePick = { onDismiss() },
+    )
 
-            if (provider != null && provider is ProviderSetting.Google) {
-                VideoPickButton {
-                    state.addVideos(it)
-                    onDismiss()
-                }
-
-                AudioPickButton {
-                    state.addAudios(it)
-                    onDismiss()
-                }
-            }
-
-            FilePickButton {
-                state.addFiles(it)
-                onDismiss()
-            }
-        }
-
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth()
+    if (provider != null && provider is ProviderSetting.Google) {
+        VideoPickButton(
+            onAddVideos = { state.addVideos(it) },
+            onBeforePick = { onDismiss() },
         )
 
-        // Prompt Injections
-        if (settings.modeInjections.isNotEmpty() || settings.lorebooks.isNotEmpty()) {
-            val activeCount = assistant.modeInjectionIds.size + assistant.lorebookIds.size
-            ListItem(
-                leadingContent = {
-                    Icon(
-                        imageVector = Lucide.BookOpen,
-                        contentDescription = stringResource(R.string.chat_page_prompt_injections),
-                    )
-                },
-                headlineContent = {
-                    Text(stringResource(R.string.chat_page_prompt_injections))
-                },
-                trailingContent = {
-                    if (activeCount > 0) {
-                        Text(
-                            text = activeCount.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                },
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.large)
-                    .clickable {
-                        showInjectionSheet = true
-                    },
-            )
-        }
-
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = Lucide.Eraser,
-                    contentDescription = stringResource(R.string.chat_page_clear_context),
-                )
-            },
-            headlineContent = {
-                Text(stringResource(R.string.chat_page_clear_context))
-            },
-            trailingContent = {
-                // Context Size
-                val settings = LocalSettings.current
-                if (settings.displaySetting.showTokenUsage && conversation.messageNodes.isNotEmpty()) {
-                    val configuredContextSize = assistant.contextMessageSize
-                    val effectiveMessagesAfterTruncation =
-                        conversation.messageNodes.size - conversation.truncateIndex.coerceAtLeast(0)
-                    val actualContextMessageCount =
-                        minOf(effectiveMessagesAfterTruncation, configuredContextSize)
-                    Text(
-                        text = "$actualContextMessageCount/$configuredContextSize",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                    )
-                }
-            },
-            modifier = Modifier
-                .clip(MaterialTheme.shapes.large)
-                .clickable(
-                    onClick = {
-                        onClearContext()
-                    }
-                ),
+        AudioPickButton(
+            onAddAudios = { state.addAudios(it) },
+            onBeforePick = { onDismiss() },
         )
     }
+
+    FilePickButton(
+        onAddFiles = { state.addFiles(it) },
+        onBeforePick = { onDismiss() },
+    )
+
+    FloatingMenuDivider()
+
+    // Prompt Injections
+    if (settings.modeInjections.isNotEmpty() || settings.lorebooks.isNotEmpty()) {
+        val activeCount = assistant.modeInjectionIds.size + assistant.lorebookIds.size
+        FloatingMenuItem(
+            icon = Lucide.BookOpen,
+            text = stringResource(R.string.chat_page_prompt_injections),
+            trailingContent = {
+                if (activeCount > 0) {
+                    Text(
+                        text = activeCount.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            },
+            onClick = {
+                onDismiss()
+                showInjectionSheet = true
+            },
+        )
+    }
+
+    FloatingMenuItem(
+        icon = Lucide.Eraser,
+        text = stringResource(R.string.chat_page_clear_context),
+        trailingContent = {
+            val displaySetting = settings.displaySetting
+            if (displaySetting.showTokenUsage && conversation.messageNodes.isNotEmpty()) {
+                val configuredContextSize = assistant.contextMessageSize
+                val effectiveMessagesAfterTruncation =
+                    conversation.messageNodes.size - conversation.truncateIndex.coerceAtLeast(0)
+                val actualContextMessageCount =
+                    minOf(effectiveMessagesAfterTruncation, configuredContextSize)
+                Text(
+                    text = "$actualContextMessageCount/$configuredContextSize",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+            }
+        },
+        onClick = {
+            onDismiss()
+            onClearContext()
+        },
+    )
 
     // Injection Bottom Sheet
     if (showInjectionSheet) {
@@ -951,7 +898,10 @@ private fun useCropLauncher(
 }
 
 @Composable
-private fun ImagePickButton(onAddImages: (List<Uri>) -> Unit = {}) {
+private fun ImagePickButton(
+    onAddImages: (List<Uri>) -> Unit = {},
+    onBeforePick: () -> Unit = {},
+) {
     val context = LocalContext.current
     val settings = LocalSettings.current
 
@@ -985,20 +935,21 @@ private fun ImagePickButton(onAddImages: (List<Uri>) -> Unit = {}) {
         }
     }
 
-    BigIconTextButton(
-        icon = {
-            Icon(Lucide.Image, null)
+    FloatingMenuItem(
+        icon = Lucide.Image,
+        text = stringResource(R.string.photo),
+        onClick = {
+            onBeforePick()
+            imagePickerLauncher.launch("image/*")
         },
-        text = {
-            Text(stringResource(R.string.photo))
-        }
-    ) {
-        imagePickerLauncher.launch("image/*")
-    }
+    )
 }
 
 @Composable
-fun TakePicButton(onAddImages: (List<Uri>) -> Unit = {}) {
+fun TakePicButton(
+    onAddImages: (List<Uri>) -> Unit = {},
+    onBeforePick: () -> Unit = {},
+) {
     val cameraPermission = rememberPermissionState(PermissionCamera)
 
     val context = LocalContext.current
@@ -1046,33 +997,34 @@ fun TakePicButton(onAddImages: (List<Uri>) -> Unit = {}) {
     PermissionManager(
         permissionState = cameraPermission
     ) {
-        BigIconTextButton(
-            icon = {
-                Icon(Lucide.Camera, null)
+        FloatingMenuItem(
+            icon = Lucide.Camera,
+            text = stringResource(R.string.take_picture),
+            onClick = {
+                onBeforePick()
+                if (cameraPermission.allRequiredPermissionsGranted) {
+                    // 权限已授权，直接启动相机
+                    cameraOutputFile = context.cacheDir.resolve("camera_${Uuid.random()}.jpg")
+                    cameraOutputUri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        cameraOutputFile!!
+                    )
+                    cameraLauncher.launch(cameraOutputUri!!)
+                } else {
+                    // 请求权限
+                    cameraPermission.requestPermissions()
+                }
             },
-            text = {
-                Text(stringResource(R.string.take_picture))
-            }
-        ) {
-            if (cameraPermission.allRequiredPermissionsGranted) {
-                // 权限已授权，直接启动相机
-                cameraOutputFile = context.cacheDir.resolve("camera_${Uuid.random()}.jpg")
-                cameraOutputUri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    cameraOutputFile!!
-                )
-                cameraLauncher.launch(cameraOutputUri!!)
-            } else {
-                // 请求权限
-                cameraPermission.requestPermissions()
-            }
-        }
+        )
     }
 }
 
 @Composable
-fun VideoPickButton(onAddVideos: (List<Uri>) -> Unit = {}) {
+fun VideoPickButton(
+    onAddVideos: (List<Uri>) -> Unit = {},
+    onBeforePick: () -> Unit = {},
+) {
     val context = LocalContext.current
     val videoPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
@@ -1082,20 +1034,21 @@ fun VideoPickButton(onAddVideos: (List<Uri>) -> Unit = {}) {
         }
     }
 
-    BigIconTextButton(
-        icon = {
-            Icon(Lucide.Video, null)
+    FloatingMenuItem(
+        icon = Lucide.Video,
+        text = stringResource(R.string.video),
+        onClick = {
+            onBeforePick()
+            videoPickerLauncher.launch("video/*")
         },
-        text = {
-            Text(stringResource(R.string.video))
-        }
-    ) {
-        videoPickerLauncher.launch("video/*")
-    }
+    )
 }
 
 @Composable
-fun AudioPickButton(onAddAudios: (List<Uri>) -> Unit = {}) {
+fun AudioPickButton(
+    onAddAudios: (List<Uri>) -> Unit = {},
+    onBeforePick: () -> Unit = {},
+) {
     val context = LocalContext.current
     val audioPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
@@ -1105,20 +1058,21 @@ fun AudioPickButton(onAddAudios: (List<Uri>) -> Unit = {}) {
         }
     }
 
-    BigIconTextButton(
-        icon = {
-            Icon(Lucide.Music, null)
+    FloatingMenuItem(
+        icon = Lucide.Music,
+        text = stringResource(R.string.audio),
+        onClick = {
+            onBeforePick()
+            audioPickerLauncher.launch("audio/*")
         },
-        text = {
-            Text(stringResource(R.string.audio))
-        }
-    ) {
-        audioPickerLauncher.launch("audio/*")
-    }
+    )
 }
 
 @Composable
-fun FilePickButton(onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}) {
+fun FilePickButton(
+    onAddFiles: (List<UIMessagePart.Document>) -> Unit = {},
+    onBeforePick: () -> Unit = {},
+) {
     val context = LocalContext.current
     val toaster = LocalToaster.current
     val pickMedia =
@@ -1188,57 +1142,14 @@ fun FilePickButton(onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}) {
                 }
             }
         }
-    BigIconTextButton(
-        icon = {
-            Icon(Lucide.Files, null)
+    FloatingMenuItem(
+        icon = Lucide.Files,
+        text = stringResource(R.string.upload_file),
+        onClick = {
+            onBeforePick()
+            pickMedia.launch(arrayOf("*/*"))
         },
-        text = {
-            Text(stringResource(R.string.upload_file))
-        }
-    ) {
-        pickMedia.launch(arrayOf("*/*"))
-    }
-}
-
-
-@Composable
-private fun BigIconTextButton(
-    modifier: Modifier = Modifier,
-    icon: @Composable () -> Unit,
-    text: @Composable () -> Unit,
-    onClick: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = LocalIndication.current,
-                onClick = onClick
-            )
-            .semantics {
-                role = Role.Button
-            }
-            .wrapContentWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Surface(
-            tonalElevation = 2.dp,
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 32.dp, vertical = 16.dp)
-            ) {
-                icon()
-            }
-        }
-        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-            text()
-        }
-    }
+    )
 }
 
 @Composable
@@ -1269,22 +1180,5 @@ private fun InjectionQuickConfigSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun BigIconTextButtonPreview() {
-    Row(
-        modifier = Modifier.padding(16.dp)
-    ) {
-        BigIconTextButton(
-            icon = {
-                Icon(Lucide.Image, null)
-            },
-            text = {
-                Text(stringResource(R.string.photo))
-            }
-        ) {}
     }
 }

@@ -43,6 +43,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
+import coil3.gif.AnimatedImageDecoder
+import coil3.gif.GifDecoder
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
@@ -124,6 +126,11 @@ class RouteActivity : ComponentActivity() {
                     ImageLoader.Builder(context)
                         .crossfade(true)
                         .components {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                add(AnimatedImageDecoder.Factory())
+                            } else {
+                                add(GifDecoder.Factory())
+                            }
                             add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
                             add(SvgDecoder.Factory(scaleToDensity = true))
                         }
