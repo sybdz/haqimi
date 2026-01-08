@@ -1579,12 +1579,17 @@ fun FilePickButton(
                         fileName.endsWith(".yaml", ignoreCase = true)
 
                     if (isAllowed) {
-                        val localUri = context.createChatFilesByContents(listOf(uri))[0]
-                        UIMessagePart.Document(
-                            url = localUri.toString(),
-                            fileName = fileName,
-                            mime = mime
-                        )
+                        val localUri = context.createChatFilesByContents(listOf(uri)).firstOrNull()
+                        if (localUri == null) {
+                            toaster.show("无法读取文件: $fileName", type = ToastType.Error)
+                            null
+                        } else {
+                            UIMessagePart.Document(
+                                url = localUri.toString(),
+                                fileName = fileName,
+                                mime = mime
+                            )
+                        }
                     } else {
                         toaster.show("不支持的文件类型: $fileName", type = ToastType.Error)
                         null
