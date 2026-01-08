@@ -341,6 +341,9 @@ fun ChatInput(
                         offset = DpOffset(subMenuOffsetX, menuOffsetY),
                         menuWidth = subMenuWidth,
                         shadowElevation = menuEdgePadding,
+                        properties = PopupProperties(
+                            dismissOnClickOutside = false
+                        ),
                     ) {
                         when (activeSubmenu) {
                             ActionSubmenu.Search -> {
@@ -1054,12 +1057,14 @@ private fun McpQuickConfigMenu(
     mcpManager: McpManager,
     onUpdateAssistant: (Assistant) -> Unit,
 ) {
+    val status by mcpManager.syncingStatus.collectAsStateWithLifecycle()
+    val loading = status.values.any { it == McpStatus.Connecting }
+    val enabledServers = servers.filter { it.commonOptions.enable }
+
     Column(
         modifier = Modifier.widthIn(max = 320.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        val status by mcpManager.syncingStatus.collectAsStateWithLifecycle()
-        val loading = status.values.any { it == McpStatus.Connecting }
         if (loading) {
             Column(
                 modifier = Modifier
@@ -1076,15 +1081,67 @@ private fun McpQuickConfigMenu(
             }
         }
 
-        Box(
-            modifier = Modifier.heightIn(max = 320.dp)
+        Column(
+            modifier = Modifier
+                .heightIn(max = 320.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            McpPicker(
-                assistant = assistant,
-                servers = servers,
-                onUpdateAssistant = onUpdateAssistant,
-                modifier = Modifier.fillMaxWidth()
-            )
+            enabledServers.forEach { server ->
+                val serverStatus by mcpManager.getStatus(server)
+                    .collectAsStateWithLifecycle(McpStatus.Idle)
+                val isEnabled = server.id in assistant.mcpServers
+                val statusLabel = when (serverStatus) {
+                    McpStatus.Idle -> "Idle"
+                    McpStatus.Connecting -> "Connecting"
+                    McpStatus.Connected -> "Connected"
+                    is McpStatus.Error -> "Error: ${(serverStatus as McpStatus.Error).message}"
+                }
+                FloatingMenuItem(
+                    icon = Lucide.Terminal,
+                    text = server.commonOptions.name,
+                    trailingContent = {
+                        Switch(
+                            checked = isEnabled,
+                            onCheckedChange = { checked ->
+                                val newServers = assistant.mcpServers.toMutableSet()
+                                if (checked) {
+                                    newServers.add(server.id)
+                                } else {
+                                    newServers.remove(server.id)
+                                }
+                                newServers.removeIf { id ->
+                                    enabledServers.none { it.id == id }
+                                }
+                                onUpdateAssistant(
+                                    assistant.copy(mcpServers = newServers.toSet())
+                                )
+                            }
+                        )
+                    },
+                    onClick = {
+                        val newServers = assistant.mcpServers.toMutableSet()
+                        if (isEnabled) {
+                            newServers.remove(server.id)
+                        } else {
+                            newServers.add(server.id)
+                        }
+                        newServers.removeIf { id ->
+                            enabledServers.none { it.id == id }
+                        }
+                        onUpdateAssistant(
+                            assistant.copy(mcpServers = newServers.toSet())
+                        )
+                    },
+                )
+                Text(
+                    text = statusLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    maxLines = 2,
+                )
+            }
         }
     }
 }
