@@ -222,12 +222,14 @@ fun ChatInput(
         }
     }
 
-    // Collapse only the main menu when IME is visible to avoid closing submenus with inputs.
+    // Collapse only when IME becomes visible while the main menu is open.
     val imeVisible = WindowInsets.isImeVisible
-    LaunchedEffect(imeVisible, expand, activeSubmenu) {
-        if (imeVisible && expand == ExpandState.Files && activeSubmenu == null) {
+    var wasImeVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(imeVisible) {
+        if (imeVisible && !wasImeVisible && expand == ExpandState.Files && activeSubmenu == null) {
             dismissExpand()
         }
+        wasImeVisible = imeVisible
     }
 
     val density = LocalDensity.current
@@ -241,8 +243,14 @@ fun ChatInput(
     val menuOffsetY = (-6).dp
     val mainMenuX = (screenWidth - mainMenuWidth - menuEdgePadding).coerceAtLeast(menuEdgePadding)
     val subMenuX = (mainMenuX - subMenuWidth - menuGap).coerceAtLeast(menuEdgePadding)
-    val mainMenuOffsetX = mainMenuX - menuAnchorX
-    val subMenuOffsetX = subMenuX - menuAnchorX
+    val showSubmenu = expand == ExpandState.Files && activeSubmenu != null
+    val combinedMenuX = if (showSubmenu) subMenuX else mainMenuX
+    val combinedMenuOffsetX = combinedMenuX - menuAnchorX
+    val combinedMenuWidth = if (showSubmenu) {
+        mainMenuWidth + menuGap + subMenuWidth
+    } else {
+        mainMenuWidth
+    }
 
     Surface(
         color = Color.Transparent,
@@ -314,98 +322,125 @@ fun ChatInput(
                     FloatingMenu(
                         expanded = expand == ExpandState.Files,
                         onDismissRequest = { dismissExpand() },
-                        offset = DpOffset(mainMenuOffsetX, menuOffsetY),
-                        menuWidth = mainMenuWidth,
+                        offset = DpOffset(combinedMenuOffsetX, menuOffsetY),
+                        menuWidth = combinedMenuWidth,
                         shadowElevation = menuEdgePadding,
                         properties = PopupProperties(
-                            dismissOnClickOutside = activeSubmenu == null,
-                            focusable = activeSubmenu == null
-                        ),
-                    ) {
-                        FilesPicker(
-                            conversation = conversation,
-                            state = state,
-                            assistant = assistant,
-                            enableSearch = enableSearch,
-                            activeSubmenu = activeSubmenu,
-                            chatModel = chatModel,
-                            onOpenSubmenu = { submenu ->
-                                openSubmenu(submenu)
-                            },
-                            onClearContext = onClearContext,
-                            onDismiss = { dismissExpand() }
-                        )
-                    }
-                    FloatingMenu(
-                        expanded = expand == ExpandState.Files && activeSubmenu != null,
-                        onDismissRequest = { activeSubmenu = null },
-                        offset = DpOffset(subMenuOffsetX, menuOffsetY),
-                        menuWidth = subMenuWidth,
-                        shadowElevation = menuEdgePadding,
-                        properties = PopupProperties(
-                            dismissOnClickOutside = false,
+                            dismissOnClickOutside = true,
                             focusable = true
                         ),
                     ) {
-                        when (activeSubmenu) {
-                            ActionSubmenu.Search -> {
-                                val enableSearchMsg = stringResource(R.string.web_search_enabled)
-                                val disableSearchMsg = stringResource(R.string.web_search_disabled)
-                                SearchQuickConfigMenu(
-                                    enableSearch = enableSearch,
-                                    settings = settings,
-                                    model = chatModel,
-                                    modifier = Modifier
-                                        .heightIn(max = 360.dp)
-                                        .verticalScroll(rememberScrollState()),
-                                    onToggleSearch = { enabled ->
-                                        onToggleSearch(enabled)
-                                        toaster.show(
-                                            message = if (enabled) enableSearchMsg else disableSearchMsg,
-                                            duration = 1.seconds,
-                                            type = if (enabled) {
-                                                ToastType.Success
-                                            } else {
-                                                ToastType.Normal
-                                            }
-                                        )
-                                    },
-                                    onUpdateSearchService = onUpdateSearchService,
-                                    onOpenSettings = {
-                                        activeSubmenu = null
-                                        dismissExpand()
-                                        navController.navigate(Screen.SettingSearch)
-                                    },
-                                )
-                            }
+                        if (showSubmenu) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(menuGap),
+                            ) {
+                                Column(
+                                    modifier = Modifier.width(subMenuWidth),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    when (activeSubmenu) {
+                                        ActionSubmenu.Search -> {
+                                            val enableSearchMsg =
+                                                stringResource(R.string.web_search_enabled)
+                                            val disableSearchMsg =
+                                                stringResource(R.string.web_search_disabled)
+                                            SearchQuickConfigMenu(
+                                                enableSearch = enableSearch,
+                                                settings = settings,
+                                                model = chatModel,
+                                                modifier = Modifier
+                                                    .heightIn(max = 360.dp)
+                                                    .verticalScroll(rememberScrollState()),
+                                                onToggleSearch = { enabled ->
+                                                    onToggleSearch(enabled)
+                                                    toaster.show(
+                                                        message = if (enabled) {
+                                                            enableSearchMsg
+                                                        } else {
+                                                            disableSearchMsg
+                                                        },
+                                                        duration = 1.seconds,
+                                                        type = if (enabled) {
+                                                            ToastType.Success
+                                                        } else {
+                                                            ToastType.Normal
+                                                        }
+                                                    )
+                                                },
+                                                onUpdateSearchService = onUpdateSearchService,
+                                                onOpenSettings = {
+                                                    activeSubmenu = null
+                                                    dismissExpand()
+                                                    navController.navigate(Screen.SettingSearch)
+                                                },
+                                            )
+                                        }
 
-                            ActionSubmenu.Reasoning -> {
-                                ReasoningQuickConfigMenu(
-                                    reasoningTokens = assistant.thinkingBudget ?: 0,
-                                    onUpdateReasoningTokens = {
-                                        onUpdateAssistant(assistant.copy(thinkingBudget = it))
-                                    },
-                                )
-                            }
+                                        ActionSubmenu.Reasoning -> {
+                                            ReasoningQuickConfigMenu(
+                                                reasoningTokens = assistant.thinkingBudget ?: 0,
+                                                onUpdateReasoningTokens = {
+                                                    onUpdateAssistant(
+                                                        assistant.copy(thinkingBudget = it)
+                                                    )
+                                                },
+                                            )
+                                        }
 
-                            ActionSubmenu.Mcp -> {
-                                McpQuickConfigMenu(
-                                    assistant = assistant,
-                                    servers = settings.mcpServers,
-                                    mcpManager = mcpManager,
-                                    onUpdateAssistant = onUpdateAssistant,
-                                )
-                            }
+                                        ActionSubmenu.Mcp -> {
+                                            McpQuickConfigMenu(
+                                                assistant = assistant,
+                                                servers = settings.mcpServers,
+                                                mcpManager = mcpManager,
+                                                onUpdateAssistant = onUpdateAssistant,
+                                            )
+                                        }
 
-                            ActionSubmenu.Injection -> {
-                                InjectionQuickConfigMenu(
-                                    assistant = assistant,
-                                    settings = settings,
-                                    onUpdateAssistant = onUpdateAssistant,
-                                )
-                            }
+                                        ActionSubmenu.Injection -> {
+                                            InjectionQuickConfigMenu(
+                                                assistant = assistant,
+                                                settings = settings,
+                                                onUpdateAssistant = onUpdateAssistant,
+                                            )
+                                        }
 
-                            null -> Unit
+                                        null -> Unit
+                                    }
+                                }
+
+                                Column(
+                                    modifier = Modifier.width(mainMenuWidth),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    FilesPicker(
+                                        conversation = conversation,
+                                        state = state,
+                                        assistant = assistant,
+                                        enableSearch = enableSearch,
+                                        activeSubmenu = activeSubmenu,
+                                        chatModel = chatModel,
+                                        onOpenSubmenu = { submenu ->
+                                            openSubmenu(submenu)
+                                        },
+                                        onClearContext = onClearContext,
+                                        onDismiss = { dismissExpand() }
+                                    )
+                                }
+                            }
+                        } else {
+                            FilesPicker(
+                                conversation = conversation,
+                                state = state,
+                                assistant = assistant,
+                                enableSearch = enableSearch,
+                                activeSubmenu = activeSubmenu,
+                                chatModel = chatModel,
+                                onOpenSubmenu = { submenu ->
+                                    openSubmenu(submenu)
+                                },
+                                onClearContext = onClearContext,
+                                onDismiss = { dismissExpand() }
+                            )
                         }
                     }
                 }
