@@ -318,7 +318,8 @@ fun ChatInput(
                         menuWidth = mainMenuWidth,
                         shadowElevation = menuEdgePadding,
                         properties = PopupProperties(
-                            dismissOnClickOutside = activeSubmenu == null
+                            dismissOnClickOutside = activeSubmenu == null,
+                            focusable = activeSubmenu == null
                         ),
                     ) {
                         FilesPicker(
@@ -342,7 +343,8 @@ fun ChatInput(
                         menuWidth = subMenuWidth,
                         shadowElevation = menuEdgePadding,
                         properties = PopupProperties(
-                            dismissOnClickOutside = false
+                            dismissOnClickOutside = false,
+                            focusable = true
                         ),
                     ) {
                         when (activeSubmenu) {
