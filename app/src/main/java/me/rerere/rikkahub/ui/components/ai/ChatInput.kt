@@ -238,13 +238,13 @@ fun ChatInput(
     val screenWidth = configuration.screenWidthDp.dp
     val menuEdgePadding = 12.dp
     val menuGap = 8.dp
-    val mainMenuWidth = 240.dp
-    val subMenuWidth = 240.dp
+    val mainMenuWidth = 220.dp
+    val subMenuWidth = 200.dp
     val menuOffsetY = (-6).dp
     val mainMenuX = (screenWidth - mainMenuWidth - menuEdgePadding).coerceAtLeast(menuEdgePadding)
-    val subMenuX = (mainMenuX - subMenuWidth - menuGap).coerceAtLeast(menuEdgePadding)
     val showSubmenu = expand == ExpandState.Files && activeSubmenu != null
-    val combinedMenuX = if (showSubmenu) subMenuX else mainMenuX
+    val combinedMenuX =
+        (mainMenuX - if (showSubmenu) (subMenuWidth + menuGap) else 0.dp).coerceAtLeast(menuEdgePadding)
     val combinedMenuOffsetX = combinedMenuX - menuAnchorX
     val combinedMenuWidth = if (showSubmenu) {
         mainMenuWidth + menuGap + subMenuWidth
