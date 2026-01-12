@@ -549,7 +549,7 @@ class ChatService(
                     mcpManager.getAllAvailableTools().forEach { tool ->
                         add(
                             Tool(
-                                name = tool.name,
+                                name = "mcp__" + tool.name,
                                 description = tool.description ?: "",
                                 parameters = { tool.inputSchema },
                                 execute = {
