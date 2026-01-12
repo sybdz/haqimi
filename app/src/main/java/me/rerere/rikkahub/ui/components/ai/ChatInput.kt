@@ -43,7 +43,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
@@ -335,7 +334,7 @@ fun ChatInput(
                             Box(
                                 modifier = Modifier.width(subMenuWidth),
                             ) {
-                                AnimatedVisibility(
+                                androidx.compose.animation.AnimatedVisibility(
                                     visible = showSubmenu,
                                     enter = fadeIn(animationSpec = tween(durationMillis = 120)),
                                     exit = fadeOut(animationSpec = tween(durationMillis = 120)),
