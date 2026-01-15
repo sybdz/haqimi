@@ -249,6 +249,9 @@ fun ChatInput(
     val combinedMenuX = (mainMenuX - (subMenuWidth + menuGap)).coerceAtLeast(menuEdgePadding)
     val combinedMenuOffsetX = combinedMenuX - menuAnchorX
     val combinedMenuWidth = mainMenuWidth + menuGap + subMenuWidth
+    val menuWidth = if (showSubmenu) combinedMenuWidth else mainMenuWidth
+    val menuOffsetX = if (showSubmenu) combinedMenuOffsetX else (mainMenuX - menuAnchorX)
+    val currentMenuGap = if (showSubmenu) menuGap else 0.dp
 
     Surface(
         color = Color.Transparent,
@@ -320,8 +323,8 @@ fun ChatInput(
                     FloatingMenu(
                         expanded = expand == ExpandState.Files,
                         onDismissRequest = { dismissExpand() },
-                        offset = DpOffset(combinedMenuOffsetX, menuOffsetY),
-                        menuWidth = combinedMenuWidth,
+                        offset = DpOffset(menuOffsetX, menuOffsetY),
+                        menuWidth = menuWidth,
                         shadowElevation = menuEdgePadding,
                         properties = PopupProperties(
                             dismissOnClickOutside = true,
@@ -329,10 +332,10 @@ fun ChatInput(
                         ),
                     ) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(menuGap),
+                            horizontalArrangement = Arrangement.spacedBy(currentMenuGap),
                         ) {
                             Box(
-                                modifier = Modifier.width(subMenuWidth),
+                                modifier = Modifier.width(if (showSubmenu) subMenuWidth else 0.dp),
                             ) {
                                 androidx.compose.animation.AnimatedVisibility(
                                     visible = showSubmenu,
