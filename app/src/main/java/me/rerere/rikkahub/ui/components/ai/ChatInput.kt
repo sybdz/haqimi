@@ -43,9 +43,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.core.tween
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -339,17 +336,7 @@ fun ChatInput(
                             Box(
                                 modifier = Modifier.width(if (showSubmenu) subMenuWidth else 0.dp),
                             ) {
-                                androidx.compose.animation.AnimatedVisibility(
-                                    visible = showSubmenu,
-                                    enter = slideInHorizontally(
-                                        animationSpec = tween(durationMillis = 100),
-                                        initialOffsetX = { it }
-                                    ),
-                                    exit = slideOutHorizontally(
-                                        animationSpec = tween(durationMillis = 100),
-                                        targetOffsetX = { it }
-                                    ),
-                                ) {
+                                if (showSubmenu) {
                                     Column(
                                         verticalArrangement = Arrangement.spacedBy(2.dp),
                                     ) {
