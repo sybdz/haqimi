@@ -4,10 +4,12 @@ import io
 import json
 import os
 import re
+import shutil
 import sys
 import tempfile
 import textwrap
 import traceback
+import uuid
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 CODE_FENCE_PATTERN = re.compile(r"```(?:python|py)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
@@ -134,8 +136,27 @@ def _inject_default_imports(namespace: Dict[str, Any]) -> None:
         pass
 
 
-def _to_data_url(mime: str, data: bytes) -> Tuple[str, int]:
-    return "data:" + mime + ";base64," + base64.b64encode(data).decode("utf-8"), len(data)
+def _to_base64_payload(mime: str, data: bytes) -> Tuple[str, str, int]:
+    base64_data = base64.b64encode(data).decode("utf-8")
+    fmt = mime.split("/", 1)[1] if "/" in mime else "png"
+    return base64_data, fmt, len(data)
+
+
+def _parse_data_url(data_url: str) -> Optional[Tuple[str, str, int]]:
+    if not data_url.startswith("data:"):
+        return None
+    header, _, base64_part = data_url.partition("base64,")
+    if not base64_part:
+        return None
+    mime = header[5:].split(";", 1)[0] if header else ""
+    if not mime.startswith("image/"):
+        return None
+    base64_part = re.sub(r"\s+", "", base64_part)
+    size = _approx_base64_decoded_size(base64_part)
+    if size <= 0 or size > MAX_AUTO_IMAGE_BYTES:
+        return None
+    fmt = mime.split("/", 1)[1] if "/" in mime else "png"
+    return base64_part, fmt, size
 
 
 def _approx_base64_decoded_size(base64_text: str) -> int:
@@ -175,7 +196,7 @@ def _looks_like_image_file(path: str) -> bool:
     return False
 
 
-def _encode_image_file(path: str) -> Optional[Tuple[str, int]]:
+def _encode_image_file(path: str) -> Optional[Tuple[str, str, int]]:
     if not _is_supported_image_path(path):
         return None
     if not _looks_like_image_file(path):
@@ -196,31 +217,32 @@ def _encode_image_file(path: str) -> Optional[Tuple[str, int]]:
         return None
 
     mime = _EXT_TO_MIME.get(os.path.splitext(path.lower())[1], "image/png")
-    return _to_data_url(mime, data)
+    return _to_base64_payload(mime, data)
 
 
-def _encode_image(image: Any) -> Optional[Tuple[str, int]]:
-    """Convert different image-like objects (Pillow/matplotlib/plotly/numpy) to a data URL."""
+def _encode_image(image: Any) -> Optional[Tuple[str, str, int]]:
+    """Convert different image-like objects (Pillow/matplotlib/plotly/numpy) to base64 payload."""
     if image is None:
         return None
 
     if isinstance(image, (bytes, bytearray)):
-        return _to_data_url("image/png", bytes(image))
+        return _to_base64_payload("image/png", bytes(image))
 
     if isinstance(image, str):
         if image.startswith("data:image"):
-            base64_part = image.split("base64,", 1)[1] if "base64," in image else ""
-            return image, _approx_base64_decoded_size(base64_part)
+            parsed = _parse_data_url(image)
+            if parsed:
+                return parsed
 
         if os.path.exists(image) and _is_supported_image_path(image):
             return _encode_image_file(image)
 
         try:
-            # Validate the string is base64 and wrap it as a data URL.
+            # Validate the string is base64 and keep it as a payload.
             compact = re.sub(r"\s+", "", image)
             data = base64.b64decode(compact, validate=True)
             if data and len(data) <= MAX_AUTO_IMAGE_BYTES:
-                return _to_data_url("image/png", data)
+                return compact, "png", len(data)
         except Exception:
             return None
 
@@ -236,7 +258,7 @@ def _encode_image(image: Any) -> Optional[Tuple[str, int]]:
             if isinstance(png_bytes, str):
                 png_bytes = png_bytes.encode("utf-8")
             if isinstance(png_bytes, (bytes, bytearray)) and len(png_bytes) <= MAX_AUTO_IMAGE_BYTES:
-                return _to_data_url("image/png", bytes(png_bytes))
+                return _to_base64_payload("image/png", bytes(png_bytes))
         except Exception:
             pass
 
@@ -247,7 +269,7 @@ def _encode_image(image: Any) -> Optional[Tuple[str, int]]:
             image.save(buffer, format="PNG")
             data = buffer.getvalue()
             if data and len(data) <= MAX_AUTO_IMAGE_BYTES:
-                return _to_data_url("image/png", data)
+                return _to_base64_payload("image/png", data)
     except Exception:
         pass
 
@@ -280,7 +302,7 @@ def _encode_image(image: Any) -> Optional[Tuple[str, int]]:
             image_obj.save(buffer, format="PNG")
             data = buffer.getvalue()
             if data and len(data) <= MAX_AUTO_IMAGE_BYTES:
-                return _to_data_url("image/png", data)
+                return _to_base64_payload("image/png", data)
         except Exception:
             pass
 
@@ -290,13 +312,13 @@ def _encode_image(image: Any) -> Optional[Tuple[str, int]]:
         image.savefig(buffer, format="png")
         data = buffer.getvalue()
         if data and len(data) <= MAX_AUTO_IMAGE_BYTES:
-            return _to_data_url("image/png", data)
+            return _to_base64_payload("image/png", data)
 
     return None
 
 
-def _encode_images(images: Iterable[Any]) -> List[Tuple[str, int]]:
-    encoded: List[Tuple[str, int]] = []
+def _encode_images(images: Iterable[Any]) -> List[Tuple[str, str, int]]:
+    encoded: List[Tuple[str, str, int]] = []
     for image in images:
         encoded_image = _encode_image(image)
         if encoded_image:
@@ -304,14 +326,14 @@ def _encode_images(images: Iterable[Any]) -> List[Tuple[str, int]]:
     return encoded
 
 
-def _capture_matplotlib_figures() -> List[Tuple[str, int]]:
-    """Capture all current matplotlib figures as base64 data URLs."""
+def _capture_matplotlib_figures() -> List[Tuple[str, str, int]]:
+    """Capture all current matplotlib figures as base64 payloads."""
     try:
         import matplotlib.pyplot as plt  # noqa: WPS433
     except Exception:
         return []
 
-    captured: List[Tuple[str, int]] = []
+    captured: List[Tuple[str, str, int]] = []
     try:
         for fig_num in plt.get_fignums():
             fig = plt.figure(fig_num)
@@ -327,7 +349,7 @@ def _capture_matplotlib_figures() -> List[Tuple[str, int]]:
     return captured
 
 
-def _collect_output_dir_images(output_dir: str) -> List[Tuple[str, int]]:
+def _collect_output_dir_images(output_dir: str) -> List[Tuple[Tuple[str, str, int], str]]:
     candidates: List[Tuple[float, str]] = []
     try:
         for root, _, files in os.walk(output_dir):
@@ -345,55 +367,145 @@ def _collect_output_dir_images(output_dir: str) -> List[Tuple[str, int]]:
 
     # newest first
     candidates.sort(key=lambda it: it[0], reverse=True)
-    encoded: List[Tuple[str, int]] = []
+    encoded: List[Tuple[Tuple[str, str, int], str]] = []
     for _, path in candidates:
         encoded_image = _encode_image_file(path)
         if encoded_image:
-            encoded.append(encoded_image)
+            encoded.append((encoded_image, path))
     return encoded
 
 
 def _select_images(
-    candidates: List[Tuple[str, int]],
+    candidates: List[Dict[str, Any]],
     max_images: int = MAX_AUTO_IMAGES,
     max_total_bytes: int = MAX_AUTO_IMAGE_BYTES,
-) -> Tuple[List[str], Dict[str, Any]]:
-    selected: List[str] = []
+) -> List[Dict[str, Any]]:
+    selected: List[Dict[str, Any]] = []
     total_bytes = 0
-    skipped_count = 0
-    skipped_bytes = 0
 
-    for data_url, size in candidates:
+    for candidate in candidates:
+        size = candidate.get("_size", 0)
         if len(selected) >= max_images:
-            skipped_count += 1
-            skipped_bytes += size
             continue
         if size <= 0 or total_bytes + size > max_total_bytes:
-            skipped_count += 1
-            skipped_bytes += max(0, size)
             continue
-        selected.append(data_url)
+        selected.append(candidate)
         total_bytes += size
 
-    return selected, {
-        "max_images": max_images,
-        "max_total_bytes": max_total_bytes,
-        "selected_count": len(selected),
-        "selected_total_bytes": total_bytes,
-        "skipped_count": skipped_count,
-        "skipped_total_bytes": skipped_bytes,
+    return selected
+
+
+def _dedupe_candidates(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    seen = set()
+    unique: List[Dict[str, Any]] = []
+    for candidate in candidates:
+        data = candidate.get("data")
+        if not data or data in seen:
+            continue
+        seen.add(data)
+        unique.append(candidate)
+    return unique
+
+
+def _make_image_candidate(
+    payload: Optional[Tuple[str, str, int]],
+    alt_text: str,
+) -> Optional[Dict[str, Any]]:
+    if not payload:
+        return None
+    data, fmt, size = payload
+    if not data:
+        return None
+    return {
+        "type": "base64",
+        "format": fmt,
+        "data": data,
+        "alt_text": alt_text,
+        "_size": size,
     }
 
 
-def _dedupe_candidates(candidates: List[Tuple[str, int]]) -> List[Tuple[str, int]]:
-    seen = set()
-    unique: List[Tuple[str, int]] = []
-    for data_url, size in candidates:
-        if data_url in seen:
+def _alt_text_from_value(value: Any, fallback: str) -> str:
+    if isinstance(value, str) and os.path.exists(value):
+        name = os.path.basename(value)
+        return name if name else fallback
+    return fallback
+
+
+def _collect_output_dir_files(output_dir: str) -> List[str]:
+    files: List[str] = []
+    try:
+        for root, _, file_names in os.walk(output_dir):
+            for file_name in file_names:
+                path = os.path.join(root, file_name)
+                if _is_supported_image_path(path):
+                    continue
+                files.append(path)
+    except Exception:
+        return []
+    return files
+
+
+def _persist_output_files(
+    output_dir: str,
+    file_paths: List[str],
+    output_base_dir: Optional[str],
+) -> List[Dict[str, str]]:
+    if not output_base_dir:
+        return []
+
+    try:
+        os.makedirs(output_base_dir, exist_ok=True)
+    except Exception:
+        return []
+
+    run_id = uuid.uuid4().hex
+    dest_root = os.path.join(output_base_dir, run_id)
+    try:
+        os.makedirs(dest_root, exist_ok=True)
+    except Exception:
+        return []
+
+    persisted: List[Dict[str, str]] = []
+    for path in file_paths:
+        try:
+            rel_path = os.path.relpath(path, output_dir)
+        except Exception:
+            rel_path = os.path.basename(path)
+        dest_path = os.path.join(dest_root, rel_path)
+        try:
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            shutil.copy2(path, dest_path)
+            persisted.append(
+                {
+                    "path": os.path.abspath(dest_path),
+                    "name": os.path.basename(dest_path),
+                }
+            )
+        except Exception:
             continue
-        seen.add(data_url)
-        unique.append((data_url, size))
-    return unique
+    return persisted
+
+
+def _build_tool_response(
+    error_message: Optional[str],
+    stdout: str,
+    stderr: str,
+    result: Any = None,
+    images: Optional[List[Dict[str, Any]]] = None,
+    files: Optional[List[Dict[str, str]]] = None,
+) -> str:
+    payload = {
+        "error_message": error_message,
+        "output": {
+            "stdout": stdout or "",
+            "stderr": stderr or "",
+            "result": result,
+            "images": images or [],
+            "files": files or [],
+        },
+    }
+    return json.dumps(payload, default=_safe_default)
 
 
 def _safe_default(value: Any) -> str:
@@ -421,18 +533,31 @@ def _normalize_code(raw_code: Any) -> str:
     return textwrap.dedent(code).strip()
 
 
-def run_python_tool(code: str) -> str:
+def run_python_tool(code: str, output_base_dir: Optional[str] = None) -> str:
     """
     Execute user-provided Python code.
 
     Expected variables set by the code:
-    - result: any serializable object returned to the model.
+    - result: any serializable object returned to the caller.
     - image / images: Pillow image, matplotlib/plotly figure, numpy array, raw base64 string, or bytes.
     If no image/images are provided, current matplotlib figures (if any) will be captured automatically.
     Images saved to files (png/jpg/webp/gif/bmp) in OUTPUT_DIR (current working directory) will be captured automatically.
+    Non-image files saved in OUTPUT_DIR will be copied to output_base_dir when provided.
     Common imports are preloaded: np, plt, pd, sns, Image.
     Matplotlib will try to auto-configure a CJK font for Chinese text when available.
     Pre-installed libraries: pillow, numpy, matplotlib, pandas, seaborn.
+
+    Returns a JSON string with shape:
+    {
+        "error_message": str | null,
+        "output": {
+            "stdout": str,
+            "stderr": str,
+            "result": any,
+            "images": [{ "type": "base64", "format": "png", "data": "...", "alt_text": "..." }],
+            "files": [{ "path": "...", "name": "..." }]
+        }
+    }
     """
     # Use a shared namespace for globals/locals so that `import` and definitions
     # work like a normal Python module environment (e.g. functions can access
@@ -443,6 +568,7 @@ def run_python_tool(code: str) -> str:
         "__package__": None,
     }
     stdout_buffer = io.StringIO()
+    stderr_buffer = io.StringIO()
     try:
         with tempfile.TemporaryDirectory(prefix="rikkahub_pytool_") as output_dir:
             namespace["OUTPUT_DIR"] = output_dir
@@ -469,7 +595,7 @@ def run_python_tool(code: str) -> str:
 
             try:
                 _inject_default_imports(namespace)
-                with contextlib.redirect_stdout(stdout_buffer):
+                with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
                     try:
                         exec(normalized_code, namespace, namespace)
                     except SyntaxError as syntax_error:
@@ -484,7 +610,7 @@ def run_python_tool(code: str) -> str:
                 except Exception:
                     pass
 
-            candidates: List[Tuple[str, int]] = []
+            candidates: List[Dict[str, Any]] = []
 
             single_image = namespace.get("image")
             if isinstance(single_image, str) and single_image and not os.path.isabs(single_image):
@@ -492,26 +618,56 @@ def run_python_tool(code: str) -> str:
                 if os.path.exists(relative_path):
                     single_image = relative_path
             encoded_single = _encode_image(single_image)
-            if encoded_single:
-                candidates.append(encoded_single)
+            single_candidate = _make_image_candidate(
+                encoded_single,
+                _alt_text_from_value(single_image, "Image"),
+            )
+            if single_candidate:
+                candidates.append(single_candidate)
 
             images_var = namespace.get("images")
             if isinstance(images_var, (list, tuple)):
-                candidates.extend(_encode_images(images_var))
+                for index, image in enumerate(images_var, start=1):
+                    encoded = _encode_image(image)
+                    candidate = _make_image_candidate(
+                        encoded,
+                        _alt_text_from_value(image, f"Image {index}"),
+                    )
+                    if candidate:
+                        candidates.append(candidate)
 
             if not candidates:
                 for var_name in _AUTO_CAPTURE_VAR_NAMES:
                     if var_name not in namespace:
                         continue
-                    encoded = _encode_image(namespace.get(var_name))
-                    if encoded:
-                        candidates.append(encoded)
+                    value = namespace.get(var_name)
+                    encoded = _encode_image(value)
+                    candidate = _make_image_candidate(
+                        encoded,
+                        _alt_text_from_value(value, f"{var_name} image"),
+                    )
+                    if candidate:
+                        candidates.append(candidate)
 
-            candidates.extend(_capture_matplotlib_figures())
-            candidates.extend(_collect_output_dir_images(output_dir))
+            for index, payload in enumerate(_capture_matplotlib_figures(), start=1):
+                candidate = _make_image_candidate(payload, f"Matplotlib Plot {index}")
+                if candidate:
+                    candidates.append(candidate)
+
+            for payload, path in _collect_output_dir_images(output_dir):
+                candidate = _make_image_candidate(payload, os.path.basename(path) or "Image")
+                if candidate:
+                    candidates.append(candidate)
 
             candidates = _dedupe_candidates(candidates)
-            images, image_stats = _select_images(candidates)
+            images = _select_images(candidates)
+            images_output = [
+                {key: value for key, value in candidate.items() if key != "_size"}
+                for candidate in images
+            ]
+
+            file_paths = _collect_output_dir_files(output_dir)
+            files_output = _persist_output_files(output_dir, file_paths, output_base_dir)
 
             try:
                 if "matplotlib.pyplot" in sys.modules:
@@ -521,19 +677,20 @@ def run_python_tool(code: str) -> str:
             except Exception:
                 pass
 
-            payload = {
-                "ok": True,
-                "result": namespace.get("result"),
-                "stdout": stdout_buffer.getvalue(),
-                "images": images,
-                "image_stats": image_stats,
-            }
-            return json.dumps(payload, default=_safe_default)
+            return _build_tool_response(
+                error_message=None,
+                stdout=stdout_buffer.getvalue(),
+                stderr=stderr_buffer.getvalue(),
+                result=namespace.get("result"),
+                images=images_output,
+                files=files_output,
+            )
     except Exception:
-        return json.dumps(
-            {
-                "ok": False,
-                "error": traceback.format_exc(),
-                "stdout": stdout_buffer.getvalue(),
-            }
+        return _build_tool_response(
+            error_message=traceback.format_exc(),
+            stdout=stdout_buffer.getvalue(),
+            stderr=stderr_buffer.getvalue(),
+            result=None,
+            images=[],
+            files=[],
         )

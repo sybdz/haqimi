@@ -7,7 +7,9 @@ import com.whl.quickjs.wrapper.QuickJSContext
 import com.whl.quickjs.wrapper.QuickJSObject
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -96,13 +98,13 @@ class LocalTools(private val context: Context) {
     val pythonTool by lazy {
         Tool(
             name = "eval_python",
-            description = "Execute Python code locally via Chaquopy. Common imports are preloaded: np, plt, pd, sns, Image. The working directory is `OUTPUT_DIR`; image files saved there will be captured automatically. If `image`/`images` is not provided, matplotlib figures and saved image files will be captured automatically (max 4 images / 20MB). Matplotlib will try to auto-configure a CJK font for Chinese text when available.",
+            description = "Execute Python code locally (Chaquopy). Common imports: np, pd, plt, sns, Image. Set `result` for output; set `image`/`images` or save images to `OUTPUT_DIR` (auto-captures up to 4 images / 20MB).",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
                         put("code", buildJsonObject {
                             put("type", "string")
-                            put("description", "The Python code to execute. Common libs are already imported (np/plt/pd/sns/Image). Set `result` for output. For visual output, set `image`/`images`, or save image files to `OUTPUT_DIR` (current working directory).")
+                            put("description", "Python code to execute (np/pd/plt/sns/Image preloaded). Set `result` for output; set `image`/`images` or save images to `OUTPUT_DIR`.")
                         })
                     }
                 )
@@ -111,27 +113,42 @@ class LocalTools(private val context: Context) {
                 val code = args.jsonObject["code"]?.jsonPrimitive?.contentOrNull
                     ?: error("Python code is required")
                 ensurePython()
+                fun buildErrorPayload(message: String, rawResult: String? = null) = buildJsonObject {
+                    put("error_message", JsonPrimitive(message))
+                    put(
+                        "output",
+                        buildJsonObject {
+                            put("stdout", JsonPrimitive(""))
+                            put("stderr", JsonPrimitive(""))
+                            if (rawResult != null) {
+                                put("result", JsonPrimitive(rawResult))
+                            } else {
+                                put("result", JsonNull)
+                            }
+                            put("images", buildJsonArray { })
+                            put("files", buildJsonArray { })
+                        }
+                    )
+                }
                 runCatching {
                     val py = Python.getInstance()
                     val module = py.getModule("local_tools")
-                    val result = module.callAttr("run_python_tool", code).toString()
+                    val outputDir = context.getExternalFilesDir("python_outputs")
+                        ?: context.filesDir.resolve("python_outputs")
+                    if (!outputDir.exists()) {
+                        outputDir.mkdirs()
+                    }
+                    val result = module.callAttr("run_python_tool", code, outputDir.absolutePath).toString()
                     runCatching {
                         JsonInstant.parseToJsonElement(result)
                     }.getOrElse { parseError ->
-                        buildJsonObject {
-                            put("ok", JsonPrimitive(false))
-                            put("error", JsonPrimitive("Parse python result failed: ${parseError.message ?: "unknown"}"))
-                            put("raw", JsonPrimitive(result))
-                        }
-                    }
-                }.getOrElse { throwable ->
-                    buildJsonObject {
-                        put("ok", JsonPrimitive(false))
-                        put(
-                            "error",
-                            JsonPrimitive("[${throwable::class.simpleName}] ${throwable.message}")
+                        buildErrorPayload(
+                            "Parse python result failed: ${parseError.message ?: "unknown"}",
+                            result
                         )
                     }
+                }.getOrElse { throwable ->
+                    buildErrorPayload("[${throwable::class.simpleName}] ${throwable.message}")
                 }
             }
         )
