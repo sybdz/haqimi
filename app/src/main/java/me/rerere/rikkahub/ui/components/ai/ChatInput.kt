@@ -43,8 +43,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -125,6 +125,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -162,6 +163,7 @@ private enum class ActionSubmenu {
     Search,
     Reasoning,
     Mcp,
+    LocalTools,
     Injection,
 }
 
@@ -339,8 +341,14 @@ fun ChatInput(
                             ) {
                                 androidx.compose.animation.AnimatedVisibility(
                                     visible = showSubmenu,
-                                    enter = fadeIn(animationSpec = tween(durationMillis = 120)),
-                                    exit = fadeOut(animationSpec = tween(durationMillis = 120)),
+                                    enter = slideInHorizontally(
+                                        animationSpec = tween(durationMillis = 100),
+                                        initialOffsetX = { it }
+                                    ),
+                                    exit = slideOutHorizontally(
+                                        animationSpec = tween(durationMillis = 100),
+                                        targetOffsetX = { it }
+                                    ),
                                 ) {
                                     Column(
                                         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -399,6 +407,13 @@ fun ChatInput(
                                                     assistant = assistant,
                                                     servers = settings.mcpServers,
                                                     mcpManager = mcpManager,
+                                                    onUpdateAssistant = onUpdateAssistant,
+                                                )
+                                            }
+
+                                            ActionSubmenu.LocalTools -> {
+                                                LocalToolsQuickConfigMenu(
+                                                    assistant = assistant,
                                                     onUpdateAssistant = onUpdateAssistant,
                                                 )
                                             }
@@ -829,7 +844,6 @@ private fun FilesPicker(
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
-    val navController = LocalNavController.current
     val provider = settings.getCurrentChatModel()?.findProvider(providers = settings.providers)
     val reasoningAvailable = chatModel?.abilities?.contains(ModelAbility.REASONING) == true
     val mcpAvailable = settings.mcpServers.isNotEmpty()
@@ -903,13 +917,22 @@ private fun FilesPicker(
         )
     }
 
+    val localToolsCount = assistant.localTools.size
     FloatingMenuItem(
         icon = Lucide.Zap,
         text = stringResource(R.string.assistant_page_tab_local_tools),
-        onClick = {
-            onDismiss()
-            navController.navigate(Screen.AssistantLocalTool(id = assistant.id.toString()))
+        contentColor = if (activeSubmenu == ActionSubmenu.LocalTools) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurface
         },
+        trailingContent = {
+            SubmenuIndicator(
+                label = if (localToolsCount > 0) localToolsCount.toString() else null,
+                active = activeSubmenu == ActionSubmenu.LocalTools
+            )
+        },
+        onClick = { onOpenSubmenu(ActionSubmenu.LocalTools) },
     )
 
     if (injectionAvailable) {
@@ -1178,6 +1201,58 @@ private fun McpQuickConfigMenu(
                     maxLines = 2,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LocalToolsQuickConfigMenu(
+    assistant: Assistant,
+    onUpdateAssistant: (Assistant) -> Unit,
+) {
+    Column(
+        modifier = Modifier.widthIn(max = 260.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        val options = listOf(
+            Triple(
+                LocalToolOption.JavascriptEngine,
+                R.string.assistant_page_local_tools_javascript_engine_title,
+                Lucide.Zap
+            ),
+            Triple(
+                LocalToolOption.PythonEngine,
+                R.string.assistant_page_local_tools_python_engine_title,
+                Lucide.Terminal
+            ),
+        )
+        options.forEach { (option, labelRes, icon) ->
+            val selected = assistant.localTools.contains(option)
+            FloatingMenuItem(
+                icon = icon,
+                text = stringResource(labelRes),
+                trailingContent = {
+                    Switch(
+                        checked = selected,
+                        onCheckedChange = { checked ->
+                            val newTools = if (checked) {
+                                assistant.localTools + option
+                            } else {
+                                assistant.localTools - option
+                            }
+                            onUpdateAssistant(assistant.copy(localTools = newTools))
+                        }
+                    )
+                },
+                onClick = {
+                    val newTools = if (selected) {
+                        assistant.localTools - option
+                    } else {
+                        assistant.localTools + option
+                    }
+                    onUpdateAssistant(assistant.copy(localTools = newTools))
+                },
+            )
         }
     }
 }
