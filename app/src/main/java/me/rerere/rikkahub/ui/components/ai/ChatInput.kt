@@ -165,6 +165,7 @@ private enum class ActionSubmenu {
     Mcp,
     LocalTools,
     Injection,
+    Compress,
 }
 
 @Composable
@@ -418,6 +419,13 @@ fun ChatInput(
                                                     assistant = assistant,
                                                     settings = settings,
                                                     onUpdateAssistant = onUpdateAssistant,
+                                                )
+                                            }
+
+                                            ActionSubmenu.Compress -> {
+                                                CompressQuickConfigMenu(
+                                                    onCompressContext = onCompressContext,
+                                                    onDismiss = { dismissExpand() },
                                                 )
                                             }
 
@@ -846,7 +854,6 @@ private fun FilesPicker(
     val mcpAvailable = settings.mcpServers.isNotEmpty()
     val injectionAvailable = settings.modeInjections.isNotEmpty() || settings.lorebooks.isNotEmpty()
     val currentSearchService = settings.searchServices.getOrNull(settings.searchServiceSelected)
-    var showCompressDialog by remember { mutableStateOf(false) }
 
     FloatingMenuItem(
         icon = Lucide.Earth,
@@ -953,6 +960,23 @@ private fun FilesPicker(
         )
     }
 
+    FloatingMenuItem(
+        icon = Lucide.Package2,
+        text = stringResource(R.string.chat_page_compress_context),
+        contentColor = if (activeSubmenu == ActionSubmenu.Compress) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        trailingContent = {
+            SubmenuIndicator(
+                label = null,
+                active = activeSubmenu == ActionSubmenu.Compress
+            )
+        },
+        onClick = { onOpenSubmenu(ActionSubmenu.Compress) },
+    )
+
     FloatingMenuDivider()
 
     TakePicButton(
@@ -980,14 +1004,6 @@ private fun FilesPicker(
     FloatingMenuDivider()
 
     FloatingMenuItem(
-        icon = Lucide.Package2,
-        text = stringResource(R.string.chat_page_compress_context),
-        onClick = {
-            showCompressDialog = true
-        },
-    )
-
-    FloatingMenuItem(
         icon = Lucide.Eraser,
         text = stringResource(R.string.chat_page_clear_context),
         trailingContent = {
@@ -1010,18 +1026,6 @@ private fun FilesPicker(
             onClearContext()
         },
     )
-
-    if (showCompressDialog) {
-        CompressContextDialog(
-            onDismiss = {
-                showCompressDialog = false
-                onDismiss()
-            },
-            onConfirm = { additionalPrompt, targetTokens ->
-                onCompressContext(additionalPrompt, targetTokens)
-            }
-        )
-    }
 }
 
 @Composable
@@ -1124,6 +1128,134 @@ private fun ReasoningQuickConfigMenu(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp),
         )
+    }
+}
+
+@Composable
+private fun CompressQuickConfigMenu(
+    onCompressContext: (String, Int) -> Job,
+    onDismiss: () -> Unit,
+) {
+    var additionalPrompt by remember { mutableStateOf("") }
+    val tokenOptions = listOf(500, 1000, 2000, 4000)
+    var selectedTokens by remember { mutableStateOf(2000) }
+    var tokenInput by remember { mutableStateOf(selectedTokens.toString()) }
+    var currentJob by remember { mutableStateOf<Job?>(null) }
+    val isLoading = currentJob?.isActive == true
+
+    LaunchedEffect(currentJob) {
+        currentJob?.join()
+        if (currentJob?.isCompleted == true && currentJob?.isCancelled == false) {
+            onDismiss()
+        }
+        currentJob = null
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (isLoading) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RandomGridLoading(
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.chat_page_compressing))
+            }
+            return@Column
+        }
+
+        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
+            Text(stringResource(R.string.chat_page_compress_context_desc))
+        }
+
+        Text(
+            text = stringResource(R.string.chat_page_compress_target_tokens),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+        )
+
+        tokenOptions.forEach { tokens ->
+            val selected = selectedTokens == tokens
+            FloatingMenuItem(
+                icon = if (selected) Lucide.Check else Lucide.Package2,
+                text = tokens.toString(),
+                contentColor = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                onClick = {
+                    selectedTokens = tokens
+                    tokenInput = tokens.toString()
+                },
+            )
+        }
+
+        Text(
+            text = stringResource(R.string.reasoning_custom),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+        )
+        OutlinedTextField(
+            value = tokenInput,
+            onValueChange = { newValue ->
+                val sanitized = newValue.filter { it.isDigit() }
+                tokenInput = sanitized
+                sanitized.toIntOrNull()?.let { tokens ->
+                    if (tokens > 0) {
+                        selectedTokens = tokens
+                    }
+                }
+            },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+        )
+
+        OutlinedTextField(
+            value = additionalPrompt,
+            onValueChange = { additionalPrompt = it },
+            label = {
+                Text(stringResource(R.string.chat_page_compress_additional_prompt))
+            },
+            placeholder = {
+                Text(stringResource(R.string.chat_page_compress_additional_prompt_hint))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            maxLines = 4,
+        )
+
+        Text(
+            text = stringResource(R.string.chat_page_compress_warning),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+
+        TextButton(
+            onClick = {
+                val tokens = tokenInput.toIntOrNull() ?: selectedTokens
+                if (tokens <= 0) {
+                    return@TextButton
+                }
+                currentJob = onCompressContext(additionalPrompt, tokens)
+            },
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text(stringResource(R.string.confirm))
+        }
     }
 }
 
