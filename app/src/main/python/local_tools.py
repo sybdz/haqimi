@@ -14,9 +14,6 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 CODE_FENCE_PATTERN = re.compile(r"```(?:python|py)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
 
-MAX_AUTO_IMAGES = 4
-MAX_AUTO_IMAGE_BYTES = 20 * 1024 * 1024  # 20MB
-
 _EXT_TO_MIME = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -153,7 +150,7 @@ def _parse_data_url(data_url: str) -> Optional[Tuple[str, str, int]]:
         return None
     base64_part = re.sub(r"\s+", "", base64_part)
     size = _approx_base64_decoded_size(base64_part)
-    if size <= 0 or size > MAX_AUTO_IMAGE_BYTES:
+    if size <= 0:
         return None
     fmt = mime.split("/", 1)[1] if "/" in mime else "png"
     return base64_part, fmt, size
@@ -207,7 +204,7 @@ def _encode_image_file(path: str) -> Optional[Tuple[str, str, int]]:
     except Exception:
         return None
 
-    if file_size <= 0 or file_size > MAX_AUTO_IMAGE_BYTES:
+    if file_size <= 0:
         return None
 
     try:
@@ -241,7 +238,7 @@ def _encode_image(image: Any) -> Optional[Tuple[str, str, int]]:
             # Validate the string is base64 and keep it as a payload.
             compact = re.sub(r"\s+", "", image)
             data = base64.b64decode(compact, validate=True)
-            if data and len(data) <= MAX_AUTO_IMAGE_BYTES:
+            if data:
                 return compact, "png", len(data)
         except Exception:
             return None
@@ -257,7 +254,7 @@ def _encode_image(image: Any) -> Optional[Tuple[str, str, int]]:
             png_bytes = image.to_image(format="png")
             if isinstance(png_bytes, str):
                 png_bytes = png_bytes.encode("utf-8")
-            if isinstance(png_bytes, (bytes, bytearray)) and len(png_bytes) <= MAX_AUTO_IMAGE_BYTES:
+            if isinstance(png_bytes, (bytes, bytearray)) and png_bytes:
                 return _to_base64_payload("image/png", bytes(png_bytes))
         except Exception:
             pass
@@ -268,7 +265,7 @@ def _encode_image(image: Any) -> Optional[Tuple[str, str, int]]:
             buffer = io.BytesIO()
             image.save(buffer, format="PNG")
             data = buffer.getvalue()
-            if data and len(data) <= MAX_AUTO_IMAGE_BYTES:
+            if data:
                 return _to_base64_payload("image/png", data)
     except Exception:
         pass
@@ -301,7 +298,7 @@ def _encode_image(image: Any) -> Optional[Tuple[str, str, int]]:
             buffer = io.BytesIO()
             image_obj.save(buffer, format="PNG")
             data = buffer.getvalue()
-            if data and len(data) <= MAX_AUTO_IMAGE_BYTES:
+            if data:
                 return _to_base64_payload("image/png", data)
         except Exception:
             pass
@@ -311,7 +308,7 @@ def _encode_image(image: Any) -> Optional[Tuple[str, str, int]]:
         buffer = io.BytesIO()
         image.savefig(buffer, format="png")
         data = buffer.getvalue()
-        if data and len(data) <= MAX_AUTO_IMAGE_BYTES:
+        if data:
             return _to_base64_payload("image/png", data)
 
     return None
@@ -377,20 +374,21 @@ def _collect_output_dir_images(output_dir: str) -> List[Tuple[Tuple[str, str, in
 
 def _select_images(
     candidates: List[Dict[str, Any]],
-    max_images: int = MAX_AUTO_IMAGES,
-    max_total_bytes: int = MAX_AUTO_IMAGE_BYTES,
+    max_images: Optional[int] = None,
+    max_total_bytes: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     selected: List[Dict[str, Any]] = []
     total_bytes = 0
 
     for candidate in candidates:
         size = candidate.get("_size", 0)
-        if len(selected) >= max_images:
+        if max_images is not None and len(selected) >= max_images:
             continue
-        if size <= 0 or total_bytes + size > max_total_bytes:
+        if max_total_bytes is not None and size > 0 and total_bytes + size > max_total_bytes:
             continue
         selected.append(candidate)
-        total_bytes += size
+        if size > 0:
+            total_bytes += size
 
     return selected
 
@@ -446,11 +444,84 @@ def _collect_output_dir_files(output_dir: str) -> List[str]:
     return files
 
 
+def _normalize_output_path(
+    output_path: Optional[str],
+    output_base_dir: Optional[str],
+    output_dir: str,
+) -> Optional[str]:
+    if not output_path:
+        return None
+    path = str(output_path).strip()
+    if not path:
+        return None
+    path = os.path.expandvars(os.path.expanduser(path))
+    if not os.path.isabs(path):
+        base_dir = output_base_dir or output_dir
+        path = os.path.join(base_dir, path)
+    return path
+
+
+def _persist_output_files_to_path(
+    output_dir: str,
+    file_paths: List[str],
+    output_path: str,
+) -> List[Dict[str, str]]:
+    trailing_sep = output_path.endswith(("/", "\\")) or output_path.endswith(os.sep)
+    is_dir = os.path.isdir(output_path) or len(file_paths) != 1 or trailing_sep
+
+    if is_dir:
+        try:
+            os.makedirs(output_path, exist_ok=True)
+        except Exception:
+            return []
+
+        persisted: List[Dict[str, str]] = []
+        for path in file_paths:
+            try:
+                rel_path = os.path.relpath(path, output_dir)
+            except Exception:
+                rel_path = os.path.basename(path)
+            dest_path = os.path.join(output_path, rel_path)
+            try:
+                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                shutil.copy2(path, dest_path)
+                persisted.append(
+                    {
+                        "path": os.path.abspath(dest_path),
+                        "name": os.path.basename(dest_path),
+                    }
+                )
+            except Exception:
+                continue
+        return persisted
+
+    dest_path = output_path
+    dest_dir = os.path.dirname(dest_path)
+    if dest_dir:
+        try:
+            os.makedirs(dest_dir, exist_ok=True)
+        except Exception:
+            return []
+
+    try:
+        shutil.copy2(file_paths[0], dest_path)
+    except Exception:
+        return []
+    return [{"path": os.path.abspath(dest_path), "name": os.path.basename(dest_path)}]
+
+
 def _persist_output_files(
     output_dir: str,
     file_paths: List[str],
     output_base_dir: Optional[str],
+    output_path: Optional[str] = None,
 ) -> List[Dict[str, str]]:
+    if not file_paths:
+        return []
+
+    if output_path:
+        return _persist_output_files_to_path(output_dir, file_paths, output_path)
+
     if not output_base_dir:
         return []
 
@@ -533,7 +604,11 @@ def _normalize_code(raw_code: Any) -> str:
     return textwrap.dedent(code).strip()
 
 
-def run_python_tool(code: str, output_base_dir: Optional[str] = None) -> str:
+def run_python_tool(
+    code: str,
+    output_base_dir: Optional[str] = None,
+    output_path: Optional[str] = None,
+) -> str:
     """
     Execute user-provided Python code.
 
@@ -541,8 +616,11 @@ def run_python_tool(code: str, output_base_dir: Optional[str] = None) -> str:
     - result: any serializable object returned to the caller.
     - image / images: Pillow image, matplotlib/plotly figure, numpy array, raw base64 string, or bytes.
     If no image/images are provided, current matplotlib figures (if any) will be captured automatically.
+    Runtime variables:
+    - OUTPUT_DIR: temp working directory for file outputs.
+    - OUTPUT_PATH: resolved target path when output_path is provided.
     Images saved to files (png/jpg/webp/gif/bmp) in OUTPUT_DIR (current working directory) will be captured automatically.
-    Non-image files saved in OUTPUT_DIR will be copied to output_base_dir when provided.
+    Non-image files saved in OUTPUT_DIR will be copied to output_path when provided; otherwise to output_base_dir.
     Common imports are preloaded: np, plt, pd, sns, Image.
     Matplotlib will try to auto-configure a CJK font for Chinese text when available.
     Pre-installed libraries: pillow, numpy, matplotlib, pandas, seaborn.
@@ -571,7 +649,9 @@ def run_python_tool(code: str, output_base_dir: Optional[str] = None) -> str:
     stderr_buffer = io.StringIO()
     try:
         with tempfile.TemporaryDirectory(prefix="rikkahub_pytool_") as output_dir:
+            resolved_output_path = _normalize_output_path(output_path, output_base_dir, output_dir)
             namespace["OUTPUT_DIR"] = output_dir
+            namespace["OUTPUT_PATH"] = resolved_output_path
             namespace["WORKDIR"] = output_dir
             namespace["CWD"] = os.getcwd()
 
@@ -667,7 +747,12 @@ def run_python_tool(code: str, output_base_dir: Optional[str] = None) -> str:
             ]
 
             file_paths = _collect_output_dir_files(output_dir)
-            files_output = _persist_output_files(output_dir, file_paths, output_base_dir)
+            files_output = _persist_output_files(
+                output_dir,
+                file_paths,
+                output_base_dir,
+                resolved_output_path,
+            )
 
             try:
                 if "matplotlib.pyplot" in sys.modules:

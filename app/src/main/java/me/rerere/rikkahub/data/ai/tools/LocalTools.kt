@@ -98,7 +98,7 @@ class LocalTools(private val context: Context) {
     val pythonTool by lazy {
         Tool(
             name = "eval_python",
-            description = "Execute Python code locally (Chaquopy). Common imports: np, pd, plt, sns, Image. Set `result` for output; set `image`/`images` or save images to `OUTPUT_DIR` (auto-captures up to 4 images / 20MB).",
+            description = "Execute Python code locally (Chaquopy). Common imports: np, pd, plt, sns, Image. Set `result` for output; set `image`/`images` or save images to `OUTPUT_DIR` (auto-captured). Non-image files in `OUTPUT_DIR` are copied to `output_path` when provided.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -106,12 +106,21 @@ class LocalTools(private val context: Context) {
                             put("type", "string")
                             put("description", "Python code to execute (np/pd/plt/sns/Image preloaded). Set `result` for output; set `image`/`images` or save images to `OUTPUT_DIR`.")
                         })
+                        put("output_path", buildJsonObject {
+                            put("type", "string")
+                            put(
+                                "description",
+                                "Optional local path for output files. If set, non-image files saved in OUTPUT_DIR will be copied here. If it's a directory, files keep relative paths; if it's a file path and only one file is produced, it will be written there."
+                            )
+                        })
                     }
                 )
             },
             execute = { args ->
                 val code = args.jsonObject["code"]?.jsonPrimitive?.contentOrNull
                     ?: error("Python code is required")
+                val outputPath = args.jsonObject["output_path"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }
                 ensurePython()
                 fun buildErrorPayload(message: String, rawResult: String? = null) = buildJsonObject {
                     put("error_message", JsonPrimitive(message))
@@ -138,7 +147,12 @@ class LocalTools(private val context: Context) {
                     if (!outputDir.exists()) {
                         outputDir.mkdirs()
                     }
-                    val result = module.callAttr("run_python_tool", code, outputDir.absolutePath).toString()
+                    val result = if (outputPath != null) {
+                        module.callAttr("run_python_tool", code, outputDir.absolutePath, outputPath)
+                            .toString()
+                    } else {
+                        module.callAttr("run_python_tool", code, outputDir.absolutePath).toString()
+                    }
                     runCatching {
                         JsonInstant.parseToJsonElement(result)
                     }.getOrElse { parseError ->
