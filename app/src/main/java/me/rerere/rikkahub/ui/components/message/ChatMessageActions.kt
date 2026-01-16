@@ -5,6 +5,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -72,15 +73,22 @@ import java.util.Locale
 fun ColumnScope.ChatMessageActionButtons(
     message: UIMessage,
     node: MessageNode,
+    model: Model?,
     onUpdate: (MessageNode) -> Unit,
     onRegenerate: () -> Unit,
-    onOpenActionSheet: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onShare: () -> Unit,
+    onFork: () -> Unit,
+    onSelectAndCopy: () -> Unit,
+    onWebViewPreview: () -> Unit,
     onTranslate: ((UIMessage, Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
 ) {
     val context = LocalContext.current
     var isPendingDelete by remember { mutableStateOf(false) }
     var showTranslateDialog by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
     var showRegenerateConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(isPendingDelete) {
@@ -163,21 +171,35 @@ fun ColumnScope.ChatMessageActionButtons(
             }
         }
 
-        Icon(
-            imageVector = Lucide.Ellipsis,
-            contentDescription = "More Options",
-            modifier = Modifier
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = LocalIndication.current,
-                    onClick = {
-                        onOpenActionSheet()
-                    }
-                )
-                .padding(8.dp)
-                .size(16.dp)
-        )
+        Box {
+            Icon(
+                imageVector = Lucide.Ellipsis,
+                contentDescription = "More Options",
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = LocalIndication.current,
+                        onClick = {
+                            showMoreMenu = true
+                        }
+                    )
+                    .padding(8.dp)
+                    .size(16.dp)
+            )
+            ChatMessageMoreMenu(
+                expanded = showMoreMenu,
+                onDismissRequest = { showMoreMenu = false },
+                message = message,
+                model = model,
+                onDelete = onDelete,
+                onEdit = onEdit,
+                onShare = onShare,
+                onFork = onFork,
+                onSelectAndCopy = onSelectAndCopy,
+                onWebViewPreview = onWebViewPreview,
+            )
+        }
 
         ChatMessageBranchSelector(
             node = node,

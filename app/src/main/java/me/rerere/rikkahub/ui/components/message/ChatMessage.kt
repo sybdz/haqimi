@@ -175,7 +175,6 @@ fun ChatMessage(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
         lineHeight = LocalTextStyle.current.lineHeight * settings.fontSizeRatio
     )
-    var showActionsSheet by remember { mutableStateOf(false) }
     var showSelectCopySheet by remember { mutableStateOf(false) }
     val navController = LocalNavController.current
     val context = LocalContext.current
@@ -286,10 +285,29 @@ fun ChatMessage(
                 ChatMessageActionButtons(
                     message = message,
                     onRegenerate = onRegenerate,
+                    model = model,
                     node = node,
                     onUpdate = onUpdate,
-                    onOpenActionSheet = {
-                        showActionsSheet = true
+                    onEdit = onEdit,
+                    onDelete = onDelete,
+                    onShare = onShare,
+                    onFork = onFork,
+                    onSelectAndCopy = {
+                        showSelectCopySheet = true
+                    },
+                    onWebViewPreview = {
+                        val textContent = message.parts
+                            .filterIsInstance<UIMessagePart.Text>()
+                            .joinToString("\n\n") { it.text }
+                            .trim()
+                        if (textContent.isNotBlank()) {
+                            val htmlContent = buildMarkdownPreviewHtml(
+                                context = context,
+                                markdown = textContent,
+                                colorScheme = colorScheme
+                            )
+                            navController.navigate(Screen.WebView(content = htmlContent.base64Encode()))
+                        }
                     },
                     onTranslate = onTranslate,
                     onClearTranslation = onClearTranslation
@@ -300,36 +318,6 @@ fun ChatMessage(
         ProvideTextStyle(textStyle) {
             ChatMessageNerdLine(message = message)
         }
-    }
-    if (showActionsSheet) {
-        ChatMessageActionsSheet(
-            message = message,
-            onEdit = onEdit,
-            onDelete = onDelete,
-            onShare = onShare,
-            onFork = onFork,
-            model = model,
-            onSelectAndCopy = {
-                showSelectCopySheet = true
-            },
-            onWebViewPreview = {
-                val textContent = message.parts
-                    .filterIsInstance<UIMessagePart.Text>()
-                    .joinToString("\n\n") { it.text }
-                    .trim()
-                if (textContent.isNotBlank()) {
-                    val htmlContent = buildMarkdownPreviewHtml(
-                        context = context,
-                        markdown = textContent,
-                        colorScheme = colorScheme
-                    )
-                    navController.navigate(Screen.WebView(content = htmlContent.base64Encode()))
-                }
-            },
-            onDismissRequest = {
-                showActionsSheet = false
-            }
-        )
     }
     if (showSelectCopySheet) {
         ChatMessageCopySheet(
