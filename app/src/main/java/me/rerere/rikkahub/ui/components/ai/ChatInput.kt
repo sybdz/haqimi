@@ -101,6 +101,7 @@ import com.composables.icons.lucide.Lightbulb
 import com.composables.icons.lucide.LightbulbOff
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Music
+import com.composables.icons.lucide.Package2
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Sparkle
 import com.composables.icons.lucide.Terminal
@@ -110,6 +111,7 @@ import com.composables.icons.lucide.Zap
 import com.dokar.sonner.ToastType
 import com.yalantis.ucrop.UCrop
 import com.yalantis.ucrop.UCropActivity
+import kotlinx.coroutines.Job
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
@@ -184,6 +186,7 @@ fun ChatInput(
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     onClearContext: () -> Unit,
+    onCompressContext: (additionalPrompt: String, targetTokens: Int) -> Job,
     onCancelClick: () -> Unit,
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
@@ -439,6 +442,7 @@ fun ChatInput(
                                         openSubmenu(submenu)
                                     },
                                     onClearContext = onClearContext,
+                                    onCompressContext = onCompressContext,
                                     onDismiss = { dismissExpand() }
                                 )
                             }
@@ -833,6 +837,7 @@ private fun FilesPicker(
     chatModel: Model?,
     onOpenSubmenu: (ActionSubmenu) -> Unit,
     onClearContext: () -> Unit,
+    onCompressContext: (additionalPrompt: String, targetTokens: Int) -> Job,
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
@@ -841,6 +846,7 @@ private fun FilesPicker(
     val mcpAvailable = settings.mcpServers.isNotEmpty()
     val injectionAvailable = settings.modeInjections.isNotEmpty() || settings.lorebooks.isNotEmpty()
     val currentSearchService = settings.searchServices.getOrNull(settings.searchServiceSelected)
+    var showCompressDialog by remember { mutableStateOf(false) }
 
     FloatingMenuItem(
         icon = Lucide.Earth,
@@ -974,6 +980,14 @@ private fun FilesPicker(
     FloatingMenuDivider()
 
     FloatingMenuItem(
+        icon = Lucide.Package2,
+        text = stringResource(R.string.chat_page_compress_context),
+        onClick = {
+            showCompressDialog = true
+        },
+    )
+
+    FloatingMenuItem(
         icon = Lucide.Eraser,
         text = stringResource(R.string.chat_page_clear_context),
         trailingContent = {
@@ -996,6 +1010,18 @@ private fun FilesPicker(
             onClearContext()
         },
     )
+
+    if (showCompressDialog) {
+        CompressContextDialog(
+            onDismiss = {
+                showCompressDialog = false
+                onDismiss()
+            },
+            onConfirm = { additionalPrompt, targetTokens ->
+                onCompressContext(additionalPrompt, targetTokens)
+            }
+        )
+    }
 }
 
 @Composable
