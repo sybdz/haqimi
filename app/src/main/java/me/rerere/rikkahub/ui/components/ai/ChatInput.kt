@@ -427,7 +427,7 @@ fun ChatInput(
                                             ActionSubmenu.Compress -> {
                                                 CompressQuickConfigMenu(
                                                     onCompressContext = onCompressContext,
-                                                    defaultTokens = defaultCompressTokens,
+                                                    defaultTokens = settings.compressTargetTokens,
                                                     onUpdateDefaultTokens = onUpdateCompressTargetTokens,
                                                     onDismiss = { dismissExpand() },
                                                 )
@@ -455,8 +455,6 @@ fun ChatInput(
                                     },
                                     onClearContext = onClearContext,
                                     onCompressContext = onCompressContext,
-                                    defaultCompressTokens = settings.compressTargetTokens,
-                                    onUpdateCompressTargetTokens = onUpdateCompressTargetTokens,
                                     onDismiss = { dismissExpand() }
                                 )
                             }
@@ -852,8 +850,6 @@ private fun FilesPicker(
     onOpenSubmenu: (ActionSubmenu) -> Unit,
     onClearContext: () -> Unit,
     onCompressContext: (additionalPrompt: String, targetTokens: Int) -> Job,
-    defaultCompressTokens: Int,
-    onUpdateCompressTargetTokens: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
