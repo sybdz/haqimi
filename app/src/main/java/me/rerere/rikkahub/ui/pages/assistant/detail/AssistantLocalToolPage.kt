@@ -25,6 +25,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.permission.rememberPythonStoragePermissionRequest
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -63,6 +64,10 @@ private fun AssistantLocalToolContent(
     assistant: Assistant,
     onUpdate: (Assistant) -> Unit
 ) {
+    val requestPythonStoragePermission = rememberPythonStoragePermissionRequest {
+        onUpdate(assistant.copy(localTools = assistant.localTools + LocalToolOption.PythonEngine))
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -90,12 +95,12 @@ private fun AssistantLocalToolContent(
             description = stringResource(R.string.assistant_page_local_tools_python_engine_desc),
             isEnabled = assistant.localTools.contains(LocalToolOption.PythonEngine),
             onToggle = { enabled ->
-                val newLocalTools = if (enabled) {
-                    assistant.localTools + LocalToolOption.PythonEngine
+                if (enabled) {
+                    requestPythonStoragePermission()
                 } else {
-                    assistant.localTools - LocalToolOption.PythonEngine
+                    val newLocalTools = assistant.localTools - LocalToolOption.PythonEngine
+                    onUpdate(assistant.copy(localTools = newLocalTools))
                 }
-                onUpdate(assistant.copy(localTools = newLocalTools))
             }
         )
     }

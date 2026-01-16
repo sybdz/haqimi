@@ -135,6 +135,7 @@ import me.rerere.rikkahub.ui.components.ui.FloatingMenuItem
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
+import me.rerere.rikkahub.ui.components.ui.permission.rememberPythonStoragePermissionRequest
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -191,6 +192,9 @@ fun ChatInput(
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
     val navController = LocalNavController.current
+    val requestPythonStoragePermission = rememberPythonStoragePermissionRequest {
+        onUpdateAssistant(assistant.copy(localTools = assistant.localTools + LocalToolOption.PythonEngine))
+    }
 
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -402,6 +406,7 @@ fun ChatInput(
                                                 LocalToolsQuickConfigMenu(
                                                     assistant = assistant,
                                                     onUpdateAssistant = onUpdateAssistant,
+                                                    onRequestPythonStoragePermission = requestPythonStoragePermission,
                                                 )
                                             }
 
@@ -1196,6 +1201,7 @@ private fun McpQuickConfigMenu(
 private fun LocalToolsQuickConfigMenu(
     assistant: Assistant,
     onUpdateAssistant: (Assistant) -> Unit,
+    onRequestPythonStoragePermission: () -> Unit,
 ) {
     Column(
         modifier = Modifier.widthIn(max = 260.dp),
@@ -1215,30 +1221,28 @@ private fun LocalToolsQuickConfigMenu(
         )
         options.forEach { (option, labelRes, icon) ->
             val selected = assistant.localTools.contains(option)
+            fun applyToggle(checked: Boolean) {
+                if (option == LocalToolOption.PythonEngine && checked) {
+                    onRequestPythonStoragePermission()
+                    return
+                }
+                val newTools = if (checked) {
+                    assistant.localTools + option
+                } else {
+                    assistant.localTools - option
+                }
+                onUpdateAssistant(assistant.copy(localTools = newTools))
+            }
             FloatingMenuItem(
                 icon = icon,
                 text = stringResource(labelRes),
                 trailingContent = {
                     Switch(
                         checked = selected,
-                        onCheckedChange = { checked ->
-                            val newTools = if (checked) {
-                                assistant.localTools + option
-                            } else {
-                                assistant.localTools - option
-                            }
-                            onUpdateAssistant(assistant.copy(localTools = newTools))
-                        }
+                        onCheckedChange = { checked -> applyToggle(checked) }
                     )
                 },
-                onClick = {
-                    val newTools = if (selected) {
-                        assistant.localTools - option
-                    } else {
-                        assistant.localTools + option
-                    }
-                    onUpdateAssistant(assistant.copy(localTools = newTools))
-                },
+                onClick = { applyToggle(!selected) },
             )
         }
     }

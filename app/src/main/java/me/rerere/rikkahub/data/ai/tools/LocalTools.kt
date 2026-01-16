@@ -5,6 +5,7 @@ import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.whl.quickjs.wrapper.QuickJSContext
 import com.whl.quickjs.wrapper.QuickJSObject
+import java.io.File
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNull
@@ -142,10 +143,9 @@ class LocalTools(private val context: Context) {
                 runCatching {
                     val py = Python.getInstance()
                     val module = py.getModule("local_tools")
-                    val outputDir = context.getExternalFilesDir("python_outputs")
-                        ?: context.filesDir.resolve("python_outputs")
-                    if (!outputDir.exists()) {
-                        outputDir.mkdirs()
+                    val outputDir = File("/storage/emulated/0/rikkahub_file")
+                    if (!outputDir.exists() && !outputDir.mkdirs()) {
+                        error("Failed to create output directory: ${outputDir.absolutePath}")
                     }
                     val result = if (outputPath != null) {
                         module.callAttr("run_python_tool", code, outputDir.absolutePath, outputPath)
