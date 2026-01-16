@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -173,6 +175,7 @@ fun ChatMessage(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
         lineHeight = LocalTextStyle.current.lineHeight * settings.fontSizeRatio
     )
+    var showActionsSheet by remember { mutableStateOf(false) }
     var showSelectCopySheet by remember { mutableStateOf(false) }
     val navController = LocalNavController.current
     val context = LocalContext.current
@@ -283,29 +286,10 @@ fun ChatMessage(
                 ChatMessageActionButtons(
                     message = message,
                     onRegenerate = onRegenerate,
-                    model = model,
                     node = node,
                     onUpdate = onUpdate,
-                    onEdit = onEdit,
-                    onDelete = onDelete,
-                    onShare = onShare,
-                    onFork = onFork,
-                    onSelectAndCopy = {
-                        showSelectCopySheet = true
-                    },
-                    onWebViewPreview = {
-                        val textContent = message.parts
-                            .filterIsInstance<UIMessagePart.Text>()
-                            .joinToString("\n\n") { it.text }
-                            .trim()
-                        if (textContent.isNotBlank()) {
-                            val htmlContent = buildMarkdownPreviewHtml(
-                                context = context,
-                                markdown = textContent,
-                                colorScheme = colorScheme
-                            )
-                            navController.navigate(Screen.WebView(content = htmlContent.base64Encode()))
-                        }
+                    onOpenActionSheet = {
+                        showActionsSheet = true
                     },
                     onTranslate = onTranslate,
                     onClearTranslation = onClearTranslation
@@ -316,6 +300,36 @@ fun ChatMessage(
         ProvideTextStyle(textStyle) {
             ChatMessageNerdLine(message = message)
         }
+    }
+    if (showActionsSheet) {
+        ChatMessageActionsSheet(
+            message = message,
+            onEdit = onEdit,
+            onDelete = onDelete,
+            onShare = onShare,
+            onFork = onFork,
+            model = model,
+            onSelectAndCopy = {
+                showSelectCopySheet = true
+            },
+            onWebViewPreview = {
+                val textContent = message.parts
+                    .filterIsInstance<UIMessagePart.Text>()
+                    .joinToString("\n\n") { it.text }
+                    .trim()
+                if (textContent.isNotBlank()) {
+                    val htmlContent = buildMarkdownPreviewHtml(
+                        context = context,
+                        markdown = textContent,
+                        colorScheme = colorScheme
+                    )
+                    navController.navigate(Screen.WebView(content = htmlContent.base64Encode()))
+                }
+            },
+            onDismissRequest = {
+                showActionsSheet = false
+            }
+        )
     }
     if (showSelectCopySheet) {
         ChatMessageCopySheet(
@@ -407,17 +421,41 @@ internal fun MessagePartsBlock(
                     }
                 }
             } else {
-                MarkdownBlock(
-                    content = part.text.replaceRegexes(
-                        assistant = assistant,
-                        scope = AssistantAffectScope.ASSISTANT,
-                        visual = true,
-                    ),
-                    onClickCitation = { id ->
-                        handleClickCitation(id)
-                    },
-                    modifier = Modifier.animateContentSize()
-                )
+                if (settings.displaySetting.showAssistantBubble) {
+                    Card(
+                        modifier = Modifier
+                            .animateContentSize(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            MarkdownBlock(
+                                content = part.text.replaceRegexes(
+                                    assistant = assistant,
+                                    scope = AssistantAffectScope.ASSISTANT,
+                                    visual = true,
+                                ),
+                                onClickCitation = { id ->
+                                    handleClickCitation(id)
+                                },
+                            )
+                        }
+                    }
+                } else {
+                    MarkdownBlock(
+                        content = part.text.replaceRegexes(
+                            assistant = assistant,
+                            scope = AssistantAffectScope.ASSISTANT,
+                            visual = true,
+                        ),
+                        onClickCitation = { id ->
+                            handleClickCitation(id)
+                        },
+                        modifier = Modifier.animateContentSize()
+                    )
+                }
             }
         }
     }

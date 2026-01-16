@@ -401,6 +401,7 @@ data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
     val showUserAvatar: Boolean = true,
+    val showAssistantBubble: Boolean = false,
     val showModelIcon: Boolean = true,
     val showModelName: Boolean = true,
     val showTokenUsage: Boolean = true,
@@ -417,6 +418,8 @@ data class DisplaySetting(
     val showLineNumbers: Boolean = false,
     val enableHtmlRendering: Boolean = true,
     val enableSvgRendering: Boolean = true,
+    val ttsOnlyReadQuoted: Boolean = false,
+    val autoPlayTTSAfterGeneration: Boolean = false,
 )
 
 @Serializable
