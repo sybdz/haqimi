@@ -99,24 +99,51 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private val EmptyJson = JsonObject(emptyMap())
 
-private fun normalizeImageData(raw: String?): String? {
+private fun normalizeImageData(raw: String?, format: String? = null): String? {
     val value = raw?.trim().orEmpty()
     if (value.isBlank()) return null
     if (value.startsWith("data:image") || value.startsWith("http") || value.startsWith("file:")) {
         return value
     }
-    return "data:image/png;base64,$value"
+    val normalizedFormat = format
+        ?.trim()
+        ?.lowercase()
+        ?.removePrefix("image/")
+        ?.ifBlank { "png" }
+        ?: "png"
+    return "data:image/$normalizedFormat;base64,$value"
 }
 
 private fun extractToolImages(content: JsonElement): List<String> {
     if (content !is JsonObject) return emptyList()
     val images = mutableListOf<String>()
-    (content["images"] as? JsonArray)?.forEach { element ->
-        normalizeImageData(element.jsonPrimitiveOrNull?.contentOrNull)?.let(images::add)
+
+    fun extractFromElement(element: JsonElement?) {
+        when (element) {
+            is JsonArray -> element.forEach { extractFromElement(it) }
+            is JsonObject -> {
+                val type = element["type"]?.jsonPrimitiveOrNull?.contentOrNull?.lowercase()
+                val data = element["data"]?.jsonPrimitiveOrNull?.contentOrNull
+                val format = element["format"]?.jsonPrimitiveOrNull?.contentOrNull
+                if (type == null || type == "base64") {
+                    normalizeImageData(data, format)?.let(images::add)
+                }
+            }
+
+            else -> normalizeImageData(element?.jsonPrimitiveOrNull?.contentOrNull)?.let(images::add)
+        }
     }
-    listOf("image", "image_base64").forEach { key ->
-        normalizeImageData(content[key]?.jsonPrimitiveOrNull?.contentOrNull)?.let(images::add)
+
+    fun extractFromObject(obj: JsonObject) {
+        extractFromElement(obj["images"])
+        listOf("image", "image_base64").forEach { key ->
+            extractFromElement(obj[key])
+        }
     }
+
+    extractFromObject(content)
+    (content["output"] as? JsonObject)?.let { extractFromObject(it) }
+
     return images.distinct()
 }
 
