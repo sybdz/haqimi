@@ -33,6 +33,7 @@ android {
 
         withGroovyBuilder {
             "python" {
+                "version"("3.11")
                 "pip" {
                     "install"("pillow")
                     "install"("numpy")
