@@ -371,6 +371,9 @@ private fun ChatPageContent(
                     onCompressContext = { additionalPrompt, targetTokens ->
                         vm.handleCompressContext(additionalPrompt, targetTokens)
                     },
+                    onUpdateCompressTargetTokens = { targetTokens ->
+                        vm.updateSettings(setting.copy(compressTargetTokens = targetTokens))
+                    },
                 )
             },
             containerColor = Color.Transparent,

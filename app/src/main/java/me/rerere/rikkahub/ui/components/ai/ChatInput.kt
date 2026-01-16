@@ -135,6 +135,7 @@ import me.rerere.rikkahub.ui.components.ui.FloatingMenu
 import me.rerere.rikkahub.ui.components.ui.FloatingMenuDivider
 import me.rerere.rikkahub.ui.components.ui.FloatingMenuItem
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
+import me.rerere.rikkahub.ui.components.ui.RandomGridLoading
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPythonStoragePermissionRequest
@@ -188,6 +189,7 @@ fun ChatInput(
     onUpdateSearchService: (Int) -> Unit,
     onClearContext: () -> Unit,
     onCompressContext: (additionalPrompt: String, targetTokens: Int) -> Job,
+    onUpdateCompressTargetTokens: (Int) -> Unit,
     onCancelClick: () -> Unit,
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
@@ -425,6 +427,8 @@ fun ChatInput(
                                             ActionSubmenu.Compress -> {
                                                 CompressQuickConfigMenu(
                                                     onCompressContext = onCompressContext,
+                                                    defaultTokens = defaultCompressTokens,
+                                                    onUpdateDefaultTokens = onUpdateCompressTargetTokens,
                                                     onDismiss = { dismissExpand() },
                                                 )
                                             }
@@ -451,6 +455,8 @@ fun ChatInput(
                                     },
                                     onClearContext = onClearContext,
                                     onCompressContext = onCompressContext,
+                                    defaultCompressTokens = settings.compressTargetTokens,
+                                    onUpdateCompressTargetTokens = onUpdateCompressTargetTokens,
                                     onDismiss = { dismissExpand() }
                                 )
                             }
@@ -846,6 +852,8 @@ private fun FilesPicker(
     onOpenSubmenu: (ActionSubmenu) -> Unit,
     onClearContext: () -> Unit,
     onCompressContext: (additionalPrompt: String, targetTokens: Int) -> Job,
+    defaultCompressTokens: Int,
+    onUpdateCompressTargetTokens: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
@@ -1134,12 +1142,15 @@ private fun ReasoningQuickConfigMenu(
 @Composable
 private fun CompressQuickConfigMenu(
     onCompressContext: (String, Int) -> Job,
+    defaultTokens: Int,
+    onUpdateDefaultTokens: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var additionalPrompt by remember { mutableStateOf("") }
     val tokenOptions = listOf(500, 1000, 2000, 4000)
-    var selectedTokens by remember { mutableStateOf(2000) }
-    var tokenInput by remember { mutableStateOf(selectedTokens.toString()) }
+    val initialTokens = if (defaultTokens > 0) defaultTokens else 2000
+    var selectedTokens by remember { mutableStateOf(initialTokens) }
+    var tokenInput by remember { mutableStateOf(initialTokens.toString()) }
     var currentJob by remember { mutableStateOf<Job?>(null) }
     val isLoading = currentJob?.isActive == true
 
@@ -1195,6 +1206,7 @@ private fun CompressQuickConfigMenu(
                 onClick = {
                     selectedTokens = tokens
                     tokenInput = tokens.toString()
+                    onUpdateDefaultTokens(tokens)
                 },
             )
         }
@@ -1213,6 +1225,7 @@ private fun CompressQuickConfigMenu(
                 sanitized.toIntOrNull()?.let { tokens ->
                     if (tokens > 0) {
                         selectedTokens = tokens
+                        onUpdateDefaultTokens(tokens)
                     }
                 }
             },

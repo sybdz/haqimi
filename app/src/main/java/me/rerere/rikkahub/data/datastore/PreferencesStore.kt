@@ -83,6 +83,7 @@ class SettingsStore(
         val OCR_PROMPT = stringPreferencesKey("ocr_prompt")
         val COMPRESS_MODEL = stringPreferencesKey("compress_model")
         val COMPRESS_PROMPT = stringPreferencesKey("compress_prompt")
+        val COMPRESS_TARGET_TOKENS = intPreferencesKey("compress_target_tokens")
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")
@@ -154,6 +155,7 @@ class SettingsStore(
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
                 compressModelId = preferences[COMPRESS_MODEL]?.let { Uuid.parse(it) } ?: SILICONFLOW_QWEN3_8B_ID,
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
+                compressTargetTokens = preferences[COMPRESS_TARGET_TOKENS] ?: 2000,
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
                     ?: DEFAULT_ASSISTANT_ID,
                 floatingBallEnabled = preferences[FLOATING_BALL_ENABLED] == true,
@@ -316,6 +318,7 @@ class SettingsStore(
             preferences[OCR_PROMPT] = settings.ocrPrompt
             preferences[COMPRESS_MODEL] = settings.compressModelId.toString()
             preferences[COMPRESS_PROMPT] = settings.compressPrompt
+            preferences[COMPRESS_TARGET_TOKENS] = settings.compressTargetTokens
 
             preferences[PROVIDERS] = JsonInstant.encodeToString(settings.providers)
 
@@ -381,6 +384,7 @@ data class Settings(
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
     val compressModelId: Uuid = Uuid.random(),
     val compressPrompt: String = DEFAULT_COMPRESS_PROMPT,
+    val compressTargetTokens: Int = 2000,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val floatingBallEnabled: Boolean = false,
     val floatingBallModelId: Uuid? = null,
