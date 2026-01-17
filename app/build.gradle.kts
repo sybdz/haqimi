@@ -5,7 +5,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -22,8 +21,8 @@ android {
         applicationId = "me.rerere.rikkahub.ywxk"
         minSdk = 26
         targetSdk = 36
-        versionCode = 129
-        versionName = "1.7.12"
+        versionCode = 130
+        versionName = "1.7.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -123,16 +122,6 @@ android {
     }
     androidResources {
         generateLocaleConfig = true
-    }
-    applicationVariants.all {
-        outputs.all {
-            this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
-
-            val variantName = name
-            val apkName = "rikkahub_" + defaultConfig.versionName + "_" + variantName + ".apk"
-
-            outputFileName = apkName
-        }
     }
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions.optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
@@ -268,11 +257,6 @@ dependencies {
     // Paging3
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.paging.compose)
-
-    // WebDav
-    implementation(libs.dav4jvm) {
-        exclude(group = "org.ogce", module = "xpp3")
-    }
 
     // Apache Commons Text
     implementation(libs.commons.text)

@@ -577,6 +577,66 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     headlineContent = {
+                        Text(stringResource(R.string.setting_display_page_paste_long_text_as_file_title))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.setting_display_page_paste_long_text_as_file_desc))
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = displaySetting.pasteLongTextAsFile,
+                            onCheckedChange = {
+                                updateDisplaySetting(displaySetting.copy(pasteLongTextAsFile = it))
+                            }
+                        )
+                    },
+                )
+            }
+
+            if (displaySetting.pasteLongTextAsFile) {
+                item {
+                    ListItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_display_page_paste_long_text_threshold_title))
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Slider(
+                            value = displaySetting.pasteLongTextThreshold.toFloat(),
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(pasteLongTextThreshold = it.toInt()))
+                            },
+                            valueRange = 100f..10000f,
+                            steps = 98,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "${displaySetting.pasteLongTextThreshold}",
+                        )
+                    }
+                }
+            }
+
+            stickyHeader {
+                Text(
+                    text = stringResource(R.string.setting_page_tts_settings),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+
+            item {
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = {
                         Text(stringResource(R.string.setting_display_page_tts_only_read_quoted_title))
                     },
                     supportingContent = {

@@ -148,6 +148,7 @@ import me.rerere.search.SearchServiceOptions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.LinearWavyProgressIndicator
 import me.rerere.rikkahub.utils.createChatFilesByContents
+import me.rerere.rikkahub.utils.createChatTextFile
 import me.rerere.rikkahub.utils.deleteChatFiles
 import me.rerere.rikkahub.utils.getFileMimeType
 import me.rerere.rikkahub.utils.getFileNameFromUri
@@ -523,7 +524,8 @@ private fun TextInputRow(
     state: ChatInputState,
     context: Context,
 ) {
-    val assistant = LocalSettings.current.getCurrentAssistant()
+    val settings = LocalSettings.current
+    val assistant = settings.getCurrentAssistant()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -563,7 +565,7 @@ private fun TextInputRow(
                 }
                 var isFocused by remember { mutableStateOf(false) }
                 var isFullScreen by remember { mutableStateOf(false) }
-                val receiveContentListener = remember {
+                val receiveContentListener = remember(settings.displaySetting.pasteLongTextAsFile, settings.displaySetting.pasteLongTextThreshold) {
                     ReceiveContentListener { transferableContent ->
                         when {
                             transferableContent.hasMediaType(MediaType.Image) -> {
@@ -579,6 +581,20 @@ private fun TextInputRow(
                                         )
                                     }
                                     uri != null
+                                }
+                            }
+
+                            settings.displaySetting.pasteLongTextAsFile &&
+                                transferableContent.hasMediaType(MediaType.Text) -> {
+                                transferableContent.consume { item ->
+                                    val text = item.text?.toString()
+                                    if (text != null && text.length > settings.displaySetting.pasteLongTextThreshold) {
+                                        val document = context.createChatTextFile(text)
+                                        state.addFiles(listOf(document))
+                                        true
+                                    } else {
+                                        false
+                                    }
                                 }
                             }
 
