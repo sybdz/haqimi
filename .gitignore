@@ -9,6 +9,8 @@
 .cxx
 local.properties
 .cursor
+.codex
+.gemini
 .history
 .kotlin
 __pycache__/

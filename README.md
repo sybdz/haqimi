@@ -80,6 +80,9 @@ Technology stack documentation:
 > [!TIP]
 > You need a `google-services.json` file at `app` folder to build the app.
 
+> [!NOTE]  
+> This repo intentionally keeps Gradle/AGP/Kotlin and some dependency versions behind upstream for Chaquopy compatibility. When syncing upstream, keep the toolchain pinned and backport changes as needed instead of upgrading versions automatically.
+
 > [!IMPORTANT]  
 > The following PRs will be rejected: 
 > 1. Translation related changes, such as adding new languages or updating existing translations

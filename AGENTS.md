@@ -55,6 +55,12 @@ Built with Jetpack Compose, Kotlin, and follows Material Design 3 principles.
   Output transformers support `visualTransform()` for UI display during streaming and `onGenerationFinish()` for final processing after generation completes.
   (app/src/main/java/me/rerere/rikkahub/data/ai/transformers/Transformer.kt)
 
+## Upstream Sync Note (Chaquopy Compatibility)
+
+- This repo intentionally pins Gradle/AGP/Kotlin and related build dependencies behind upstream to keep Chaquopy compatible.
+- When syncing upstream, do not bump toolchain versions automatically; prefer backporting code changes and adjust build scripts to stay on current versions.
+- Pay extra attention to changes in `gradle/libs.versions.toml`, `gradle/wrapper/gradle-wrapper.properties`, and module `build.gradle.kts`.
+
 ## Development Guidelines
 
 ### UI Development
