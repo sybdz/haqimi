@@ -472,11 +472,11 @@ fun ChatInput(
                         .combinedClickable(
                             enabled = state.loading || !state.isEmpty(),
                             onClick = {
-                                expand = ExpandState.Collapsed
+                                dismissExpand()
                                 sendMessage()
                             },
                             onLongClick = {
-                                expand = ExpandState.Collapsed
+                                dismissExpand()
                                 sendMessageWithoutAnswer()
                             }
                         )
