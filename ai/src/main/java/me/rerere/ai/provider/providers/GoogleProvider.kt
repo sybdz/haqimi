@@ -76,16 +76,31 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
         ServiceAccountTokenProvider(client)
     }
 
-    private fun buildUrl(providerSetting: ProviderSetting.Google, path: String): HttpUrl {
-        return if (!providerSetting.vertexAI) {
-            val key = keyRoulette.next(providerSetting.apiKey)
-            "${providerSetting.baseUrl}/$path".toHttpUrl()
-                .newBuilder()
-                .addQueryParameter("key", key)
-                .build()
+    private fun buildUrl(
+        providerSetting: ProviderSetting.Google,
+        path: String,
+        queryParams: Map<String, String> = emptyMap()
+    ): HttpUrl {
+        val baseUrl = if (!providerSetting.vertexAI) {
+            providerSetting.baseUrl
         } else {
-            "https://aiplatform.googleapis.com/v1/projects/${providerSetting.projectId}/locations/${providerSetting.location}/$path".toHttpUrl()
+            "https://aiplatform.googleapis.com/v1/projects/${providerSetting.projectId}/locations/${providerSetting.location}"
         }
+
+        val builder = baseUrl.toHttpUrl()
+            .newBuilder()
+            .addEncodedPathSegments(path.trimStart('/'))
+
+        if (!providerSetting.vertexAI) {
+            val key = keyRoulette.next(providerSetting.apiKey)
+            builder.addQueryParameter("key", key)
+        }
+
+        queryParams.forEach { (key, value) ->
+            builder.addQueryParameter(key, value)
+        }
+
+        return builder.build()
     }
 
     private suspend fun transformRequest(
@@ -107,7 +122,10 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
 
     override suspend fun listModels(providerSetting: ProviderSetting.Google): List<Model> =
         withContext(Dispatchers.IO) {
-            val url = buildUrl(providerSetting = providerSetting, path = "models?pageSize=100")
+            val url = buildUrl(
+                providerSetting = providerSetting,
+                path = "models"
+            )
             val request = transformRequest(
                 providerSetting = providerSetting,
                 request = Request.Builder()
@@ -213,8 +231,9 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
                 "publishers/google/models/${params.model.modelId}:streamGenerateContent"
             } else {
                 "models/${params.model.modelId}:streamGenerateContent"
-            }
-        ).newBuilder().addQueryParameter("alt", "sse").build()
+            },
+            queryParams = mapOf("alt" to "sse")
+        )
 
         val request = transformRequest(
             providerSetting = providerSetting,
