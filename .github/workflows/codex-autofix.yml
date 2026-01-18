@@ -1,0 +1,103 @@
+name: Codex Auto-Fix (Release Build)
+
+on:
+  workflow_run:
+    workflows: ["Release Build"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-fix:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      FAILED_WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+      FAILED_RUN_URL: ${{ github.event.workflow_run.html_url }}
+      FAILED_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      FAILED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Check required secrets
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY secret is not set. Skipping auto-fix." >&2
+            exit 1
+          fi
+          if [ -z "${{ secrets.KEY_BASE64 }}" ] || [ -z "${{ secrets.SIGNING_CONFIG }}" ] || [ -z "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo "Signing secrets are not set. Skipping auto-fix." >&2
+            exit 1
+          fi
+
+      - name: Checkout failing ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FAILED_HEAD_SHA }}
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      - name: Prepare build files
+        run: |
+          echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/app.key
+          echo "${{ secrets.SIGNING_CONFIG }}" > local.properties
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > app/google-services.json
+
+      - name: Ensure gradlew is executable
+        run: chmod +x gradlew
+
+      - name: Run Codex
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          model: gpt-5.2-codex
+          effort: xhigh
+          safety-strategy: drop-sudo
+          sandbox: workspace-write
+          prompt: |
+            You are working in an Android Kotlin/Gradle project. The "Release Build" workflow failed.
+            Read the repository, run the failing build locally (use ./gradlew assembleRelease --stacktrace),
+            identify the minimal change needed to make the build pass, implement only that change, and stop.
+            Do not refactor unrelated code or update dependencies unless strictly required.
+            Keep changes small and surgical. Do not modify or print any secrets (keystore, signing config, google-services).
+
+      - name: Verify release build
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --stacktrace | tee gradle.log
+
+      - name: Upload Gradle log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-gradle-log
+          path: gradle.log
+
+      - name: Create pull request with fixes
+        if: success()
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "fix(ci): auto-fix Release Build via Codex"
+          branch: codex/auto-fix-${{ github.event.workflow_run.run_id }}
+          base: ${{ env.FAILED_HEAD_BRANCH }}
+          title: "Auto-fix failing Release Build via Codex"
+          body: |
+            Codex automatically generated this PR in response to a CI failure on workflow `${{ env.FAILED_WORKFLOW_NAME }}`.
+            Failed run: ${{ env.FAILED_RUN_URL }}
+            Head branch: `${{ env.FAILED_HEAD_BRANCH }}`
+            This PR contains minimal changes intended solely to make the CI pass.

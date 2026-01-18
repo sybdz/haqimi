@@ -6,6 +6,9 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -78,6 +81,46 @@ jobs:
         run: |
           echo "### Gradle failure (last 200 lines)" >> "$GITHUB_STEP_SUMMARY"
           tail -n 200 gradle.log >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify APK outputs
+        if: success()
+        run: |
+          count="$(ls -1 app/build/outputs/apk/release/*.apk 2>/dev/null | wc -l)"
+          if [ "$count" -ne 3 ]; then
+            echo "Expected 3 APKs in app/build/outputs/apk/release, found $count." >&2
+            exit 1
+          fi
+
+      - name: Determine release tag
+        if: success()
+        id: version
+        run: |
+          git fetch --tags --force
+          latest_tag="$(git tag -l "v*" --sort=-v:refname | head -n 1)"
+          if [ -z "$latest_tag" ]; then
+            next_tag="v0.0.1"
+          else
+            version="${latest_tag#v}"
+            IFS='.' read -r major minor patch <<< "$version"
+            major="${major:-0}"
+            minor="${minor:-0}"
+            patch="${patch:-0}"
+            patch=$((patch + 1))
+            next_tag="v${major}.${minor}.${patch}"
+          fi
+          echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+          echo "### Release tag: $next_tag" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish APKs to GitHub Release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          files: |
+            app/build/outputs/apk/release/*.apk
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
