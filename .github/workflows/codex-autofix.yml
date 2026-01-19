@@ -19,6 +19,7 @@ jobs:
       FAILED_RUN_URL: ${{ github.event.workflow_run.html_url }}
       FAILED_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
       FAILED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
     steps:
       - name: Check required secrets
         run: |
@@ -47,8 +48,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
+            ${{ env.GRADLE_USER_HOME }}/caches
+            ${{ env.GRADLE_USER_HOME }}/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
 
       - name: Prepare build files
@@ -59,6 +60,9 @@ jobs:
 
       - name: Ensure gradlew is executable
         run: chmod +x gradlew
+
+      - name: Warm Gradle wrapper
+        run: ./gradlew --version
 
       - name: Run Codex
         id: codex
