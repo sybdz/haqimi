@@ -506,6 +506,7 @@ class ChatService(
     ) {
         val settings = settingsStore.settingsFlow.first()
         val model = settings.getCurrentChatModel() ?: return
+        val assistant = settings.getCurrentAssistant()
 
         runCatching {
             val conversation = getConversationFlow(conversationId).value
@@ -534,7 +535,7 @@ class ChatService(
                         it
                     }
                 },
-                assistant = settings.getCurrentAssistant(),
+                assistant = assistant,
                 memories = memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString()),
                 inputTransformers = buildList {
                     addAll(inputTransformers)
@@ -545,7 +546,7 @@ class ChatService(
                     if (settings.enableWebSearch) {
                         addAll(createSearchTool(settings))
                     }
-                    addAll(localTools.getTools(settings.getCurrentAssistant().localTools))
+                    addAll(localTools.getTools(assistant.localTools, assistant.localToolPrompts))
                     mcpManager.getAllAvailableTools().forEach { tool ->
                         add(
                             Tool(
