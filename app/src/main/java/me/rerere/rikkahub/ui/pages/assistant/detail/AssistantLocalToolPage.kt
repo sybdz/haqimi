@@ -171,7 +171,8 @@ private fun LocalToolCard(
                     null
                 }
             }
-    )
+        )
+    }
 }
 
 private fun Assistant.getLocalToolPrompt(option: LocalToolOption): String {
@@ -191,5 +192,4 @@ private fun Assistant.withLocalToolPrompt(option: LocalToolOption, value: String
         updatedPrompts[index] = updatedPrompts[index].copy(description = value)
     }
     return copy(localToolPrompts = updatedPrompts)
-}
 }
