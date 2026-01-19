@@ -87,7 +87,6 @@ import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
 import me.rerere.rikkahub.ui.pages.setting.SettingFloatingBallPage
 import me.rerere.rikkahub.ui.pages.setting.SettingLeaderboardPage
-import me.rerere.rikkahub.ui.pages.setting.SettingLogcatPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
@@ -363,10 +362,6 @@ class RouteActivity : ComponentActivity() {
                         SettingMcpPage()
                     }
 
-                    composable<Screen.SettingLogcat> {
-                        SettingLogcatPage()
-                    }
-
                     composable<Screen.SettingDonate> {
                         SettingDonatePage()
                     }
@@ -518,9 +513,6 @@ sealed interface Screen {
 
     @Serializable
     data object SettingMcp : Screen
-
-    @Serializable
-    data object SettingLogcat : Screen
 
     @Serializable
     data object SettingDonate : Screen

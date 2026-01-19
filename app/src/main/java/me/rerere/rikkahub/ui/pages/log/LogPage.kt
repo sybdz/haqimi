@@ -251,27 +251,7 @@ private fun RequestLogDetail(log: LogEntry.RequestLog) {
 
         log.requestBody?.let { body ->
             item {
-                HorizontalDivider()
-                Text(
-                    text = "Request Body",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                ) {
-                    HighlightText(
-                        code = JsonInstantPretty.encodeToString(
-                            JsonInstantPretty.parseToJsonElement(body)
-                        ),
-                        language = "json",
-                        fontFamily = JetbrainsMono,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
+                BodySection(title = "Request Body", body = body)
             }
         }
 
@@ -289,6 +269,12 @@ private fun RequestLogDetail(log: LogEntry.RequestLog) {
                 item {
                     HeaderItem(key, value)
                 }
+            }
+        }
+
+        log.responseBody?.let { body ->
+            item {
+                BodySection(title = "Response Body", body = body)
             }
         }
     }
@@ -323,6 +309,41 @@ private fun HeaderItem(key: String, value: String) {
             style = MaterialTheme.typography.bodySmall,
             fontFamily = JetbrainsMono
         )
+    }
+}
+
+@Composable
+private fun BodySection(title: String, body: String) {
+    val formattedBody = remember(body) { formatBody(body) }
+    HorizontalDivider()
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(top = 8.dp)
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+    ) {
+        HighlightText(
+            code = formattedBody.text,
+            language = formattedBody.language,
+            fontFamily = JetbrainsMono,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+private data class FormattedBody(val text: String, val language: String)
+
+private fun formatBody(body: String): FormattedBody {
+    return runCatching {
+        val json = JsonInstantPretty.parseToJsonElement(body)
+        FormattedBody(JsonInstantPretty.encodeToString(json), "json")
+    }.getOrElse {
+        FormattedBody(body, "text")
     }
 }
 
