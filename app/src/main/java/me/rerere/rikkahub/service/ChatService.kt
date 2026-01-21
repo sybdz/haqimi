@@ -619,7 +619,7 @@ class ChatService(
                                 name = "mcp__" + tool.name,
                                 description = tool.description ?: "",
                                 parameters = { tool.inputSchema },
-                                needsApproval = true,
+                                needsApproval = tool.needsApproval,
                                 execute = {
                                     mcpManager.callTool(tool.name, it.jsonObject)
                                 },
@@ -796,6 +796,7 @@ class ChatService(
                         val service = SearchService.getService(options)
                         service.parameters
                     },
+                    needsApproval = true,
                     execute = {
                         val options = settings.searchServices.getOrElse(
                             index = settings.searchServiceSelected,
