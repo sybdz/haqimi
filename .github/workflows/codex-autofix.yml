@@ -95,7 +95,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: "fix(ci): auto-fix Release Build via Codex"
-          branch: codex/auto-fix-${{ github.event.workflow_run.run_id }}
+          branch: codex/auto-fix-${{ github.event.workflow_run.id || github.run_id }}
           base: ${{ env.FAILED_HEAD_BRANCH }}
           title: "Auto-fix failing Release Build via Codex"
           body: |
