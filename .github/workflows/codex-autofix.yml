@@ -25,6 +25,10 @@ jobs:
             echo "OPENAI_API_KEY secret is not set. Skipping auto-fix." >&2
             exit 1
           fi
+          if [ -z "${{ secrets.WORKFLOW_PAT }}" ]; then
+            echo "WORKFLOW_PAT secret is not set. Skipping auto-fix." >&2
+            exit 1
+          fi
           if [ -z "${{ secrets.KEY_BASE64 }}" ] || [ -z "${{ secrets.SIGNING_CONFIG }}" ] || [ -z "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
             echo "Signing secrets are not set. Skipping auto-fix." >&2
             exit 1
@@ -103,3 +107,4 @@ jobs:
             Failed run: ${{ env.FAILED_RUN_URL }}
             Head branch: `${{ env.FAILED_HEAD_BRANCH }}`
             This PR contains minimal changes intended solely to make the CI pass.
+          token: ${{ secrets.WORKFLOW_PAT }}
