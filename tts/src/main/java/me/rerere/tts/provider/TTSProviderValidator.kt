@@ -34,6 +34,14 @@ fun TTSProviderSetting.validate(): String? {
             else -> null
         }
 
+        is TTSProviderSetting.Groq -> when {
+            apiKey.isBlank() -> "Groq API key is required"
+            baseUrl.isBlank() -> "Groq base URL is required"
+            model.isBlank() -> "Groq model is required"
+            voice.isBlank() -> "Groq voice is required"
+            else -> null
+        }
+
         is TTSProviderSetting.Doubao -> when {
             appId.isBlank() -> "Doubao App ID is required"
             accessKey.isBlank() -> "Doubao Access Key is required"

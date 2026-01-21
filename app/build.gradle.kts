@@ -33,7 +33,8 @@ android {
 
         withGroovyBuilder {
             "python" {
-                "version"("3.11")
+                "version"("3.12")
+                "buildPython"(System.getenv("CHAQUOPY_BUILD_PYTHON") ?: "python3")
                 "pip" {
                     "install"("pillow")
                     "install"("numpy")
