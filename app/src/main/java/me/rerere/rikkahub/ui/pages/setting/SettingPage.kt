@@ -266,6 +266,29 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 )
             }
 
+            item {
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = {
+                        Text(stringResource(R.string.setting_page_tool_approval))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.setting_page_tool_approval_desc))
+                    },
+                    leadingContent = {
+                        Icon(Lucide.MessageCircleWarning, "Tool Approval")
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = settings.enableToolApproval,
+                            onCheckedChange = {
+                                vm.updateSettings(settings.copy(enableToolApproval = it))
+                            }
+                        )
+                    }
+                )
+            }
+
             stickyHeader {
                 Text(
                     text = stringResource(R.string.setting_page_data_settings),

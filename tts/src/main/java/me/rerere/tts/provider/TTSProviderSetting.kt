@@ -171,6 +171,29 @@ sealed class TTSProviderSetting {
         }
     }
 
+    @Serializable
+    @SerialName("groq")
+    data class Groq(
+        override var id: Uuid = Uuid.random(),
+        override var name: String = "Groq TTS",
+        val apiKey: String = "",
+        val baseUrl: String = "https://api.groq.com/openai/v1",
+        val model: String = "canopylabs/orpheus-v1-english",
+        val voice: String = "austin",
+        override val customHeaders: List<TtsCustomHeader> = emptyList(),
+        override val customBody: List<TtsCustomBody> = emptyList(),
+    ) : TTSProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            name: String,
+        ): TTSProviderSetting {
+            return this.copy(
+                id = id,
+                name = name,
+            )
+        }
+    }
+
     companion object {
         val Types by lazy {
             listOf(
@@ -179,6 +202,7 @@ sealed class TTSProviderSetting {
                 SystemTTS::class,
                 MiniMax::class,
                 Qwen::class,
+                Groq::class,
                 Doubao::class,
             )
         }

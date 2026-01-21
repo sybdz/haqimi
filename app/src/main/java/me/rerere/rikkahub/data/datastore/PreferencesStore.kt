@@ -69,6 +69,7 @@ class SettingsStore(
 
         // 模型选择
         val ENABLE_WEB_SEARCH = booleanPreferencesKey("enable_web_search")
+        val ENABLE_TOOL_APPROVAL = booleanPreferencesKey("enable_tool_approval")
         val FAVORITE_MODELS = stringPreferencesKey("favorite_models")
         val MODEL_ARENA_SCORES = stringPreferencesKey("model_arena_scores")
         val SELECT_MODEL = stringPreferencesKey("chat_model")
@@ -133,6 +134,7 @@ class SettingsStore(
         }.map { preferences ->
             Settings(
                 enableWebSearch = preferences[ENABLE_WEB_SEARCH] == true,
+                enableToolApproval = preferences[ENABLE_TOOL_APPROVAL] == true,
                 favoriteModels = preferences[FAVORITE_MODELS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -304,6 +306,7 @@ class SettingsStore(
             preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settings.displaySetting)
 
             preferences[ENABLE_WEB_SEARCH] = settings.enableWebSearch
+            preferences[ENABLE_TOOL_APPROVAL] = settings.enableToolApproval
             preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(settings.favoriteModels)
             preferences[MODEL_ARENA_SCORES] = JsonInstant.encodeToString(settings.modelArenaScores)
             preferences[SELECT_MODEL] = settings.chatModelId.toString()
@@ -370,6 +373,7 @@ data class Settings(
     val developerMode: Boolean = false,
     val displaySetting: DisplaySetting = DisplaySetting(),
     val enableWebSearch: Boolean = false,
+    val enableToolApproval: Boolean = false,
     val favoriteModels: List<Uuid> = emptyList(),
     val modelArenaScores: Map<Uuid, Int> = emptyMap(),
     val chatModelId: Uuid = Uuid.random(),

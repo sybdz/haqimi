@@ -6,6 +6,7 @@ import me.rerere.tts.model.AudioChunk
 import me.rerere.tts.model.TTSRequest
 import me.rerere.tts.provider.providers.DoubaoTTSProvider
 import me.rerere.tts.provider.providers.GeminiTTSProvider
+import me.rerere.tts.provider.providers.GroqTTSProvider
 import me.rerere.tts.provider.providers.MiniMaxTTSProvider
 import me.rerere.tts.provider.providers.OpenAITTSProvider
 import me.rerere.tts.provider.providers.QwenTTSProvider
@@ -18,6 +19,7 @@ class TTSManager(private val context: Context) {
     private val miniMaxProvider = MiniMaxTTSProvider()
     private val qwenProvider = QwenTTSProvider()
     private val doubaoProvider = DoubaoTTSProvider()
+    private val groqProvider = GroqTTSProvider()
 
     fun generateSpeech(
         providerSetting: TTSProviderSetting,
@@ -30,6 +32,7 @@ class TTSManager(private val context: Context) {
             is TTSProviderSetting.MiniMax -> miniMaxProvider.generateSpeech(context, providerSetting, request)
             is TTSProviderSetting.Qwen -> qwenProvider.generateSpeech(context, providerSetting, request)
             is TTSProviderSetting.Doubao -> doubaoProvider.generateSpeech(context, providerSetting, request)
+            is TTSProviderSetting.Groq -> groqProvider.generateSpeech(context, providerSetting, request)
         }
     }
 }

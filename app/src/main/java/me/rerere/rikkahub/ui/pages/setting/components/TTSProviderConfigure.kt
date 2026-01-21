@@ -41,6 +41,7 @@ fun TTSProviderConfigure(
             is TTSProviderSetting.SystemTTS -> setting.copy(customHeaders = headers)
             is TTSProviderSetting.MiniMax -> setting.copy(customHeaders = headers)
             is TTSProviderSetting.Qwen -> setting.copy(customHeaders = headers)
+            is TTSProviderSetting.Groq -> setting.copy(customHeaders = headers)
             is TTSProviderSetting.Doubao -> setting.copy(customHeaders = headers)
         }
         onValueChange(updated)
@@ -53,6 +54,7 @@ fun TTSProviderConfigure(
             is TTSProviderSetting.SystemTTS -> setting.copy(customBody = bodies)
             is TTSProviderSetting.MiniMax -> setting.copy(customBody = bodies)
             is TTSProviderSetting.Qwen -> setting.copy(customBody = bodies)
+            is TTSProviderSetting.Groq -> setting.copy(customBody = bodies)
             is TTSProviderSetting.Doubao -> setting.copy(customBody = bodies)
         }
         onValueChange(updated)
@@ -81,6 +83,7 @@ fun TTSProviderConfigure(
                         is TTSProviderSetting.SystemTTS -> "System TTS"
                         is TTSProviderSetting.MiniMax -> "MiniMax"
                         is TTSProviderSetting.Qwen -> "Qwen"
+                        is TTSProviderSetting.Groq -> "Groq"
                         is TTSProviderSetting.Doubao -> "Doubao"
                     },
                     onValueChange = {},
@@ -106,6 +109,7 @@ fun TTSProviderConfigure(
                                         TTSProviderSetting.SystemTTS::class -> "System TTS"
                                         TTSProviderSetting.MiniMax::class -> "MiniMax"
                                         TTSProviderSetting.Qwen::class -> "Qwen"
+                                        TTSProviderSetting.Groq::class -> "Groq"
                                         TTSProviderSetting.Doubao::class -> "Doubao"
                                         else -> providerClass.simpleName ?: "Unknown"
                                     }
@@ -137,6 +141,11 @@ fun TTSProviderConfigure(
                                     TTSProviderSetting.Qwen::class -> TTSProviderSetting.Qwen(
                                         id = setting.id,
                                         name = "Qwen TTS"
+                                    )
+
+                                    TTSProviderSetting.Groq::class -> TTSProviderSetting.Groq(
+                                        id = setting.id,
+                                        name = "Groq TTS"
                                     )
 
                                     TTSProviderSetting.Doubao::class -> TTSProviderSetting.Doubao(
@@ -176,6 +185,7 @@ fun TTSProviderConfigure(
             is TTSProviderSetting.MiniMax -> MiniMaxTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.SystemTTS -> SystemTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.Qwen -> QwenTTSConfiguration(setting, onValueChange)
+            is TTSProviderSetting.Groq -> GroqTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.Doubao -> DoubaoTTSConfiguration(setting, onValueChange)
         }
 
@@ -679,6 +689,98 @@ private fun QwenTTSConfiguration(
                         onClick = {
                             languageExpanded = false
                             onValueChange(setting.copy(languageType = languageType))
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroqTTSConfiguration(
+    setting: TTSProviderSetting.Groq,
+    onValueChange: (TTSProviderSetting) -> Unit
+) {
+    // API Key
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.apiKey,
+            onValueChange = { newApiKey ->
+                onValueChange(setting.copy(apiKey = newApiKey))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("gsk_xxx") },
+        )
+    }
+
+    // Base URL
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.baseUrl,
+            onValueChange = { newBaseUrl ->
+                onValueChange(setting.copy(baseUrl = newBaseUrl))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.setting_tts_page_base_url_placeholder)) }
+        )
+    }
+
+    // Model
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_model)) },
+        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.model,
+            onValueChange = { newModel ->
+                onValueChange(setting.copy(model = newModel))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("canopylabs/orpheus-v1-english") }
+        )
+    }
+
+    // Voice
+    var voiceExpanded by remember { mutableStateOf(false) }
+    val voices = listOf("austin", "natalie", "kailin")
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = voiceExpanded,
+            onExpandedChange = { voiceExpanded = !voiceExpanded }
+        ) {
+            OutlinedTextField(
+                value = setting.voice,
+                onValueChange = { newVoice ->
+                    onValueChange(setting.copy(voice = newVoice))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(MenuAnchorType.PrimaryEditable),
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = voiceExpanded)
+                }
+            )
+            ExposedDropdownMenu(
+                expanded = voiceExpanded,
+                onDismissRequest = { voiceExpanded = false }
+            ) {
+                voices.forEach { voice ->
+                    DropdownMenuItem(
+                        text = { Text(voice) },
+                        onClick = {
+                            voiceExpanded = false
+                            onValueChange(setting.copy(voice = voice))
                         }
                     )
                 }

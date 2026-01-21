@@ -440,6 +440,9 @@ private fun ChatPageContent(
                         chatListState.animateScrollToItem(index)
                     }
                 },
+                onToolApproval = { toolCallId, approved, reason ->
+                    vm.handleToolApproval(toolCallId, approved, reason)
+                },
             )
         }
     }

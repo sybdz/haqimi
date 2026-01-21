@@ -45,6 +45,7 @@ import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.finishReasoning
 import me.rerere.ai.ui.truncate
 import me.rerere.common.android.Logging
@@ -499,6 +500,71 @@ class ChatService(
         }
     }
 
+    // 处理工具调用审批
+    fun handleToolApproval(
+        conversationId: Uuid,
+        toolCallId: String,
+        approved: Boolean,
+        reason: String = ""
+    ) {
+        getGenerationJob(conversationId)?.cancel()
+
+        val job = appScope.launch {
+            try {
+                val conversation = getConversationFlow(conversationId).value
+                val newApprovalState = if (approved) {
+                    ToolApprovalState.Approved
+                } else {
+                    ToolApprovalState.Denied(reason)
+                }
+
+                // Update the tool call approval state
+                val updatedNodes = conversation.messageNodes.map { node ->
+                    node.copy(
+                        messages = node.messages.map { msg ->
+                            msg.copy(
+                                parts = msg.parts.map { part ->
+                                    if (part is UIMessagePart.ToolCall && part.toolCallId == toolCallId) {
+                                        part.copy(approvalState = newApprovalState)
+                                    } else {
+                                        part
+                                    }
+                                }
+                            )
+                        }
+                    )
+                }
+                val updatedConversation = conversation.copy(messageNodes = updatedNodes)
+                saveConversation(conversationId, updatedConversation)
+
+                // Check if there are still pending tool calls
+                val hasPendingToolCalls = updatedNodes.any { node ->
+                    node.currentMessage.parts.any { part ->
+                        part is UIMessagePart.ToolCall && part.approvalState is ToolApprovalState.Pending
+                    }
+                }
+
+                // Only continue generation when all pending tool calls are handled
+                if (!hasPendingToolCalls) {
+                    handleMessageComplete(conversationId)
+                }
+
+                _generationDoneFlow.emit(conversationId)
+            } catch (e: Exception) {
+                addError(e)
+            }
+        }
+
+        setGenerationJob(conversationId, job)
+        job.invokeOnCompletion {
+            setGenerationJob(conversationId, null)
+            appScope.launch {
+                delay(500)
+                checkAllConversationsReferences()
+            }
+        }
+    }
+
     // 处理消息补全
     private suspend fun handleMessageComplete(
         conversationId: Uuid,
@@ -553,6 +619,7 @@ class ChatService(
                                 name = "mcp__" + tool.name,
                                 description = tool.description ?: "",
                                 parameters = { tool.inputSchema },
+                                needsApproval = true,
                                 execute = {
                                     mcpManager.callTool(tool.name, it.jsonObject)
                                 },
@@ -814,6 +881,7 @@ class ChatService(
                     Tool(
                         name = "scrape_web",
                         description = "scrape web for content",
+                        needsApproval = true,
                         parameters = {
                             val options = settings.searchServices.getOrElse(
                                 index = settings.searchServiceSelected,
@@ -857,6 +925,13 @@ class ChatService(
         messagesNodes = messagesNodes.mapIndexed { index, node ->
             val next = if (index < messagesNodes.size - 1) messagesNodes[index + 1] else null
             if (node.currentMessage.hasPart<UIMessagePart.ToolCall>()) {
+                // Skip removal if any tool call is Approved (waiting to be executed)
+                val hasApprovedToolCall = node.currentMessage.parts
+                    .filterIsInstance<UIMessagePart.ToolCall>()
+                    .any { it.approvalState is ToolApprovalState.Approved }
+                if (hasApprovedToolCall) {
+                    return@mapIndexed node
+                }
                 if (next?.currentMessage?.hasPart<UIMessagePart.ToolResult>() != true) {
                     return@mapIndexed node.copy(
                         messages = node.messages.filter { it.id != node.currentMessage.id },

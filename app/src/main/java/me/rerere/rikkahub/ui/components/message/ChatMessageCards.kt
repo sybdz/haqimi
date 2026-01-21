@@ -67,6 +67,7 @@ fun ChatMessageCards(
     onTranslate: ((UIMessage, Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
     onArenaVote: ((MessageNode) -> Unit)? = null,
+    onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
 ) {
     if (nodes.isEmpty()) return
 
@@ -197,7 +198,8 @@ fun ChatMessageCards(
                                 messages = messages,
                                 messageIndex = messageIndex,
                                 loading = loading && message.finishedAt == null,
-                                onDeleteToolPart = {},
+                                onToolApproval = onToolApproval,
+                                onDeleteToolPart = null,
                             )
 
                             message.translation?.let { translation ->

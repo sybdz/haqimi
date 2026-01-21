@@ -67,6 +67,7 @@ class LocalTools(private val context: Context) {
     private fun buildJavascriptTool(description: String) = Tool(
         name = "eval_javascript",
         description = description,
+        needsApproval = true,
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
@@ -116,6 +117,7 @@ class LocalTools(private val context: Context) {
     private fun buildPythonTool(description: String) = Tool(
         name = "eval_python",
         description = description,
+        needsApproval = true,
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {

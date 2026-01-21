@@ -165,6 +165,7 @@ fun ChatMessage(
     onUpdate: (MessageNode) -> Unit,
     onTranslate: ((UIMessage, Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
+    onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
 ) {
     val message = node.messages[node.selectIndex]
     val chatMessages = conversation.currentMessages
@@ -210,55 +211,56 @@ fun ChatMessage(
                 )
             }
         }
-    ProvideTextStyle(textStyle) {
-        MessagePartsBlock(
-            assistant = assistant,
-            role = message.role,
-            parts = message.parts,
-            annotations = message.annotations,
-            messages = chatMessages,
-            messageIndex = messageIndex,
-            loading = loading,
-            model = model,
-            onDeleteToolPart = { toolCallId ->
-                conversation.messageNodes
-                    .asSequence()
-                    .filter { it.id != node.id }
-                    .filter { otherNode ->
-                        otherNode.currentMessage.parts.any { part ->
-                            (part is UIMessagePart.ToolCall && part.toolCallId == toolCallId) ||
-                                (part is UIMessagePart.ToolResult && part.toolCallId == toolCallId)
-                        }
-                    }
-                    .forEach { otherNode ->
-                        val otherMessage = otherNode.currentMessage
-                        val updatedOtherMessage = otherMessage.copy(
-                            parts = otherMessage.parts.filterNot { part ->
+        ProvideTextStyle(textStyle) {
+            MessagePartsBlock(
+                assistant = assistant,
+                role = message.role,
+                parts = message.parts,
+                annotations = message.annotations,
+                messages = chatMessages,
+                messageIndex = messageIndex,
+                loading = loading,
+                model = model,
+                onToolApproval = onToolApproval,
+                onDeleteToolPart = { toolCallId ->
+                    conversation.messageNodes
+                        .asSequence()
+                        .filter { it.id != node.id }
+                        .filter { otherNode ->
+                            otherNode.currentMessage.parts.any { part ->
                                 (part is UIMessagePart.ToolCall && part.toolCallId == toolCallId) ||
                                     (part is UIMessagePart.ToolResult && part.toolCallId == toolCallId)
                             }
-                        )
-                        val updatedOtherNodeMessages = otherNode.messages.toMutableList()
-                        updatedOtherNodeMessages[otherNode.selectIndex] = updatedOtherMessage
-                        onUpdate(otherNode.copy(messages = updatedOtherNodeMessages))
-                    }
+                        }
+                        .forEach { otherNode ->
+                            val otherMessage = otherNode.currentMessage
+                            val updatedOtherMessage = otherMessage.copy(
+                                parts = otherMessage.parts.filterNot { part ->
+                                    (part is UIMessagePart.ToolCall && part.toolCallId == toolCallId) ||
+                                        (part is UIMessagePart.ToolResult && part.toolCallId == toolCallId)
+                                }
+                            )
+                            val updatedOtherNodeMessages = otherNode.messages.toMutableList()
+                            updatedOtherNodeMessages[otherNode.selectIndex] = updatedOtherMessage
+                            onUpdate(otherNode.copy(messages = updatedOtherNodeMessages))
+                        }
 
-                val updatedMessage = message.copy(
-                    parts = message.parts.filterNot { part ->
-                        (part is UIMessagePart.ToolCall && part.toolCallId == toolCallId) ||
-                            (part is UIMessagePart.ToolResult && part.toolCallId == toolCallId)
-                    }
-                )
+                    val updatedMessage = message.copy(
+                        parts = message.parts.filterNot { part ->
+                            (part is UIMessagePart.ToolCall && part.toolCallId == toolCallId) ||
+                                (part is UIMessagePart.ToolResult && part.toolCallId == toolCallId)
+                        }
+                    )
 
-                if (updatedMessage.parts.isEmptyUIMessage()) {
-                    onDelete()
-                } else {
-                    val updatedNodeMessages = node.messages.toMutableList()
-                    updatedNodeMessages[node.selectIndex] = updatedMessage
-                    onUpdate(node.copy(messages = updatedNodeMessages))
+                    if (updatedMessage.parts.isEmptyUIMessage()) {
+                        onDelete()
+                    } else {
+                        val updatedNodeMessages = node.messages.toMutableList()
+                        updatedNodeMessages[node.selectIndex] = updatedMessage
+                        onUpdate(node.copy(messages = updatedNodeMessages))
+                    }
                 }
-            }
-        )
+            )
 
             message.translation?.let { translation ->
                 CollapsibleTranslationText(
@@ -340,7 +342,8 @@ internal fun MessagePartsBlock(
     messages: List<UIMessage>,
     messageIndex: Int,
     loading: Boolean,
-    onDeleteToolPart: (String) -> Unit,
+    onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
+    onDeleteToolPart: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
@@ -457,8 +460,17 @@ internal fun MessagePartsBlock(
                     arguments = runCatching { JsonInstant.parseToJsonElement(toolCall.arguments) }
                         .getOrElse { EmptyJson },
                     content = null,
+                    approvalState = toolCall.approvalState,
                     loading = loading,
-                    onDelete = { onDeleteToolPart(toolCall.toolCallId) },
+                    onApprove = if (onToolApproval != null) {
+                        { onToolApproval(toolCall.toolCallId, true, "") }
+                    } else null,
+                    onDeny = if (onToolApproval != null) {
+                        { reason -> onToolApproval(toolCall.toolCallId, false, reason) }
+                    } else null,
+                    onDelete = if (onDeleteToolPart != null) {
+                        { onDeleteToolPart(toolCall.toolCallId) }
+                    } else null,
                 )
             }
         }
@@ -469,7 +481,9 @@ internal fun MessagePartsBlock(
                 toolName = toolCall.toolName,
                 arguments = toolCall.arguments,
                 content = toolCall.content,
-                onDelete = { onDeleteToolPart(toolCall.toolCallId) },
+                onDelete = if (onDeleteToolPart != null) {
+                    { onDeleteToolPart(toolCall.toolCallId) }
+                } else null,
             )
         }
     }
