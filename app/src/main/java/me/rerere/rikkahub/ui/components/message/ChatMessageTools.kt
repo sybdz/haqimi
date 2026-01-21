@@ -21,16 +21,15 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -256,55 +255,45 @@ fun ToolCallItem(
                         }
                     }
                 }
-            }
-
-            DropdownMenu(
-                expanded = showActions,
-                onDismissRequest = { showActions = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.delete)) },
-                    onClick = {
-                        showActions = false
-                        onDelete?.invoke()
+                // Approval buttons for pending state
+                if (isPending && onApprove != null && onDeny != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        FilledTonalIconButton(
+                            onClick = { showDenyDialog = true },
+                        ) {
+                            Icon(
+                                imageVector = Lucide.X,
+                                contentDescription = stringResource(R.string.chat_message_tool_deny),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        FilledTonalIconButton(
+                            onClick = onApprove,
+                        ) {
+                            Icon(
+                                imageVector = Lucide.Check,
+                                contentDescription = stringResource(R.string.chat_message_tool_approve),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
-                )
+                }
             }
         }
 
-        // Approval buttons for pending state
-        if (isPending && onApprove != null && onDeny != null) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                FilledTonalButton(
-                    onClick = onApprove,
-                ) {
-                    Icon(
-                        imageVector = Lucide.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.chat_message_tool_approve),
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
+        DropdownMenu(
+            expanded = showActions,
+            onDismissRequest = { showActions = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.delete)) },
+                onClick = {
+                    showActions = false
+                    onDelete?.invoke()
                 }
-                OutlinedButton(
-                    onClick = { showDenyDialog = true },
-                ) {
-                    Icon(
-                        imageVector = Lucide.X,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.chat_message_tool_deny),
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
-            }
+            )
         }
     }
 
