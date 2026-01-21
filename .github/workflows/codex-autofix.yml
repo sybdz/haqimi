@@ -5,9 +5,7 @@ on:
     workflows: ["Release Build"]
     types: [completed]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: write-all
 
 jobs:
   auto-fix:
@@ -72,7 +70,7 @@ jobs:
           model: gpt-5.2-codex
           effort: xhigh
           safety-strategy: drop-sudo
-          sandbox: workspace-write
+          sandbox: danger-full-access
           prompt: |
             You are working in an Android Kotlin/Gradle project. The "Release Build" workflow failed.
             Read the repository, run the failing build locally (use ./gradlew assembleRelease --stacktrace),
