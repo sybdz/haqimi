@@ -69,6 +69,9 @@ jobs:
       - name: Run Codex
         id: codex
         uses: openai/codex-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           model: gpt-5.2-codex
