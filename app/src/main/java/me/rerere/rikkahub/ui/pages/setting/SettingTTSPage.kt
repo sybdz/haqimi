@@ -393,7 +393,7 @@ private fun TTSProviderItem(
                 }
                 if (validationError != null) {
                     Tag(type = TagType.ERROR) {
-                        Text("Invalid")
+                        Text(stringResource(R.string.setting_tts_page_invalid))
                     }
                 }
 

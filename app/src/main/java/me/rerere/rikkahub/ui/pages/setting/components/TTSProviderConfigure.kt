@@ -657,24 +657,30 @@ private fun QwenTTSConfiguration(
 
     // Language Type
     var languageExpanded by remember { mutableStateOf(false) }
-    val languageTypes = listOf("Auto", "Chinese", "English", "Japanese", "Korean")
+    val languageTypes = listOf(
+        "Auto" to stringResource(R.string.setting_tts_page_language_type_auto),
+        "Chinese" to stringResource(R.string.setting_tts_page_language_type_chinese),
+        "English" to stringResource(R.string.setting_tts_page_language_type_english),
+        "Japanese" to stringResource(R.string.setting_tts_page_language_type_japanese),
+        "Korean" to stringResource(R.string.setting_tts_page_language_type_korean),
+    )
+    val languageTypeLabel = languageTypes.firstOrNull { it.first == setting.languageType }?.second ?: setting.languageType
 
     FormItem(
-        label = { Text("Language Type") },
-        description = { Text("Language type for TTS synthesis") }
+        label = { Text(stringResource(R.string.setting_tts_page_language_type_title)) },
+        description = { Text(stringResource(R.string.setting_tts_page_language_type_desc)) }
     ) {
         ExposedDropdownMenuBox(
             expanded = languageExpanded,
             onExpandedChange = { languageExpanded = !languageExpanded }
         ) {
             OutlinedTextField(
-                value = setting.languageType,
-                onValueChange = { newLanguageType ->
-                    onValueChange(setting.copy(languageType = newLanguageType))
-                },
+                value = languageTypeLabel,
+                onValueChange = {},
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(MenuAnchorType.PrimaryEditable),
+                readOnly = true,
                 trailingIcon = {
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageExpanded)
                 }
@@ -683,9 +689,9 @@ private fun QwenTTSConfiguration(
                 expanded = languageExpanded,
                 onDismissRequest = { languageExpanded = false }
             ) {
-                languageTypes.forEach { languageType ->
+                languageTypes.forEach { (languageType, label) ->
                     DropdownMenuItem(
-                        text = { Text(languageType) },
+                        text = { Text(label) },
                         onClick = {
                             languageExpanded = false
                             onValueChange(setting.copy(languageType = languageType))

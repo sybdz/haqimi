@@ -331,7 +331,7 @@ private fun ColumnScope.ProviderConfigureGoogle(
             isError = !provider.baseUrl.endsWith("/v1beta"),
             supportingText = if (!provider.baseUrl.endsWith("/v1beta")) {
                 {
-                    Text("The base URL usually ends with `/v1beta`")
+                    Text(stringResource(R.string.setting_provider_page_vertex_ai_base_url_hint))
                 }
             } else null
         )

@@ -672,25 +672,6 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                     },
                 )
             }
-            item {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_show_line_numbers_title))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_show_line_numbers_desc))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = displaySetting.showLineNumbers,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(showLineNumbers = it))
-                            }
-                        )
-                    },
-                )
-            }
 
             item {
                 ListItem(

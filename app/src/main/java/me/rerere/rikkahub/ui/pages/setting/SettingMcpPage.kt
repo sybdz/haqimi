@@ -286,8 +286,8 @@ private fun McpServerItem(
                     ) {
                         Tag(type = TagType.SUCCESS) {
                             when (item) {
-                                is McpServerConfig.SseTransportServer -> Text("SSE")
-                                is McpServerConfig.StreamableHTTPServer -> Text("Streamable HTTP")
+                                is McpServerConfig.SseTransportServer -> Text(stringResource(R.string.setting_mcp_page_transport_sse))
+                                is McpServerConfig.StreamableHTTPServer -> Text(stringResource(R.string.setting_mcp_page_transport_streamable_http))
                             }
                         }
                     }
