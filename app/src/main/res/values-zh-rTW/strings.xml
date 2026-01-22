@@ -829,4 +829,10 @@
   <string name="chat_message_tool_deny_dialog_title">拒絕工具執行</string>
   <string name="chat_message_tool_deny_dialog_hint">原因（選填）</string>
   <string name="setting_mcp_page_needs_approval">需要審核</string>
+  <string name="setting_display_page_enable_html_rendering_title">渲染 HTML 區塊</string>
+  <string name="setting_display_page_enable_html_rendering_desc">在聊天訊息中渲染 HTML 區塊</string>
+  <string name="setting_display_page_enable_svg_rendering_title">渲染 SVG</string>
+  <string name="setting_display_page_enable_svg_rendering_desc">渲染 SVG 圖像與內嵌 SVG</string>
+  <string name="setting_page_tool_approval">需要工具審核</string>
+  <string name="setting_page_tool_approval_desc">執行工具前詢問</string>
 </resources>

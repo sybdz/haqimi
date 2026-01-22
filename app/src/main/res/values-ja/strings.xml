@@ -829,4 +829,10 @@
   <string name="chat_message_tool_deny_dialog_title">ツール実行を拒否</string>
   <string name="chat_message_tool_deny_dialog_hint">理由（任意）</string>
   <string name="setting_mcp_page_needs_approval">承認が必要</string>
+  <string name="setting_display_page_enable_html_rendering_title">HTML ブロックを表示</string>
+  <string name="setting_display_page_enable_html_rendering_desc">チャットメッセージ内の HTML ブロックを表示</string>
+  <string name="setting_display_page_enable_svg_rendering_title">SVG を表示</string>
+  <string name="setting_display_page_enable_svg_rendering_desc">SVG 画像とインライン SVG を表示</string>
+  <string name="setting_page_tool_approval">ツール承認が必要</string>
+  <string name="setting_page_tool_approval_desc">ツールを実行する前に確認する</string>
 </resources>
