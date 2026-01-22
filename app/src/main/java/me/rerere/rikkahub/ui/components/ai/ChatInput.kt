@@ -1325,11 +1325,13 @@ private fun McpQuickConfigMenu(
                 val serverStatus by mcpManager.getStatus(server)
                     .collectAsStateWithLifecycle(McpStatus.Idle)
                 val isEnabled = server.id in assistant.mcpServers
-                val statusLabel = when (serverStatus) {
+                val currentStatus = serverStatus
+                val statusLabel = when (currentStatus) {
                     McpStatus.Idle -> "Idle"
                     McpStatus.Connecting -> "Connecting"
                     McpStatus.Connected -> "Connected"
-                    is McpStatus.Error -> "Error: ${(serverStatus as McpStatus.Error).message}"
+                    is McpStatus.Reconnecting -> "Reconnecting (${currentStatus.attempt}/${currentStatus.maxAttempts})"
+                    is McpStatus.Error -> "Error: ${currentStatus.message}"
                 }
                 FloatingMenuItem(
                     icon = Lucide.Terminal,
