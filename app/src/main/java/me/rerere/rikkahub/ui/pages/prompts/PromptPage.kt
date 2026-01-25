@@ -78,6 +78,7 @@ import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.Wand
 import com.composables.icons.lucide.X
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.export.LorebookSerializer
 import me.rerere.rikkahub.data.export.ModeInjectionSerializer
@@ -472,6 +473,15 @@ private fun ModeInjectionEditSheet(
                     )
                 }
 
+                Text(
+                    stringResource(R.string.prompt_page_injection_role),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                InjectionRoleSelector(
+                    role = injection.role,
+                    onSelect = { onEdit(injection.copy(role = it)) }
+                )
+
                 OutlinedTextField(
                     value = injection.content,
                     onValueChange = { onEdit(injection.copy(content = it)) },
@@ -519,6 +529,27 @@ private fun getPositionLabel(position: InjectionPosition): String = when (positi
     InjectionPosition.TOP_OF_CHAT -> stringResource(R.string.prompt_page_position_top_of_chat)
     InjectionPosition.BOTTOM_OF_CHAT -> stringResource(R.string.prompt_page_position_bottom_of_chat)
     InjectionPosition.AT_DEPTH -> stringResource(R.string.prompt_page_position_at_depth)
+}
+
+@Composable
+private fun InjectionRoleSelector(
+    role: MessageRole,
+    onSelect: (MessageRole) -> Unit
+) {
+    Select(
+        options = listOf(MessageRole.USER, MessageRole.ASSISTANT),
+        selectedOption = role,
+        onOptionSelected = onSelect,
+        optionToString = { getRoleLabel(it) },
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun getRoleLabel(role: MessageRole): String = when (role) {
+    MessageRole.USER -> stringResource(R.string.prompt_page_role_user)
+    MessageRole.ASSISTANT -> stringResource(R.string.prompt_page_role_assistant)
+    else -> role.name
 }
 
 // ==================== Lorebook Tab ====================
@@ -1097,6 +1128,15 @@ private fun RegexInjectionEditDialog(
                     label = { Text(stringResource(R.string.prompt_page_scan_depth)) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+
+                Text(
+                    stringResource(R.string.prompt_page_injection_role),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                InjectionRoleSelector(
+                    role = entry.role,
+                    onSelect = { onEdit(entry.copy(role = it)) }
                 )
 
                 OutlinedTextField(

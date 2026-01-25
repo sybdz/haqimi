@@ -160,23 +160,27 @@ internal fun applyInjections(
     }
 
     // 处理 TOP_OF_CHAT：在第一条用户消息之前插入
-    val topContent = byPosition[InjectionPosition.TOP_OF_CHAT]
-        ?.joinToString("\n") { it.content }
-    if (!topContent.isNullOrEmpty()) {
+    val topInjections = byPosition[InjectionPosition.TOP_OF_CHAT]
+    if (!topInjections.isNullOrEmpty()) {
         // 重新计算索引（因为可能插入了系统消息）
         var insertIndex = result.indexOfFirst { it.role == MessageRole.USER }
             .takeIf { it >= 0 } ?: result.size
         insertIndex = findSafeInsertIndex(result, insertIndex)
-        result.add(insertIndex, UIMessage.user(wrapSystemTag(topContent)))
+        createMergedInjectionMessages(topInjections).forEach { message ->
+            result.add(insertIndex, message)
+            insertIndex++
+        }
     }
 
     // 处理 BOTTOM_OF_CHAT：在最后一条消息之前插入
-    val bottomContent = byPosition[InjectionPosition.BOTTOM_OF_CHAT]
-        ?.joinToString("\n") { it.content }
-    if (!bottomContent.isNullOrEmpty()) {
+    val bottomInjections = byPosition[InjectionPosition.BOTTOM_OF_CHAT]
+    if (!bottomInjections.isNullOrEmpty()) {
         var insertIndex = (result.size - 1).coerceAtLeast(0)
         insertIndex = findSafeInsertIndex(result, insertIndex)
-        result.add(insertIndex, UIMessage.user(wrapSystemTag(bottomContent)))
+        createMergedInjectionMessages(bottomInjections).forEach { message ->
+            result.add(insertIndex, message)
+            insertIndex++
+        }
     }
 
     // 处理 AT_DEPTH：在指定深度位置插入（从最新消息往前数）
@@ -185,16 +189,35 @@ internal fun applyInjections(
     if (!atDepthInjections.isNullOrEmpty()) {
         val byDepth = atDepthInjections.groupBy { it.injectDepth }
         byDepth.keys.sortedDescending().forEach { depth ->
-            val content = byDepth[depth]?.joinToString("\n") { it.content } ?: return@forEach
+            val injections = byDepth[depth] ?: return@forEach
             // 计算插入位置：result.size - depth，但要确保在有效范围内
             // depth=1 表示在最后一条消息之前，depth=2 表示在倒数第二条之前...
             var insertIndex = (result.size - depth).coerceIn(0, result.size)
             insertIndex = findSafeInsertIndex(result, insertIndex)
-            result.add(insertIndex, UIMessage.user(wrapSystemTag(content)))
+            createMergedInjectionMessages(injections).forEach { message ->
+                result.add(insertIndex, message)
+                insertIndex++
+            }
         }
     }
 
     return result
+}
+
+/**
+ * 将同一 role 的注入合并成消息列表
+ * 按 role 分组后合并内容，返回合并后的消息列表
+ */
+private fun createMergedInjectionMessages(injections: List<PromptInjection>): List<UIMessage> {
+    return injections
+        .groupBy { it.role }
+        .map { (role, grouped) ->
+            val mergedContent = grouped.joinToString("\n") { it.content }
+            when (role) {
+                MessageRole.ASSISTANT -> UIMessage.assistant(mergedContent)
+                else -> UIMessage.user(wrapSystemTag(mergedContent))
+            }
+        }
 }
 
 /**

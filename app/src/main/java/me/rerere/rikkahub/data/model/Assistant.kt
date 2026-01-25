@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.ui.UIMessage
@@ -132,6 +133,7 @@ sealed class PromptInjection {
     abstract val position: InjectionPosition
     abstract val content: String
     abstract val injectDepth: Int  // 当 position 为 AT_DEPTH 时使用，表示从最新消息往前数的位置
+    abstract val role: MessageRole  // 注入角色：USER 或 ASSISTANT
 
     /**
      * 模式注入 - 基于开关状态触发
@@ -146,6 +148,7 @@ sealed class PromptInjection {
         override val position: InjectionPosition = InjectionPosition.AFTER_SYSTEM_PROMPT,
         override val content: String = "",
         override val injectDepth: Int = 4,
+        override val role: MessageRole = MessageRole.USER,
     ) : PromptInjection()
 
     /**
@@ -161,6 +164,7 @@ sealed class PromptInjection {
         override val position: InjectionPosition = InjectionPosition.AFTER_SYSTEM_PROMPT,
         override val content: String = "",
         override val injectDepth: Int = 4,
+        override val role: MessageRole = MessageRole.USER,
         val keywords: List<String> = emptyList(),  // 触发关键词
         val useRegex: Boolean = false,             // 是否使用正则匹配
         val caseSensitive: Boolean = false,        // 大小写敏感

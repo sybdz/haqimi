@@ -224,7 +224,7 @@
   <string name="chat_page_search_placeholder">Search chats</string>
   <string name="chat_page_today">Today</string>
   <string name="chat_page_yesterday">Yesterday</string>
-  <string name="chat_size_dialog_content">Current size: %.2f MB. This may cause the application to crash or lag, or even lose this conversation data. Please create a new conversation as soon as possible to continue chatting.</string>
+  <string name="chat_size_dialog_content">Current message count: %1$d. This may cause the application to crash or lag, or even lose this conversation data. Please create a new conversation as soon as possible to continue chatting.</string>
   <string name="chat_size_dialog_title">This conversation data is too large</string>
   <string name="citations_count">%1$d Citations</string>
   <string name="code_block_collapse">Collapse</string>
@@ -749,6 +749,11 @@
   <string name="prompt_page_position_after_system">After System Prompt</string>
   <string name="prompt_page_position_top_of_chat">Top of Chat</string>
   <string name="prompt_page_position_bottom_of_chat">Before Latest Message</string>
+  <string name="prompt_page_position_at_depth">At Depth</string>
+  <string name="prompt_page_inject_depth">Inject Depth</string>
+  <string name="prompt_page_injection_role">Injection Role</string>
+  <string name="prompt_page_role_user">User (wrapped in system tag)</string>
+  <string name="prompt_page_role_assistant">Assistant (prefill)</string>
   <string name="prompt_page_lorebook_empty">No Lorebooks</string>
   <string name="prompt_page_add_lorebook">Add Lorebook</string>
   <string name="prompt_page_unnamed_lorebook">Unnamed Lorebook</string>
@@ -798,8 +803,6 @@
   <string name="text_area_fullscreen_edit">Fullscreen edit</string>
   <string name="text_area_import_from_file">Import from file</string>
   <string name="text_area_save">Save</string>
-  <string name="prompt_page_position_at_depth">At Depth</string>
-  <string name="prompt_page_inject_depth">Inject Depth</string>
   <string name="setting_page_request_logs">Request Logs</string>
   <string name="setting_page_request_logs_desc">View HTTP request logs</string>
   <string name="backup_page_s3_endpoint">Endpoint</string>
@@ -835,4 +838,9 @@
   <string name="setting_display_page_paste_long_text_as_file_desc">When pasting text exceeds the threshold, automatically save it as a file attachment</string>
   <string name="setting_display_page_paste_long_text_threshold_title">Text Length Threshold</string>
   <string name="setting_mcp_page_needs_approval">Needs Approval</string>
+  <string name="rikkahub_provider_description">Official free AI service, using user sponsorship funds to provide some free models for new users as fallback, no API key required. Has strict rate limits, if you have purchased your own provider, please use your own provider as much as possible.</string>
+  <string name="chat_page_compress_keep_recent">Keep recent messages</string>
+  <string name="chat_page_compress_not_enough_messages">Not enough messages to compress. Reduce the number of messages to keep or add more messages.</string>
+  <string name="setting_display_page_send_on_enter_title">Send on Enter</string>
+  <string name="setting_display_page_send_on_enter_desc">Press Enter to send message instead of adding a new line</string>
 </resources>

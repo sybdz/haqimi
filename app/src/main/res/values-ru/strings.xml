@@ -217,7 +217,7 @@
   <string name="chat_page_search_placeholder">Поиск чатов</string>
   <string name="chat_page_today">Сегодня</string>
   <string name="chat_page_yesterday">Вчера</string>
-  <string name="chat_size_dialog_content">Текущий размер: %.2f МБ. Это может привести к вылету или зависанию приложения, а также к потере данных этой беседы. Пожалуйста, создайте новый чат как можно скорее, чтобы продолжить общение.</string>
+  <string name="chat_size_dialog_content">Текущее количество сообщений: %1$d. Это может привести к вылету или зависанию приложения, а также к потере данных этой беседы. Пожалуйста, создайте новый чат как можно скорее, чтобы продолжить общение.</string>
   <string name="chat_size_dialog_title">Данные этого разговора слишком большие</string>
   <string name="citations_count">%1$d цитирований</string>
   <string name="code_block_collapse">Свернуть</string>
@@ -835,4 +835,12 @@
   <string name="setting_tts_page_language_type_japanese">Японский</string>
   <string name="setting_tts_page_language_type_korean">Корейский</string>
   <string name="setting_tts_page_language_type_title">Тип языка</string>
+  <string name="prompt_page_role_user">Пользователь (обернутый в системный тег)</string>
+  <string name="prompt_page_role_assistant">Ассистент (предварительное заполнение)</string>
+  <string name="prompt_page_injection_role">Роль инъекции</string>
+  <string name="rikkahub_provider_description">Официальный бесплатный AI-сервис, использующий средства спонсоров для предоставления новым пользователям бесплатных моделей в качестве резерва; API-ключ не требуется. Действуют строгие ограничения по частоте запросов. Если у вас есть собственный провайдер, используйте его по возможности.</string>
+  <string name="chat_page_compress_keep_recent">Сохранять недавние сообщения</string>
+  <string name="chat_page_compress_not_enough_messages">Недостаточно сообщений для сжатия. Уменьшите количество сохраняемых сообщений или добавьте больше сообщений.</string>
+  <string name="setting_display_page_send_on_enter_title">Отправлять по Enter</string>
+  <string name="setting_display_page_send_on_enter_desc">Нажмите Enter, чтобы отправить сообщение, а не добавить новую строку</string>
 </resources>

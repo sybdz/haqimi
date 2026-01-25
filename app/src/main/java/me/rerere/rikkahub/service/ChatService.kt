@@ -16,6 +16,8 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -1056,7 +1058,8 @@ class ChatService(
         conversationId: Uuid,
         conversation: Conversation,
         additionalPrompt: String,
-        targetTokens: Int
+        targetTokens: Int,
+        keepRecentMessages: Int = 32
     ): Result<Unit> = runCatching {
         val settings = settingsStore.settingsFlow.first()
         val model = settings.findModelById(settings.compressModelId)
@@ -1067,37 +1070,70 @@ class ChatService(
 
         val providerHandler = providerManager.getProviderByType(provider)
 
-        // Build the content to compress
-        val contentToCompress = conversation.currentMessages
-            .truncate(conversation.truncateIndex)
-            .joinToString("\n\n") { it.summaryAsText() }
+        val maxMessagesPerChunk = 256
+        val allMessages = conversation.currentMessages.truncate(conversation.truncateIndex)
 
-        // Build the prompt with placeholders
-        val prompt = settings.compressPrompt.applyPlaceholders(
-            "content" to contentToCompress,
-            "target_tokens" to targetTokens.toString(),
-            "additional_context" to if (additionalPrompt.isNotBlank()) {
-                "Additional instructions from user: $additionalPrompt"
-            } else "",
-            "locale" to Locale.getDefault().displayName
-        )
+        // Split messages into those to compress and those to keep
+        val messagesToCompress: List<UIMessage>
+        val messagesToKeep: List<UIMessage>
 
-        // Generate the compressed summary
-        val result = providerHandler.generateText(
-            providerSetting = provider,
-            messages = listOf(UIMessage.user(prompt)),
-            params = TextGenerationParams(
-                model = model,
-            ),
-        )
+        if (keepRecentMessages > 0 && allMessages.size > keepRecentMessages) {
+            messagesToCompress = allMessages.dropLast(keepRecentMessages)
+            messagesToKeep = allMessages.takeLast(keepRecentMessages)
+        } else if (keepRecentMessages > 0) {
+            // Not enough messages to compress while keeping recent ones
+            throw IllegalStateException(context.getString(R.string.chat_page_compress_not_enough_messages))
+        } else {
+            messagesToCompress = allMessages
+            messagesToKeep = emptyList()
+        }
 
-        val compressedSummary = result.choices[0].message?.toText()?.trim()
-            ?: throw IllegalStateException("Failed to generate compressed summary")
+        fun splitMessages(messages: List<UIMessage>): List<List<UIMessage>> {
+            if (messages.size <= maxMessagesPerChunk) return listOf(messages)
+            val mid = messages.size / 2
+            val left = splitMessages(messages.subList(0, mid))
+            val right = splitMessages(messages.subList(mid, messages.size))
+            return left + right
+        }
 
-        // Create new conversation with compressed history as user message
-        val summaryMessage = UIMessage.user(compressedSummary)
+        suspend fun compressMessages(messages: List<UIMessage>): String {
+            val contentToCompress = messages.joinToString("\n\n") { it.summaryAsText() }
+            val prompt = settings.compressPrompt.applyPlaceholders(
+                "content" to contentToCompress,
+                "target_tokens" to targetTokens.toString(),
+                "additional_context" to if (additionalPrompt.isNotBlank()) {
+                    "Additional instructions from user: $additionalPrompt"
+                } else "",
+                "locale" to Locale.getDefault().displayName
+            )
+
+            val result = providerHandler.generateText(
+                providerSetting = provider,
+                messages = listOf(UIMessage.user(prompt)),
+                params = TextGenerationParams(
+                    model = model,
+                ),
+            )
+
+            return result.choices[0].message?.toText()?.trim()
+                ?: throw IllegalStateException("Failed to generate compressed summary")
+        }
+
+        val compressedSummaries = coroutineScope {
+            splitMessages(messagesToCompress)
+                .map { chunk -> async { compressMessages(chunk) } }
+                .awaitAll()
+        }
+
+        // Create new conversation with compressed history as multiple user messages + kept messages
+        val newMessageNodes = buildList {
+            compressedSummaries.forEach { summary ->
+                add(UIMessage.user(summary).toMessageNode())
+            }
+            addAll(messagesToKeep.map { it.toMessageNode() })
+        }
         val newConversation = conversation.copy(
-            messageNodes = listOf(summaryMessage.toMessageNode()),
+            messageNodes = newMessageNodes,
             truncateIndex = -1,
             chatSuggestions = emptyList(),
         )

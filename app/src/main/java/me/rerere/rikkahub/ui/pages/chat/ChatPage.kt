@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -70,9 +69,7 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.ui.hooks.EditStateContent
-import me.rerere.rikkahub.ui.hooks.rememberChatInputState
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.createChatFilesByContents
@@ -121,13 +118,16 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
     val isBigScreen =
         windowAdaptiveInfo.width > windowAdaptiveInfo.height && windowAdaptiveInfo.width >= 1100.dp
 
-    val inputState = rememberChatInputState(
-        message = remember(files) {
-            buildList {
-                val localFiles = context.createChatFilesByContents(files)
-                val contentTypes = files.mapNotNull { file ->
-                    context.getFileMimeType(file)
-                }
+    val inputState = vm.inputState
+
+    // 初始化输入状态（处理传入的 files 和 text 参数）
+    LaunchedEffect(files, text) {
+        if (files.isNotEmpty()) {
+            val localFiles = context.createChatFilesByContents(files)
+            val contentTypes = files.mapNotNull { file ->
+                context.getFileMimeType(file)
+            }
+            val parts = buildList {
                 localFiles.forEachIndexed { index, file ->
                     val type = contentTypes.getOrNull(index)
                     if (type?.startsWith("image/") == true) {
@@ -139,15 +139,18 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>) {
                     }
                 }
             }
-        },
-        textContent = remember(text) {
-            text?.base64Decode() ?: ""
+            inputState.messageContent = parts
         }
-    )
+        text?.base64Decode()?.let { decodedText ->
+            if (decodedText.isNotEmpty()) {
+                inputState.setMessageText(decodedText)
+            }
+        }
+    }
 
     val chatListState = rememberLazyListState()
     LaunchedEffect(vm) {
-        if (!vm.chatListInitialized) {
+        if (!vm.chatListInitialized && chatListState.layoutInfo.totalItemsCount > 0) {
             chatListState.scrollToItem(chatListState.layoutInfo.totalItemsCount)
             vm.chatListInitialized = true
         }
@@ -368,8 +371,8 @@ private fun ChatPageContent(
                     onClearContext = {
                         vm.handleMessageTruncate()
                     },
-                    onCompressContext = { additionalPrompt, targetTokens ->
-                        vm.handleCompressContext(additionalPrompt, targetTokens)
+                    onCompressContext = { additionalPrompt, targetTokens, keepRecentMessages ->
+                        vm.handleCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
                     },
                     onUpdateCompressTargetTokens = { targetTokens ->
                         vm.updateSettings(setting.copy(compressTargetTokens = targetTokens))

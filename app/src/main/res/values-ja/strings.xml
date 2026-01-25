@@ -219,7 +219,7 @@
   <string name="chat_page_search_placeholder">会話を検索</string>
   <string name="chat_page_today">今日</string>
   <string name="chat_page_yesterday">昨日</string>
-  <string name="chat_size_dialog_content">現在のサイズ: %.2f MBです。これによりアプリがクラッシュしたり動作が遅くなったり、この会話データが失われる可能性があります。チャットを続けるには、できるだけ早く新しい会話を作成してください。</string>
+  <string name="chat_size_dialog_content">現在のメッセージ数: %1$d。これによりアプリがクラッシュしたり動作が遅くなったり、この会話データが失われる可能性があります。チャットを続けるには、できるだけ早く新しい会話を作成してください。</string>
   <string name="chat_size_dialog_title">この会話データは大きすぎます</string>
   <string name="citations_count">%1$d 件の引用</string>
   <string name="code_block_collapse">折りたたむ</string>
@@ -835,4 +835,12 @@
   <string name="setting_display_page_enable_svg_rendering_desc">SVG 画像とインライン SVG を表示</string>
   <string name="setting_page_tool_approval">ツール承認が必要</string>
   <string name="setting_page_tool_approval_desc">ツールを実行する前に確認する</string>
+  <string name="prompt_page_role_user">ユーザー（システムタグでラップ）</string>
+  <string name="prompt_page_role_assistant">アシスタント（プリフィル）</string>
+  <string name="prompt_page_injection_role">インジェクションロール</string>
+  <string name="rikkahub_provider_description">公式の無料AIサービスです。ユーザーのスポンサー資金を使い、新規ユーザーのためのフォールバック用の一部無料モデルを提供します。APIキーは不要です。厳しいレート制限があります。独自のプロバイダーを購入済みの場合は、可能な限りそちらをご利用ください。</string>
+  <string name="chat_page_compress_keep_recent">最近のメッセージを保持</string>
+  <string name="chat_page_compress_not_enough_messages">圧縮するためのメッセージが不足しています。保持するメッセージ数を減らすか、メッセージを追加してください。</string>
+  <string name="setting_display_page_send_on_enter_title">Enterキーで送信</string>
+  <string name="setting_display_page_send_on_enter_desc">Enterキーでメッセージを送信し、改行しない</string>
 </resources>

@@ -31,7 +31,8 @@ class PromptInjectionTransformerTest {
         priority: Int = 0,
         position: InjectionPosition = InjectionPosition.AFTER_SYSTEM_PROMPT,
         content: String = "Injected content",
-        injectDepth: Int = 4
+        injectDepth: Int = 4,
+        role: MessageRole = MessageRole.USER
     ) = PromptInjection.ModeInjection(
         id = id,
         name = name,
@@ -39,7 +40,8 @@ class PromptInjectionTransformerTest {
         priority = priority,
         position = position,
         content = content,
-        injectDepth = injectDepth
+        injectDepth = injectDepth,
+        role = role
     )
 
     private fun createRegexInjection(
@@ -50,6 +52,7 @@ class PromptInjectionTransformerTest {
         position: InjectionPosition = InjectionPosition.AFTER_SYSTEM_PROMPT,
         content: String = "Regex injected content",
         injectDepth: Int = 4,
+        role: MessageRole = MessageRole.USER,
         keywords: List<String> = listOf("trigger"),
         useRegex: Boolean = false,
         caseSensitive: Boolean = false,
@@ -63,6 +66,7 @@ class PromptInjectionTransformerTest {
         position = position,
         content = content,
         injectDepth = injectDepth,
+        role = role,
         keywords = keywords,
         useRegex = useRegex,
         caseSensitive = caseSensitive,

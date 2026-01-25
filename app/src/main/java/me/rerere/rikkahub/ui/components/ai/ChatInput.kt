@@ -42,6 +42,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -77,6 +78,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
@@ -189,7 +191,7 @@ fun ChatInput(
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     onClearContext: () -> Unit,
-    onCompressContext: (additionalPrompt: String, targetTokens: Int) -> Job,
+    onCompressContext: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -> Job,
     onUpdateCompressTargetTokens: (Int) -> Unit,
     onCancelClick: () -> Unit,
     onSendClick: () -> Unit,
@@ -276,7 +278,11 @@ fun ChatInput(
             MediaFileInputRow(state = state, context = context)
 
             // Text Input Row
-            TextInputRow(state = state, context = context)
+            TextInputRow(
+                state = state,
+                context = context,
+                onSendMessage = { sendMessage() }
+            )
 
             // Actions Row
             Row(
@@ -523,6 +529,7 @@ fun ChatInput(
 private fun TextInputRow(
     state: ChatInputState,
     context: Context,
+    onSendMessage: () -> Unit,
 ) {
     val settings = LocalSettings.current
     val assistant = settings.getCurrentAssistant()
@@ -615,6 +622,14 @@ private fun TextInputRow(
                         Text(stringResource(R.string.chat_input_placeholder))
                     },
                     lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = if (settings.displaySetting.sendOnEnter) ImeAction.Send else ImeAction.Default
+                    ),
+                    onKeyboardAction = {
+                        if (settings.displaySetting.sendOnEnter && !state.isEmpty()) {
+                            onSendMessage()
+                        }
+                    },
                     colors = TextFieldDefaults.colors().copy(
                         unfocusedIndicatorColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent,
@@ -865,7 +880,7 @@ private fun FilesPicker(
     chatModel: Model?,
     onOpenSubmenu: (ActionSubmenu) -> Unit,
     onClearContext: () -> Unit,
-    onCompressContext: (additionalPrompt: String, targetTokens: Int) -> Job,
+    onCompressContext: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -> Job,
     onDismiss: () -> Unit
 ) {
     val settings = LocalSettings.current
@@ -1153,16 +1168,18 @@ private fun ReasoningQuickConfigMenu(
 
 @Composable
 private fun CompressQuickConfigMenu(
-    onCompressContext: (String, Int) -> Job,
+    onCompressContext: (String, Int, Int) -> Job,
     defaultTokens: Int,
     onUpdateDefaultTokens: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var additionalPrompt by remember { mutableStateOf("") }
     val tokenOptions = listOf(500, 1000, 2000, 4000)
+    val keepRecentOptions = listOf(0, 16, 32, 64)
     val initialTokens = if (defaultTokens > 0) defaultTokens else 2000
     var selectedTokens by remember { mutableStateOf(initialTokens) }
     var tokenInput by remember { mutableStateOf(initialTokens.toString()) }
+    var keepRecentMessages by remember { mutableStateOf(32) }
     var currentJob by remember { mutableStateOf<Job?>(null) }
     val isLoading = currentJob?.isActive == true
 
@@ -1247,6 +1264,27 @@ private fun CompressQuickConfigMenu(
                 .padding(horizontal = 12.dp),
         )
 
+        Text(
+            text = stringResource(R.string.chat_page_compress_keep_recent),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+        )
+
+        keepRecentOptions.forEach { count ->
+            val selected = keepRecentMessages == count
+            FloatingMenuItem(
+                icon = if (selected) Lucide.Check else Lucide.Files,
+                text = count.toString(),
+                contentColor = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                onClick = { keepRecentMessages = count },
+            )
+        }
+
         OutlinedTextField(
             value = additionalPrompt,
             onValueChange = { additionalPrompt = it },
@@ -1275,7 +1313,7 @@ private fun CompressQuickConfigMenu(
                 if (tokens <= 0) {
                     return@TextButton
                 }
-                currentJob = onCompressContext(additionalPrompt, tokens)
+                currentJob = onCompressContext(additionalPrompt, tokens, keepRecentMessages)
             },
             modifier = Modifier.align(Alignment.End)
         ) {

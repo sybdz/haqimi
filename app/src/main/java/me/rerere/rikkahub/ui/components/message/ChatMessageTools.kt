@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -173,6 +174,7 @@ fun ToolCallItem(
                     }
                     Column(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(
                             text = when (toolName) {
@@ -193,6 +195,8 @@ fun ToolCallItem(
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.shimmer(isLoading = loading),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         if (toolName == ToolNames.CREATE_MEMORY || toolName == ToolNames.EDIT_MEMORY) {
                             content.getStringContent("content")?.let { memoryContent ->
@@ -254,29 +258,29 @@ fun ToolCallItem(
                             )
                         }
                     }
-                }
-                // Approval buttons for pending state
-                if (isPending && onApprove != null && onDeny != null) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        FilledTonalIconButton(
-                            onClick = { showDenyDialog = true },
+                    // Approval buttons for pending state
+                    if (isPending && onApprove != null && onDeny != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            Icon(
-                                imageVector = Lucide.X,
-                                contentDescription = stringResource(R.string.chat_message_tool_deny),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        FilledTonalIconButton(
-                            onClick = onApprove,
-                        ) {
-                            Icon(
-                                imageVector = Lucide.Check,
-                                contentDescription = stringResource(R.string.chat_message_tool_approve),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            FilledTonalIconButton(
+                                onClick = { showDenyDialog = true },
+                            ) {
+                                Icon(
+                                    imageVector = Lucide.X,
+                                    contentDescription = stringResource(R.string.chat_message_tool_deny),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            FilledTonalIconButton(
+                                onClick = onApprove,
+                            ) {
+                                Icon(
+                                    imageVector = Lucide.Check,
+                                    contentDescription = stringResource(R.string.chat_message_tool_approve),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
