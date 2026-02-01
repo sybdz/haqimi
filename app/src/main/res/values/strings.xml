@@ -65,6 +65,8 @@
   <string name="assistant_page_local_tools_javascript_engine_title">JavaScript Engine</string>
   <string name="assistant_page_local_tools_time_info_desc">Get current date, weekday, time, and timezone info from the device</string>
   <string name="assistant_page_local_tools_time_info_title">Time Info</string>
+  <string name="assistant_page_local_tools_clipboard_desc">Read or write plain text from the device clipboard</string>
+  <string name="assistant_page_local_tools_clipboard_title">Clipboard</string>
   <string name="assistant_page_manage_memory_title">Manage Memory</string>
   <string name="assistant_page_max_tokens">Max Tokens</string>
   <string name="assistant_page_max_tokens_desc">Maximum number of tokens to generate. Leave empty for no limit.</string>
@@ -196,6 +198,9 @@
   <string name="chat_message_tool_denied">Denied</string>
   <string name="chat_message_tool_deny_dialog_title">Deny Tool Execution</string>
   <string name="chat_message_tool_deny_dialog_hint">Reason (optional)</string>
+  <string name="chat_message_tool_get_time">Get time info</string>
+  <string name="chat_message_tool_clipboard_read">Read clipboard</string>
+  <string name="chat_message_tool_clipboard_write">Write clipboard</string>
   <string name="chat_page_cancel">Cancel</string>
   <string name="chat_page_clear_context">Clear Context</string>
   <string name="chat_page_clear_all_errors">Clear all</string>
@@ -771,5 +776,15 @@
   <string name="chain_of_thought_show_more_steps">Show %d more steps</string>
   <string name="assistant_page_global_memory">Global Memory</string>
   <string name="assistant_page_global_memory_desc">Use global shared memory instead of assistant-isolated memory. When enabled, all assistants share the same memory storage</string>
+  <string name="notification_channel_chat_live_update">Chat Generation Progress</string>
+  <string name="notification_live_update_title">Generating response...</string>
+  <string name="notification_live_update_thinking">Thinking...</string>
+  <string name="notification_live_update_tool">Running tool: %s</string>
+  <string name="notification_live_update_writing">Writing response...</string>
+  <string name="notification_live_update_chip_thinking">Thinking</string>
+  <string name="notification_live_update_chip_tool">Tool</string>
+  <string name="notification_live_update_chip_writing">Writing</string>
+  <string name="setting_display_page_live_update_notification">Live Update Notification</string>
+  <string name="setting_display_page_live_update_notification_desc">Show real-time notification updates during message generation (Android 15+)</string>
 </resources>
 
