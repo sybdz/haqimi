@@ -34,10 +34,6 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("clipboard")
     data object Clipboard : LocalToolOption()
-
-    @Serializable
-    @SerialName("sequential_thinking")
-    data object SequentialThinking : LocalToolOption()
 }
 
 class LocalTools(private val context: Context) {
