@@ -7,11 +7,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -44,26 +41,6 @@ sealed class LocalToolOption {
 }
 
 class LocalTools(private val context: Context) {
-    private data class SequentialThoughtData(
-        val thought: String,
-        val thoughtNumber: Int,
-        val totalThoughts: Int,
-        val nextThoughtNeeded: Boolean,
-        val isRevision: Boolean? = null,
-        val revisesThought: Int? = null,
-        val branchFromThought: Int? = null,
-        val branchId: String? = null,
-        val needsMoreThoughts: Boolean? = null,
-    )
-
-    private class SequentialThinkingState {
-        val thoughtHistory = mutableListOf<SequentialThoughtData>()
-        val branches = linkedMapOf<String, MutableList<SequentialThoughtData>>()
-    }
-
-    // Keep the same semantics as MCP server: state persists across invocations.
-    private val sequentialThinkingState = SequentialThinkingState()
-
     val javascriptTool by lazy {
         Tool(
             name = "eval_javascript",
@@ -215,110 +192,6 @@ class LocalTools(private val context: Context) {
         )
     }
 
-    val sequentialThinkingTool by lazy {
-        Tool(
-            name = "sequentialthinking",
-            description = "Record a step-by-step thought sequence and return metadata (MCP-compatible sequential-thinking behavior).",
-            parameters = {
-                InputSchema.Obj(
-                    properties = buildJsonObject {
-                        put("thought", buildJsonObject {
-                            put("type", "string")
-                            put("description", "The current thinking step content")
-                        })
-                        put("nextThoughtNeeded", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "Whether another thought step is needed")
-                        })
-                        put("thoughtNumber", buildJsonObject {
-                            put("type", "integer")
-                            put("minimum", 1)
-                            put("description", "Current thought number in sequence (>= 1)")
-                        })
-                        put("totalThoughts", buildJsonObject {
-                            put("type", "integer")
-                            put("minimum", 1)
-                            put("description", "Estimated total thoughts needed (>= 1)")
-                        })
-                        put("isRevision", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "Whether this thought revises previous thinking")
-                        })
-                        put("revisesThought", buildJsonObject {
-                            put("type", "integer")
-                            put("minimum", 1)
-                            put("description", "Which thought number is being reconsidered (>= 1)")
-                        })
-                        put("branchFromThought", buildJsonObject {
-                            put("type", "integer")
-                            put("minimum", 1)
-                            put("description", "Branching point thought number for alternative reasoning paths (>= 1)")
-                        })
-                        put("branchId", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Identifier for the current branch")
-                        })
-                        put("needsMoreThoughts", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "If reaching end but realizing more thoughts are needed")
-                        })
-                    },
-                    required = listOf("thought", "nextThoughtNeeded", "thoughtNumber", "totalThoughts")
-                )
-            },
-            execute = {
-                val obj = it.jsonObject
-                val thought = obj["thought"]?.jsonPrimitive?.contentOrNull ?: error("thought is required")
-                val nextThoughtNeeded = obj["nextThoughtNeeded"]?.jsonPrimitive?.booleanOrNull
-                    ?: error("nextThoughtNeeded is required")
-                val thoughtNumber = obj["thoughtNumber"]?.jsonPrimitive?.intOrNull ?: error("thoughtNumber is required")
-                val totalThoughtsRaw = obj["totalThoughts"]?.jsonPrimitive?.intOrNull ?: error("totalThoughts is required")
-
-                if (thoughtNumber < 1) error("thoughtNumber must be >= 1")
-                if (totalThoughtsRaw < 1) error("totalThoughts must be >= 1")
-
-                val isRevision = obj["isRevision"]?.jsonPrimitive?.booleanOrNull
-                val revisesThought = obj["revisesThought"]?.jsonPrimitive?.intOrNull
-                val branchFromThought = obj["branchFromThought"]?.jsonPrimitive?.intOrNull
-                val branchId = obj["branchId"]?.jsonPrimitive?.contentOrNull
-                val needsMoreThoughts = obj["needsMoreThoughts"]?.jsonPrimitive?.booleanOrNull
-
-                if (revisesThought != null && revisesThought < 1) error("revisesThought must be >= 1")
-                if (branchFromThought != null && branchFromThought < 1) error("branchFromThought must be >= 1")
-
-                val totalThoughts = maxOf(totalThoughtsRaw, thoughtNumber)
-
-                val data = SequentialThoughtData(
-                    thought = thought,
-                    thoughtNumber = thoughtNumber,
-                    totalThoughts = totalThoughts,
-                    nextThoughtNeeded = nextThoughtNeeded,
-                    isRevision = isRevision,
-                    revisesThought = revisesThought,
-                    branchFromThought = branchFromThought,
-                    branchId = branchId,
-                    needsMoreThoughts = needsMoreThoughts,
-                )
-
-                sequentialThinkingState.thoughtHistory += data
-                if (branchFromThought != null && !branchId.isNullOrBlank()) {
-                    sequentialThinkingState.branches.getOrPut(branchId) { mutableListOf() } += data
-                }
-
-                val payload = buildJsonObject {
-                    put("thoughtNumber", thoughtNumber)
-                    put("totalThoughts", totalThoughts)
-                    put("nextThoughtNeeded", nextThoughtNeeded)
-                    put("branches", buildJsonArray {
-                        sequentialThinkingState.branches.keys.forEach { add(it) }
-                    })
-                    put("thoughtHistoryLength", sequentialThinkingState.thoughtHistory.size)
-                }
-                listOf(UIMessagePart.Text(payload.toString()))
-            }
-        )
-    }
-
     fun getTools(options: List<LocalToolOption>): List<Tool> {
         val tools = mutableListOf<Tool>()
         if (options.contains(LocalToolOption.JavascriptEngine)) {
@@ -329,9 +202,6 @@ class LocalTools(private val context: Context) {
         }
         if (options.contains(LocalToolOption.Clipboard)) {
             tools.add(clipboardTool)
-        }
-        if (options.contains(LocalToolOption.SequentialThinking)) {
-            tools.add(sequentialThinkingTool)
         }
         return tools
     }
