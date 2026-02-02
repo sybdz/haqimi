@@ -48,7 +48,10 @@ import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.LocalTools
+import me.rerere.rikkahub.data.ai.tools.SequentialThinkingSessionState
+import me.rerere.rikkahub.data.ai.tools.createSequentialThinkingTool
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -116,6 +119,9 @@ class ChatService(
 ) {
     // 存储每个对话的状态
     private val conversations = ConcurrentHashMap<Uuid, MutableStateFlow<Conversation>>()
+
+    // Per-conversation state for sequentialthinking local tool.
+    private val sequentialThinkingStates = ConcurrentHashMap<Uuid, SequentialThinkingSessionState>()
 
     // 记录哪些conversation有VM引用
     private val conversationReferences = ConcurrentHashMap<Uuid, Int>()
@@ -479,6 +485,20 @@ class ChatService(
                         addAll(createSearchTools(settings))
                     }
                     addAll(localTools.getTools(settings.getCurrentAssistant().localTools))
+                    if (settings.getCurrentAssistant().localTools.contains(LocalToolOption.SequentialThinking)) {
+                        add(
+                            createSequentialThinkingTool(
+                                getState = {
+                                    sequentialThinkingStates.computeIfAbsent(conversationId) {
+                                        SequentialThinkingSessionState()
+                                    }
+                                },
+                                onSequenceEnded = {
+                                    sequentialThinkingStates.remove(conversationId)
+                                }
+                            )
+                        )
+                    }
                     mcpManager.getAllAvailableTools().forEach { tool ->
                         add(
                             Tool(
@@ -1019,6 +1039,7 @@ class ChatService(
         getGenerationJob(conversationId)?.cancel()
         removeGenerationJob(conversationId)
         conversations.remove(conversationId)
+        sequentialThinkingStates.remove(conversationId)
 
         Log.i(
             TAG,
