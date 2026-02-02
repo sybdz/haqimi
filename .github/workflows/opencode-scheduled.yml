@@ -29,4 +29,5 @@ jobs:
           use_github_token: true
           prompt: |
             Review the codebase for TODO/FIXME comments and risky areas.
-            Summarize findings and, if actionable, open issues to track them.
+            If issues are warranted, open them directly; do not ask for confirmation.
+            Provide a brief summary of what you did; do not ask questions.

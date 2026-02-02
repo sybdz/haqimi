@@ -30,3 +30,4 @@ jobs:
           prompt: |
             Review this pull request for correctness, security, and maintainability.
             Leave concise, actionable comments and call out any missing tests.
+            Do not ask questions or request confirmation; only leave the review.
