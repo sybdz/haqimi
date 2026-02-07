@@ -71,21 +71,6 @@ private fun AssistantLocalToolContent(
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Sequential Thinking 工具卡片
-        LocalToolCard(
-            title = stringResource(R.string.assistant_page_local_tools_sequential_thinking_title),
-            description = stringResource(R.string.assistant_page_local_tools_sequential_thinking_desc),
-            isEnabled = assistant.localTools.contains(LocalToolOption.SequentialThinking),
-            onToggle = { enabled ->
-                val newLocalTools = if (enabled) {
-                    assistant.localTools + LocalToolOption.SequentialThinking
-                } else {
-                    assistant.localTools - LocalToolOption.SequentialThinking
-                }
-                onUpdate(assistant.copy(localTools = newLocalTools))
-            }
-        )
-
         // JavaScript 引擎工具卡片
         LocalToolCard(
             title = stringResource(R.string.assistant_page_local_tools_javascript_engine_title),

@@ -14,7 +14,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
-import me.rerere.ai.tools.SequentialThinkingTool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.utils.readClipboardText
 import me.rerere.rikkahub.utils.writeClipboardText
@@ -35,17 +34,9 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("clipboard")
     data object Clipboard : LocalToolOption()
-
-    @Serializable
-    @SerialName("sequential_thinking")
-    data object SequentialThinking : LocalToolOption()
 }
 
 class LocalTools(private val context: Context) {
-    val sequentialThinkingTool by lazy {
-        SequentialThinkingTool.create()
-    }
-
     val javascriptTool by lazy {
         Tool(
             name = "eval_javascript",
@@ -199,9 +190,6 @@ class LocalTools(private val context: Context) {
 
     fun getTools(options: List<LocalToolOption>): List<Tool> {
         val tools = mutableListOf<Tool>()
-        if (options.contains(LocalToolOption.SequentialThinking)) {
-            tools.add(sequentialThinkingTool)
-        }
         if (options.contains(LocalToolOption.JavascriptEngine)) {
             tools.add(javascriptTool)
         }
