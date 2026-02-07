@@ -63,6 +63,8 @@
   <string name="assistant_page_invalid_json">Invalid JSON: %s</string>
   <string name="assistant_page_local_tools_javascript_engine_desc">Execute JavaScript code with QuickJS engine for calculations and scripting</string>
   <string name="assistant_page_local_tools_javascript_engine_title">JavaScript Engine</string>
+  <string name="assistant_page_local_tools_sequential_thinking_desc">Structure reasoning into numbered thoughts with optional branching and revisions</string>
+  <string name="assistant_page_local_tools_sequential_thinking_title">Sequential Thinking</string>
   <string name="assistant_page_local_tools_time_info_desc">Get current date, weekday, time, and timezone info from the device</string>
   <string name="assistant_page_local_tools_time_info_title">Time Info</string>
   <string name="assistant_page_local_tools_clipboard_desc">Read or write plain text from the device clipboard</string>
@@ -799,4 +801,3 @@
   <string name="setting_files_page_folder_upload">Upload</string>
   <string name="setting_files_page_delete_content_description">Delete</string>
 </resources>
-
