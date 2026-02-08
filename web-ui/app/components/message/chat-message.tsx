@@ -7,8 +7,11 @@ import {
   ChevronRight,
   Clock3,
   Copy,
+  Ellipsis,
+  GitFork,
   Pencil,
   RefreshCw,
+  Trash2,
   Zap,
 } from "lucide-react";
 
@@ -17,6 +20,12 @@ import type { MessageDto, MessageNodeDto, TokenUsage, UIMessagePart } from "~/ty
 
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { MessageParts } from "./message-part";
 
 interface ChatMessageProps {
@@ -27,6 +36,8 @@ interface ChatMessageProps {
   onEdit?: (message: MessageDto) => void | Promise<void>;
   onRegenerate?: (messageId: string) => void | Promise<void>;
   onSelectBranch?: (nodeId: string, selectIndex: number) => void | Promise<void>;
+  onDelete?: (messageId: string) => void | Promise<void>;
+  onFork?: (messageId: string) => void | Promise<void>;
   onToolApproval?: (
     toolCallId: string,
     approved: boolean,
@@ -150,6 +161,8 @@ function ChatMessageActionsRow({
   onEdit,
   onRegenerate,
   onSelectBranch,
+  onDelete,
+  onFork,
 }: {
   node: MessageNodeDto;
   message: MessageDto;
@@ -158,9 +171,13 @@ function ChatMessageActionsRow({
   onEdit?: (message: MessageDto) => void | Promise<void>;
   onRegenerate?: (messageId: string) => void | Promise<void>;
   onSelectBranch?: (nodeId: string, selectIndex: number) => void | Promise<void>;
+  onDelete?: (messageId: string) => void | Promise<void>;
+  onFork?: (messageId: string) => void | Promise<void>;
 }) {
   const [regenerating, setRegenerating] = React.useState(false);
   const [switchingBranch, setSwitchingBranch] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [forking, setForking] = React.useState(false);
 
   const handleCopy = React.useCallback(async () => {
     const text = buildCopyText(message.parts);
@@ -200,9 +217,34 @@ function ChatMessageActionsRow({
     [node.id, node.messages.length, node.selectIndex, onSelectBranch],
   );
 
+  const handleDelete = React.useCallback(async () => {
+    if (!onDelete) return;
+
+    const confirmed = window.confirm("确认删除这条消息吗？");
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      await onDelete(message.id);
+    } finally {
+      setDeleting(false);
+    }
+  }, [message.id, onDelete]);
+
+  const handleFork = React.useCallback(async () => {
+    if (!onFork) return;
+
+    setForking(true);
+    try {
+      await onFork(message.id);
+    } finally {
+      setForking(false);
+    }
+  }, [message.id, onFork]);
+
   const canSwitchBranch = Boolean(onSelectBranch) && node.messages.length > 1;
   const canEdit = Boolean(onEdit) && (message.role === "USER" || message.role === "ASSISTANT") && hasEditableContent(message.parts);
-  const selectDisabled = loading || switchingBranch || regenerating;
+  const actionDisabled = loading || switchingBranch || regenerating || deleting || forking;
 
   return (
     <div
@@ -213,6 +255,7 @@ function ChatMessageActionsRow({
     >
       <Button
         aria-label="复制消息"
+        disabled={actionDisabled}
         onClick={() => {
           void handleCopy();
         }}
@@ -227,7 +270,7 @@ function ChatMessageActionsRow({
       {canEdit && (
         <Button
           aria-label="编辑消息"
-          disabled={loading || regenerating || switchingBranch}
+          disabled={actionDisabled}
           onClick={() => {
             void onEdit?.(message);
           }}
@@ -243,7 +286,7 @@ function ChatMessageActionsRow({
       {onRegenerate && (
         <Button
           aria-label="重新生成"
-          disabled={loading || regenerating}
+          disabled={actionDisabled}
           onClick={() => {
             void handleRegenerate();
           }}
@@ -260,7 +303,7 @@ function ChatMessageActionsRow({
         <>
           <Button
             aria-label="上一分支"
-            disabled={selectDisabled || node.selectIndex <= 0}
+            disabled={actionDisabled || node.selectIndex <= 0}
             onClick={() => {
               void handleSwitchBranch(node.selectIndex - 1);
             }}
@@ -276,7 +319,7 @@ function ChatMessageActionsRow({
           </span>
           <Button
             aria-label="下一分支"
-            disabled={selectDisabled || node.selectIndex >= node.messages.length - 1}
+            disabled={actionDisabled || node.selectIndex >= node.messages.length - 1}
             onClick={() => {
               void handleSwitchBranch(node.selectIndex + 1);
             }}
@@ -288,6 +331,46 @@ function ChatMessageActionsRow({
             <ChevronRight className="size-3.5" />
           </Button>
         </>
+      )}
+
+      {onDelete && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label="更多操作"
+              disabled={actionDisabled}
+              size="icon-xs"
+              title="更多操作"
+              type="button"
+              variant="ghost"
+            >
+              <Ellipsis className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align={alignRight ? "end" : "start"}>
+            {onFork && (
+              <DropdownMenuItem
+                disabled={actionDisabled}
+                onSelect={() => {
+                  void handleFork();
+                }}
+              >
+                <GitFork className="size-3.5" />
+                创建分叉
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={actionDisabled}
+              onSelect={() => {
+                void handleDelete();
+              }}
+            >
+              <Trash2 className="size-3.5" />
+              删除
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );
@@ -334,6 +417,8 @@ export function ChatMessage({
   onEdit,
   onRegenerate,
   onSelectBranch,
+  onDelete,
+  onFork,
   onToolApproval,
 }: ChatMessageProps) {
   const isUser = message.role === "USER";
@@ -366,6 +451,8 @@ export function ChatMessage({
           onEdit={onEdit}
           onRegenerate={onRegenerate}
           onSelectBranch={onSelectBranch}
+          onDelete={onDelete}
+          onFork={onFork}
         />
       )}
 

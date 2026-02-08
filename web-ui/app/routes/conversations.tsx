@@ -11,7 +11,7 @@ import {
 } from "~/components/extended/conversation";
 import { ChatInput } from "~/components/message/chat-input";
 import { ChatMessage } from "~/components/message/chat-message";
-import { Spinner } from "~/components/ui/spinner";
+import { TypingIndicator } from "~/components/ui/typing-indicator";
 import {
   SidebarInset,
   SidebarProvider,
@@ -397,11 +397,12 @@ function useDraftInputController({
     }
 
     const conversationId = uuidv4();
-    navigate(`/c/${conversationId}`);
     setHomeDraftId(createHomeDraftId());
 
     await api.post<{ status: string }>(`conversations/${conversationId}/messages`, { parts });
     clearDraft(draftKey);
+
+    navigate(`/c/${conversationId}`);
     refreshList();
   }, [activeId, clearDraft, draftKey, getSubmitParts, navigate, refreshList, setHomeDraftId]);
 
@@ -447,6 +448,8 @@ function ConversationTimeline({
   selectedNodeMessages,
   isGenerating,
   onEdit,
+  onDelete,
+  onFork,
   onRegenerate,
   onSelectBranch,
   onToolApproval,
@@ -458,20 +461,16 @@ function ConversationTimeline({
   selectedNodeMessages: SelectedNodeMessage[];
   isGenerating: boolean;
   onEdit: (message: MessageDto) => void | Promise<void>;
+  onDelete: (messageId: string) => Promise<void>;
+  onFork: (messageId: string) => Promise<void>;
   onRegenerate: (messageId: string) => Promise<void>;
   onSelectBranch: (nodeId: string, selectIndex: number) => Promise<void>;
   onToolApproval: (toolCallId: string, approved: boolean, reason: string) => Promise<void>;
 }) {
+
   return (
     <Conversation className="flex-1 min-h-0">
       <ConversationContent className="mx-auto w-full max-w-3xl gap-4 px-4 py-6">
-        {!activeId && isHomeRoute && (
-          <ConversationEmptyState
-            icon={<MessageSquare className="size-10" />}
-            title="开始新对话"
-            description="输入消息后将自动创建会话"
-          />
-        )}
         {!activeId && !isHomeRoute && (
           <ConversationEmptyState
             icon={<MessageSquare className="size-10" />}
@@ -509,20 +508,53 @@ function ConversationTimeline({
               loading={isGenerating && index === selectedNodeMessages.length - 1}
               isLastMessage={index === selectedNodeMessages.length - 1}
               onEdit={onEdit}
+              onDelete={onDelete}
+              onFork={onFork}
               onRegenerate={onRegenerate}
               onSelectBranch={onSelectBranch}
               onToolApproval={onToolApproval}
             />
           ))}
         {!detailLoading && !detailError && activeId && isGenerating && (
-          <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
-            <Spinner className="size-3.5" />
-            <span>正在生成回复...</span>
+          <div className="flex items-start py-2">
+            <TypingIndicator className="px-1 py-2" />
           </div>
         )}
       </ConversationContent>
+
       <ConversationScrollButton />
     </Conversation>
+  );
+}
+
+function ConversationSuggestions({
+  suggestions,
+  onClickSuggestion,
+}: {
+  suggestions: string[];
+  onClickSuggestion: (suggestion: string) => void;
+}) {
+  if (suggestions.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-3xl px-4 pb-1">
+      <div className="flex gap-2 overflow-x-auto">
+        {suggestions.map((suggestion, index) => (
+          <button
+            key={`${suggestion}-${index}`}
+            type="button"
+            className="shrink-0 rounded-full border bg-transparent px-3 py-1 text-xs text-foreground transition-colors hover:bg-muted/40"
+            onClick={() => {
+              onClickSuggestion(suggestion);
+            }}
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -587,6 +619,18 @@ export default function ConversationsPage() {
   });
 
   const activeConversation = conversations.find((item) => item.id === activeId);
+  const chatSuggestions = detail?.chatSuggestions ?? [];
+
+  React.useEffect(() => {
+    const base = "RikkaHub Web";
+    document.title = activeConversation?.title
+      ? `${activeConversation.title} - ${base}`
+      : base;
+    return () => {
+      document.title = base;
+    };
+  }, [activeConversation?.title]);
+  const showSuggestions = Boolean(activeId) && !detailLoading && !detailError && chatSuggestions.length > 0;
 
   const handleSelect = React.useCallback(
     (id: string) => {
@@ -647,6 +691,27 @@ export default function ConversationsPage() {
     [activeId],
   );
 
+  const handleDeleteMessage = React.useCallback(
+    async (messageId: string) => {
+      if (!activeId) return;
+      await api.delete<{ status: string }>(`conversations/${activeId}/messages/${messageId}`);
+    },
+    [activeId],
+  );
+
+  const handleForkMessage = React.useCallback(
+    async (messageId: string) => {
+      if (!activeId) return;
+      const response = await api.post<{ conversationId: string }>(`conversations/${activeId}/fork`, {
+        messageId,
+      });
+      setActiveId(response.conversationId);
+      navigate(`/c/${response.conversationId}`);
+      refreshList();
+    },
+    [activeId, navigate, refreshList, setActiveId],
+  );
+
   const handleStartEdit = React.useCallback(
     (message: MessageDto) => {
       if (!activeId || (message.role !== "USER" && message.role !== "ASSISTANT")) return;
@@ -668,6 +733,16 @@ export default function ConversationsPage() {
     setEditingSession(null);
     clearCurrentDraft();
   }, [clearCurrentDraft]);
+
+  const handleClickSuggestion = React.useCallback(
+    (suggestion: string) => {
+      if (editingSession) {
+        setEditingSession(null);
+      }
+      handleInputTextChange(suggestion);
+    },
+    [editingSession, handleInputTextChange],
+  );
 
   const handleSend = React.useCallback(async () => {
     if (!editingSession) {
@@ -740,10 +815,19 @@ export default function ConversationsPage() {
           selectedNodeMessages={selectedNodeMessages}
           isGenerating={detail?.isGenerating ?? false}
           onEdit={handleStartEdit}
+          onDelete={handleDeleteMessage}
+          onFork={handleForkMessage}
           onRegenerate={handleRegenerate}
           onSelectBranch={handleSelectBranch}
           onToolApproval={handleToolApproval}
         />
+
+        {showSuggestions ? (
+          <ConversationSuggestions
+            suggestions={chatSuggestions}
+            onClickSuggestion={handleClickSuggestion}
+          />
+        ) : null}
 
         <ChatInput
           value={inputText}
@@ -761,6 +845,7 @@ export default function ConversationsPage() {
           }}
           onSend={handleSend}
           onStop={activeId ? handleStop : undefined}
+          className={showSuggestions ? "pt-1" : undefined}
         />
       </SidebarInset>
     </SidebarProvider>
