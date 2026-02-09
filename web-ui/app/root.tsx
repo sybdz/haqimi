@@ -62,9 +62,14 @@ export default function App() {
 export function HydrateFallback() {
   return (
     <div className="flex items-center justify-center h-screen w-screen bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="flex items-center gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce"
+            style={{ animationDelay: `${i * 0.15}s` }}
+          />
+        ))}
       </div>
     </div>
   );
@@ -78,23 +83,31 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error)) {
     message = error.status === 404 ? "404" : "Error";
     details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
+      error.status === 404 ? "The requested page could not be found." : error.statusText || details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
     stack = error.stack;
   }
 
   return (
-    <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
-      {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
-          <code>{stack}</code>
-        </pre>
-      )}
+    <main className="flex items-center justify-center min-h-screen bg-background p-4">
+      <div className="max-w-md w-full space-y-6 text-center">
+        <div className="space-y-3">
+          <h1 className="text-6xl font-bold text-primary">{message}</h1>
+          <p className="text-lg text-muted-foreground">{details}</p>
+        </div>
+        {stack && (
+          <pre className="text-left text-xs bg-muted p-4 rounded-lg overflow-x-auto max-h-[400px] overflow-y-auto">
+            <code className="text-muted-foreground">{stack}</code>
+          </pre>
+        )}
+        <button
+          onClick={() => window.location.href = '/'}
+          className="inline-flex items-center justify-center px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-md hover:bg-primary/90 transition-colors"
+        >
+          Back to Home
+        </button>
+      </div>
     </main>
   );
 }

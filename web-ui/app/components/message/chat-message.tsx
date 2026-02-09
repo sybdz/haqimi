@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { ChatMessageAnnotationsRow } from "./chat-message-annotations";
 import { MessageParts } from "./message-part";
 
 interface ChatMessageProps {
@@ -38,11 +39,7 @@ interface ChatMessageProps {
   onSelectBranch?: (nodeId: string, selectIndex: number) => void | Promise<void>;
   onDelete?: (messageId: string) => void | Promise<void>;
   onFork?: (messageId: string) => void | Promise<void>;
-  onToolApproval?: (
-    toolCallId: string,
-    approved: boolean,
-    reason: string,
-  ) => void | Promise<void>;
+  onToolApproval?: (toolCallId: string, approved: boolean, reason: string) => void | Promise<void>;
 }
 
 function hasRenderablePart(part: UIMessagePart): boolean {
@@ -243,7 +240,10 @@ function ChatMessageActionsRow({
   }, [message.id, onFork]);
 
   const canSwitchBranch = Boolean(onSelectBranch) && node.messages.length > 1;
-  const canEdit = Boolean(onEdit) && (message.role === "USER" || message.role === "ASSISTANT") && hasEditableContent(message.parts);
+  const canEdit =
+    Boolean(onEdit) &&
+    (message.role === "USER" || message.role === "ASSISTANT") &&
+    hasEditableContent(message.parts);
   const actionDisabled = loading || switchingBranch || regenerating || deleting || forking;
 
   return (
@@ -395,7 +395,7 @@ function ChatMessageNerdLineRow({
   return (
     <div
       className={cn(
-        "flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[11px] text-muted-foreground",
+        "flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[11px] text-muted-foreground/50",
         alignRight ? "justify-end" : "justify-start",
       )}
     >
@@ -426,19 +426,15 @@ export function ChatMessage({
   const showActions = isLastMessage ? !loading : hasMessageContent;
 
   return (
-    <div className={cn("flex flex-col gap-1", isUser ? "items-end" : "items-start")}>
+    <div className={cn("flex flex-col gap-4", isUser ? "items-end" : "items-start")}>
       <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
         <div
           className={cn(
             "flex flex-col gap-2 text-sm",
-            isUser ? "max-w-[85%] rounded-2xl bg-muted px-4 py-3" : "w-full",
+            isUser ? "max-w-[85%] rounded-lg bg-muted px-4 py-3" : "w-full",
           )}
         >
-          <MessageParts
-            parts={message.parts}
-            loading={loading}
-            onToolApproval={onToolApproval}
-          />
+          <MessageParts parts={message.parts} loading={loading} onToolApproval={onToolApproval} />
         </div>
       </div>
 
@@ -455,6 +451,8 @@ export function ChatMessage({
           onFork={onFork}
         />
       )}
+
+      <ChatMessageAnnotationsRow annotations={message.annotations} alignRight={isUser} />
 
       <ChatMessageNerdLineRow message={message} alignRight={isUser} />
     </div>

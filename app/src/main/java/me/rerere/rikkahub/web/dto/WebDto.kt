@@ -43,6 +43,16 @@ data class SelectMessageNodeRequest(
 )
 
 @Serializable
+data class MoveConversationRequest(
+    val assistantId: String
+)
+
+@Serializable
+data class UpdateConversationTitleRequest(
+    val title: String
+)
+
+@Serializable
 data class UpdateAssistantRequest(
     val assistantId: String
 )
@@ -51,6 +61,29 @@ data class UpdateAssistantRequest(
 data class UpdateAssistantModelRequest(
     val assistantId: String,
     val modelId: String,
+)
+
+@Serializable
+data class UpdateAssistantThinkingBudgetRequest(
+    val assistantId: String,
+    val thinkingBudget: Int?,
+)
+
+@Serializable
+data class UpdateSearchEnabledRequest(
+    val enabled: Boolean,
+)
+
+@Serializable
+data class UpdateSearchServiceRequest(
+    val index: Int,
+)
+
+@Serializable
+data class UpdateBuiltInToolRequest(
+    val modelId: String,
+    val tool: String,
+    val enabled: Boolean,
 )
 
 // ========== Response DTOs ==========
@@ -62,7 +95,8 @@ data class ConversationListDto(
     val title: String,
     val isPinned: Boolean,
     val createAt: Long,
-    val updateAt: Long
+    val updateAt: Long,
+    val isGenerating: Boolean = false
 )
 
 @Serializable
@@ -181,13 +215,14 @@ data class ConversationListInvalidateEvent(
 
 // ========== Conversion Extensions ==========
 
-fun Conversation.toListDto() = ConversationListDto(
+fun Conversation.toListDto(isGenerating: Boolean = false) = ConversationListDto(
     id = id.toString(),
     assistantId = assistantId.toString(),
     title = title,
     isPinned = isPinned,
     createAt = createAt.toEpochMilli(),
-    updateAt = updateAt.toEpochMilli()
+    updateAt = updateAt.toEpochMilli(),
+    isGenerating = isGenerating
 )
 
 fun Conversation.toDto(isGenerating: Boolean = false) = ConversationDto(

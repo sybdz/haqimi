@@ -1,18 +1,10 @@
 import * as React from "react";
 
-import {
-  File,
-  Image,
-  LoaderCircle,
-  Mic,
-  Plus,
-  Send,
-  Square,
-  Video,
-  X,
-} from "lucide-react";
+import { File, Image, LoaderCircle, Mic, Plus, Send, Square, Video, X } from "lucide-react";
 
 import { ModelList } from "~/components/model-list";
+import { ReasoningPickerButton } from "~/components/reasoning-picker";
+import { SearchPickerButton } from "~/components/search-picker";
 import { useSettingsStore } from "~/stores";
 import { Button } from "~/components/ui/button";
 import {
@@ -135,7 +127,9 @@ export function ChatInput({
   onCancelEdit,
   className,
 }: ChatInputProps) {
-  const sendOnEnter = useSettingsStore((state) => state.settings?.displaySetting.sendOnEnter ?? true);
+  const sendOnEnter = useSettingsStore(
+    (state) => state.settings?.displaySetting.sendOnEnter ?? true,
+  );
 
   const imageInputRef = React.useRef<HTMLInputElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -304,14 +298,14 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        "bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60",
         className,
       )}
     >
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
         <div
           className={cn(
-            "relative flex flex-col gap-2 rounded-2xl border bg-muted/50 p-2 shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-1 focus-within:ring-ring",
+            "relative flex flex-col gap-2 rounded-lg border bg-muted/50 p-2 shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-1 focus-within:ring-ring",
             dragActive && "border-primary/40 bg-primary/5 ring-2 ring-primary/30",
           )}
           onDragEnter={handleDragEnter}
@@ -371,7 +365,8 @@ export function ChatInput({
                           try {
                             await api.delete<{ status: string }>(`files/${fileId}`);
                           } catch (deleteError) {
-                            const message = deleteError instanceof Error ? deleteError.message : "删除附件失败";
+                            const message =
+                              deleteError instanceof Error ? deleteError.message : "删除附件失败";
                             setError(message);
                             return;
                           }
@@ -424,7 +419,9 @@ export function ChatInput({
                     disabled={!canUpload}
                     className="size-8 rounded-full text-muted-foreground hover:text-foreground"
                   >
-                    <Plus className={cn("size-4 transition-transform", uploadMenuOpen && "rotate-45")} />
+                    <Plus
+                      className={cn("size-4 transition-transform", uploadMenuOpen && "rotate-45")}
+                    />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="min-w-36" side="top" align="start">
@@ -447,6 +444,8 @@ export function ChatInput({
                 </DropdownMenuContent>
               </DropdownMenu>
               <ModelList disabled={!canSwitchModel} className="max-w-64" />
+              <ReasoningPickerButton disabled={!canSwitchModel} />
+              <SearchPickerButton disabled={!canSwitchModel} />
             </div>
             <Button
               onClick={() => {

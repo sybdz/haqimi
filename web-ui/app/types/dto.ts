@@ -9,6 +9,7 @@ export interface ConversationListDto {
   isPinned: boolean;
   createAt: number;
   updateAt: number;
+  isGenerating: boolean;
 }
 
 export interface PagedResult<T> {
@@ -16,7 +17,6 @@ export interface PagedResult<T> {
   nextOffset?: number | null;
   hasMore: boolean;
 }
-
 
 export interface UploadedFileDto {
   id: number;

@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { Check, LoaderCircle, Search } from "lucide-react";
+import { Check, ChevronDown, LoaderCircle, Search } from "lucide-react";
 
 import { useCurrentAssistant } from "~/hooks/use-current-assistant";
 import { cn } from "~/lib/utils";
@@ -63,15 +63,8 @@ function getAbilityLabel(ability: ModelAbility): string {
   return "推理";
 }
 
-export function ModelList({
-  disabled = false,
-  className,
-  onChanged,
-}: ModelListProps) {
-  const {
-    settings,
-    currentAssistant,
-  } = useCurrentAssistant();
+export function ModelList({ disabled = false, className, onChanged }: ModelListProps) {
+  const { settings, currentAssistant } = useCurrentAssistant();
 
   const [open, setOpen] = React.useState(false);
   const [searchKeywords, setSearchKeywords] = React.useState("");
@@ -174,7 +167,10 @@ export function ModelList({
         type="button"
         variant="ghost"
         size="sm"
-        className={cn("h-8 max-w-[200px] justify-start gap-2 rounded-full px-2 text-muted-foreground hover:text-foreground", className)}
+        className={cn(
+          "rounded-full px-0 text-muted-foreground hover:text-foreground sm:h-8 sm:max-w-64 sm:justify-start sm:gap-2 sm:px-2",
+          className,
+        )}
         disabled={disabled || !currentAssistant}
         onClick={() => {
           setOpen(true);
@@ -186,7 +182,10 @@ export function ModelList({
           className="bg-transparent"
           imageClassName="h-full w-full"
         />
-        <span className="truncate">{currentModelLabel}</span>
+        <span className="hidden min-w-0 flex-1 truncate text-left sm:block">
+          {currentModelLabel}
+        </span>
+        <ChevronDown className="hidden size-3.5 shrink-0 sm:block" />
       </Button>
 
       <DialogContent className="gap-0 p-0 sm:max-w-2xl">
@@ -254,8 +253,12 @@ export function ModelList({
                             <AIIcon name={model.modelId} size={28} />
 
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-sm font-medium">{getModelDisplayName(model)}</div>
-                              <div className="text-muted-foreground truncate text-xs">{model.modelId}</div>
+                              <div className="truncate text-sm font-medium">
+                                {getModelDisplayName(model)}
+                              </div>
+                              <div className="text-muted-foreground truncate text-xs">
+                                {model.modelId}
+                              </div>
                               <div className="mt-1 flex flex-wrap gap-1">
                                 <Badge variant="outline" className="text-[10px]">
                                   {formatModality(model)}

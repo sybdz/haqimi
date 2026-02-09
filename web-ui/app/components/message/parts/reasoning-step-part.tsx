@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Brain, Sparkles } from "lucide-react";
 
-import Markdown from "~/components/markdown";
+import Markdown from "~/components/markdown/markdown";
 import type { ReasoningPart as UIReasoningPart } from "~/types";
 
 import { ControlledChainOfThoughtStep } from "../chain-of-thought";
@@ -18,10 +18,7 @@ enum ReasoningCardState {
   Expanded = "expanded",
 }
 
-function formatDuration(
-  createdAt?: string,
-  finishedAt?: string | null,
-): string | null {
+function formatDuration(createdAt?: string, finishedAt?: string | null): string | null {
   if (!createdAt) return null;
 
   const start = Date.parse(createdAt);
@@ -36,11 +33,7 @@ function formatDuration(
   return `${seconds.toFixed(1)}s`;
 }
 
-export function ReasoningStepPart({
-  reasoning,
-  isFirst,
-  isLast,
-}: ReasoningStepPartProps) {
+export function ReasoningStepPart({ reasoning, isFirst, isLast }: ReasoningStepPartProps) {
   const loading = reasoning.finishedAt == null;
   const [expandState, setExpandState] = React.useState<ReasoningCardState>(
     ReasoningCardState.Collapsed,
@@ -50,17 +43,13 @@ export function ReasoningStepPart({
   React.useEffect(() => {
     if (loading) {
       setExpandState((state) =>
-        state === ReasoningCardState.Collapsed
-          ? ReasoningCardState.Preview
-          : state,
+        state === ReasoningCardState.Collapsed ? ReasoningCardState.Preview : state,
       );
       return;
     }
 
     setExpandState((state) =>
-      state === ReasoningCardState.Collapsed
-        ? state
-        : ReasoningCardState.Collapsed,
+      state === ReasoningCardState.Collapsed ? state : ReasoningCardState.Collapsed,
     );
   }, [loading, reasoning.reasoning]);
 
@@ -72,15 +61,11 @@ export function ReasoningStepPart({
 
   const onExpandedChange = (nextExpanded: boolean) => {
     if (loading) {
-      setExpandState(
-        nextExpanded ? ReasoningCardState.Expanded : ReasoningCardState.Preview,
-      );
+      setExpandState(nextExpanded ? ReasoningCardState.Expanded : ReasoningCardState.Preview);
       return;
     }
 
-    setExpandState(
-      nextExpanded ? ReasoningCardState.Expanded : ReasoningCardState.Collapsed,
-    );
+    setExpandState(nextExpanded ? ReasoningCardState.Expanded : ReasoningCardState.Collapsed);
   };
 
   const duration = formatDuration(reasoning.createdAt, reasoning.finishedAt);
@@ -99,13 +84,9 @@ export function ReasoningStepPart({
           <Brain className="h-4 w-4 text-primary" />
         )
       }
-      label={
-        <span className="text-foreground text-sm font-medium">深度思考</span>
-      }
+      label={<span className="text-foreground text-xs font-medium">深度思考</span>}
       extra={
-        duration ? (
-          <span className="text-muted-foreground text-xs">{duration}</span>
-        ) : undefined
+        duration ? <span className="text-muted-foreground text-xs">{duration}</span> : undefined
       }
       contentVisible={expandState !== ReasoningCardState.Collapsed}
     >
@@ -113,7 +94,7 @@ export function ReasoningStepPart({
         ref={contentRef}
         className={preview ? "styled-scrollbar relative max-h-24 overflow-y-auto" : undefined}
       >
-        <Markdown content={reasoning.reasoning} className="text-sm" />
+        <Markdown content={reasoning.reasoning} className="text-xs" />
       </div>
     </ControlledChainOfThoughtStep>
   );
