@@ -6,6 +6,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.post
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
+import io.ktor.server.sse.heartbeat
 import io.ktor.server.sse.sse
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.ModelType
@@ -17,10 +18,12 @@ import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.web.dto.UpdateAssistantModelRequest
 import me.rerere.rikkahub.web.dto.UpdateAssistantRequest
 import me.rerere.rikkahub.web.dto.UpdateAssistantThinkingBudgetRequest
+import me.rerere.rikkahub.web.dto.UpdateAssistantMcpServersRequest
 import me.rerere.rikkahub.web.dto.UpdateBuiltInToolRequest
 import me.rerere.rikkahub.web.dto.UpdateSearchEnabledRequest
 import me.rerere.rikkahub.web.dto.UpdateSearchServiceRequest
 import java.util.Locale
+import kotlin.time.Duration.Companion.seconds
 
 fun Route.settingsRoutes(
     settingsStore: SettingsStore
@@ -65,6 +68,25 @@ fun Route.settingsRoutes(
             }
 
             settingsStore.updateAssistantThinkingBudget(assistantId, thinkingBudget)
+            call.respond(HttpStatusCode.OK, mapOf("status" to "ok"))
+        }
+
+        post("/assistant/mcp") {
+            val request = call.receive<UpdateAssistantMcpServersRequest>()
+            val assistantId = request.assistantId.toUuid("assistantId")
+
+            val settings = settingsStore.settingsFlow.value
+            if (settings.assistants.none { it.id == assistantId }) {
+                throw NotFoundException("Assistant not found")
+            }
+
+            val validServerIds = settings.mcpServers.map { it.id }.toSet()
+            val requestedServerIds = request.mcpServerIds.map { it.toUuid("mcpServerIds") }.toSet()
+            if (!validServerIds.containsAll(requestedServerIds)) {
+                throw BadRequestException("mcpServerIds contains unknown server id")
+            }
+
+            settingsStore.updateAssistantMcpServers(assistantId, requestedServerIds)
             call.respond(HttpStatusCode.OK, mapOf("status" to "ok"))
         }
 
@@ -123,6 +145,9 @@ fun Route.settingsRoutes(
         }
 
         sse("/stream") {
+            heartbeat {
+                period = 15.seconds
+            }
             settingsStore.settingsFlow
                 .collect { settings ->
                     val json = JsonInstant.encodeToString(settings)

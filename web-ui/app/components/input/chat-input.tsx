@@ -1,10 +1,13 @@
 import * as React from "react";
 
-import { File, Image, LoaderCircle, Mic, Plus, Send, Square, Video, X } from "lucide-react";
+import { File, Image, LoaderCircle, Mic, Plus, Send, Square, Video, X, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-import { ModelList } from "~/components/model-list";
-import { ReasoningPickerButton } from "~/components/reasoning-picker";
-import { SearchPickerButton } from "~/components/search-picker";
+import { useCurrentAssistant } from "~/hooks/use-current-assistant";
+import { ModelList } from "~/components/input/model-list";
+import { ReasoningPickerButton } from "~/components/input/reasoning-picker";
+import { SearchPickerButton } from "~/components/input/search-picker";
+import { McpPickerButton } from "~/components/input/mcp-picker";
 import { useSettingsStore } from "~/stores";
 import { Button } from "~/components/ui/button";
 import {
@@ -70,18 +73,18 @@ function toMessagePart(file: UploadFilesResponseDto["files"][number]): UIMessage
   };
 }
 
-function partLabel(part: UIMessagePart): string {
+function partLabel(part: UIMessagePart, t: (key: string) => string): string {
   switch (part.type) {
     case "document":
       return part.fileName;
     case "image":
-      return "图片";
+      return t("chat.attachment_image");
     case "video":
-      return "视频";
+      return t("chat.attachment_video");
     case "audio":
-      return "音频";
+      return t("chat.attachment_audio");
     default:
-      return "附件";
+      return t("chat.attachment_file");
   }
 }
 
@@ -127,12 +130,37 @@ export function ChatInput({
   onCancelEdit,
   className,
 }: ChatInputProps) {
+  const { t } = useTranslation();
   const sendOnEnter = useSettingsStore(
     (state) => state.settings?.displaySetting.sendOnEnter ?? true,
   );
+  const { currentAssistant } = useCurrentAssistant();
+
+  const quickMessages = React.useMemo(() => {
+    const source = currentAssistant?.quickMessages;
+    if (!Array.isArray(source)) {
+      return [] as QuickMessageOption[];
+    }
+
+    return source
+      .map((item) => {
+        const title = typeof item?.title === "string" ? item.title.trim() : "";
+        const content = typeof item?.content === "string" ? item.content.trim() : "";
+        if (!content) {
+          return null;
+        }
+
+        return {
+          title: title || t("chat.quick_message_default_title"),
+          content,
+        };
+      })
+      .filter((item): item is QuickMessageOption => item !== null);
+  }, [currentAssistant?.quickMessages, t]);
 
   const imageInputRef = React.useRef<HTMLInputElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const [uploadMenuOpen, setUploadMenuOpen] = React.useState(false);
@@ -146,6 +174,7 @@ export function ChatInput({
   const canSend = ready && !isGenerating && !disabled && !isEmpty;
   const canUpload = ready && !disabled && !isGenerating && !uploading && !submitting;
   const canSwitchModel = ready && !disabled && !isGenerating && !uploading && !submitting;
+  const canUseQuickMessage = ready && !disabled && !uploading && !submitting;
   const actionDisabled = submitting || uploading || (!canStop && !canSend);
 
   React.useEffect(() => {
@@ -174,13 +203,13 @@ export function ChatInput({
         const parts = response.files.map(toMessagePart);
         onAddParts(parts);
       } catch (uploadError) {
-        const message = uploadError instanceof Error ? uploadError.message : "上传失败";
+        const message = uploadError instanceof Error ? uploadError.message : t("chat.upload_failed");
         setError(message);
       } finally {
         setUploading(false);
       }
     },
-    [onAddParts, ready],
+    [onAddParts, ready, t],
   );
 
   const handlePrimaryAction = React.useCallback(async () => {
@@ -201,12 +230,12 @@ export function ChatInput({
         await onSend();
       }
     } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : "发送失败";
+      const message = submitError instanceof Error ? submitError.message : t("chat.send_failed");
       setError(message);
     } finally {
       setSubmitting(false);
     }
-  }, [actionDisabled, canSend, canStop, onSend, onStop]);
+  }, [actionDisabled, canSend, canStop, onSend, onStop, t]);
 
   const handleTextChange = React.useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -216,6 +245,22 @@ export function ChatInput({
       }
     },
     [error, onValueChange],
+  );
+
+  const handleQuickMessageSelect = React.useCallback(
+    (content: string) => {
+      if (!canUseQuickMessage || !content) {
+        return;
+      }
+
+      const needLineBreak = value.length > 0 && !value.endsWith("\n");
+      onValueChange(`${value}${needLineBreak ? "\n" : ""}${content}`);
+      if (error) {
+        setError(null);
+      }
+      textareaRef.current?.focus();
+    },
+    [canUseQuickMessage, error, onValueChange, value],
   );
 
   const handleKeyDown = React.useCallback(
@@ -292,8 +337,8 @@ export function ChatInput({
     [canUpload, uploadFiles],
   );
 
-  const sendHint = sendOnEnter ? "按 Enter 发送，Shift + Enter 换行" : "按 Enter 换行";
-  const placeholder = ready ? "输入消息..." : "请先选择会话";
+  const sendHint = sendOnEnter ? t("chat.send_hint_enter") : t("chat.send_hint_newline");
+  const placeholder = ready ? t("chat.placeholder_ready") : t("chat.placeholder_not_ready");
 
   return (
     <div
@@ -317,12 +362,12 @@ export function ChatInput({
         >
           {dragActive ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-primary/50 bg-background/80 px-4 text-center text-sm font-medium text-primary">
-              拖拽文件到这里上传
+              {t("chat.drop_to_upload")}
             </div>
           ) : null}
           {isEditing ? (
             <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
-              <span className="text-primary">正在编辑消息，发送后会创建新分支</span>
+              <span className="text-primary">{t("chat.editing_tip")}</span>
               <Button
                 type="button"
                 variant="ghost"
@@ -331,7 +376,7 @@ export function ChatInput({
                 onClick={onCancelEdit}
                 disabled={submitting || uploading}
               >
-                取消编辑
+                {t("chat.cancel_edit")}
               </Button>
             </div>
           ) : null}
@@ -354,7 +399,7 @@ export function ChatInput({
                     ) : (
                       partIcon(part)
                     )}
-                    <span className="truncate">{partLabel(part)}</span>
+                    <span className="truncate">{partLabel(part, t)}</span>
                     <button
                       className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                       onClick={async () => {
@@ -366,7 +411,9 @@ export function ChatInput({
                             await api.delete<{ status: string }>(`files/${fileId}`);
                           } catch (deleteError) {
                             const message =
-                              deleteError instanceof Error ? deleteError.message : "删除附件失败";
+                              deleteError instanceof Error
+                                ? deleteError.message
+                                : t("chat.delete_attachment_failed");
                             setError(message);
                             return;
                           }
@@ -385,6 +432,7 @@ export function ChatInput({
           ) : null}
 
           <Textarea
+            ref={textareaRef}
             value={value}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
@@ -431,7 +479,7 @@ export function ChatInput({
                     }}
                   >
                     <Image className="size-4" />
-                    上传图片
+                    {t("chat.upload_image")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => {
@@ -439,12 +487,18 @@ export function ChatInput({
                     }}
                   >
                     <File className="size-4" />
-                    上传文档
+                    {t("chat.upload_document")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <QuickMessageButton
+                quickMessages={quickMessages}
+                disabled={!canUseQuickMessage}
+                onSelect={handleQuickMessageSelect}
+              />
               <ModelList disabled={!canSwitchModel} className="max-w-64" />
               <ReasoningPickerButton disabled={!canSwitchModel} />
+              <McpPickerButton disabled={!canSwitchModel} />
               <SearchPickerButton disabled={!canSwitchModel} />
             </div>
             <Button
@@ -474,5 +528,63 @@ export function ChatInput({
         {error ? <p className="mt-1 text-center text-xs text-destructive">{error}</p> : null}
       </div>
     </div>
+  );
+}
+
+type QuickMessageOption = {
+  title: string;
+  content: string;
+};
+
+interface QuickMessageButtonProps {
+  quickMessages: QuickMessageOption[];
+  disabled?: boolean;
+  onSelect: (content: string) => void;
+}
+
+function QuickMessageButton({
+  quickMessages,
+  disabled = false,
+  onSelect,
+}: QuickMessageButtonProps) {
+  if (quickMessages.length === 0) {
+    return null;
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          disabled={disabled}
+          className="size-8 rounded-full text-muted-foreground hover:text-foreground"
+        >
+          <Zap className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-72" side="top" align="start">
+        {quickMessages.map((quickMessage, index) => {
+          const key = `${quickMessage.title}-${index}`;
+          return (
+            <DropdownMenuItem
+              key={key}
+              className="items-start"
+              onClick={() => {
+                onSelect(quickMessage.content);
+              }}
+            >
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{quickMessage.title}</div>
+                <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs">
+                  {quickMessage.content}
+                </div>
+              </div>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

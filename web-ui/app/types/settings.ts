@@ -30,13 +30,42 @@ export interface AssistantAvatar {
   [key: string]: unknown;
 }
 
+export interface AssistantQuickMessage {
+  title: string;
+  content: string;
+}
+
 export interface AssistantProfile {
   id: string;
   chatModelId?: string | null;
   thinkingBudget?: number | null;
+  mcpServers?: string[];
   name: string;
   avatar?: AssistantAvatar;
   tags: string[];
+  quickMessages?: AssistantQuickMessage[];
+  [key: string]: unknown;
+}
+
+export interface McpToolOption {
+  enable: boolean;
+  name: string;
+  description?: string | null;
+  needsApproval?: boolean;
+  [key: string]: unknown;
+}
+
+export interface McpCommonOptions {
+  enable: boolean;
+  name: string;
+  tools: McpToolOption[];
+  [key: string]: unknown;
+}
+
+export interface McpServerConfig {
+  id: string;
+  type?: string;
+  commonOptions: McpCommonOptions;
   [key: string]: unknown;
 }
 
@@ -90,6 +119,7 @@ export interface Settings {
   providers: ProviderProfile[];
   assistants: AssistantProfile[];
   assistantTags: AssistantTag[];
+  mcpServers: McpServerConfig[];
   searchServices: SearchServiceOption[];
   searchServiceSelected: number;
   [key: string]: unknown;
