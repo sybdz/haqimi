@@ -1,6 +1,18 @@
 import * as React from "react";
 
-import { File, Image, LoaderCircle, Mic, Plus, Send, Square, Video, X, Zap } from "lucide-react";
+import {
+  ArrowUp,
+  File,
+  Image,
+  LoaderCircle,
+  Mic,
+  Plus,
+  Send,
+  Square,
+  Video,
+  X,
+  Zap,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useCurrentAssistant } from "~/hooks/use-current-assistant";
@@ -8,6 +20,7 @@ import { ModelList } from "~/components/input/model-list";
 import { ReasoningPickerButton } from "~/components/input/reasoning-picker";
 import { SearchPickerButton } from "~/components/input/search-picker";
 import { McpPickerButton } from "~/components/input/mcp-picker";
+import { InjectionPickerButton } from "~/components/input/injection-picker";
 import { useSettingsStore } from "~/stores";
 import { Button } from "~/components/ui/button";
 import {
@@ -37,6 +50,34 @@ export interface ChatInputProps {
   onStop?: () => Promise<void> | void;
   onCancelEdit?: () => void;
   className?: string;
+}
+
+const DOCUMENT_UPLOAD_ACCEPT_EXTENSIONS = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+] as const;
+
+const IMAGE_UPLOAD_ACCEPT = "image/*";
+const IMAGE_FILE_NAME_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)$/i;
+
+function isAllowedUploadFile(file: globalThis.File): boolean {
+  if (file.type.startsWith("image/")) {
+    return true;
+  }
+
+  if (file.type.length === 0 && IMAGE_FILE_NAME_PATTERN.test(file.name)) {
+    return true;
+  }
+
+  const fileName = file.name.toLowerCase();
+  return DOCUMENT_UPLOAD_ACCEPT_EXTENSIONS.some((extension) => fileName.endsWith(extension));
 }
 
 function toMessagePart(file: UploadFilesResponseDto["files"][number]): UIMessagePart {
@@ -186,13 +227,18 @@ export function ChatInput({
   }, [canUpload]);
 
   const uploadFiles = React.useCallback(
-    async (fileList: FileList | null) => {
+    async (fileList: FileList | globalThis.File[] | null) => {
       if (!ready || !fileList || fileList.length === 0) {
         return;
       }
 
+      const uploadableFiles = Array.from(fileList).filter(isAllowedUploadFile);
+      if (uploadableFiles.length === 0) {
+        return;
+      }
+
       const formData = new FormData();
-      Array.from(fileList).forEach((file) => {
+      uploadableFiles.forEach((file) => {
         formData.append("files", file, file.name);
       });
 
@@ -203,7 +249,8 @@ export function ChatInput({
         const parts = response.files.map(toMessagePart);
         onAddParts(parts);
       } catch (uploadError) {
-        const message = uploadError instanceof Error ? uploadError.message : t("chat.upload_failed");
+        const message =
+          uploadError instanceof Error ? uploadError.message : t("chat.upload_failed");
         setError(message);
       } finally {
         setUploading(false);
@@ -289,6 +336,26 @@ export function ChatInput({
       event.currentTarget.value = "";
     },
     [uploadFiles],
+  );
+
+  const handlePaste = React.useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!canUpload) return;
+
+      const uploadableFiles = Array.from(event.clipboardData.items)
+        .filter((item) => item.kind === "file")
+        .map((item) => item.getAsFile())
+        .filter((file): file is globalThis.File => file !== null)
+        .filter(isAllowedUploadFile);
+
+      if (uploadableFiles.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      void uploadFiles(uploadableFiles);
+    },
+    [canUpload, uploadFiles],
   );
 
   const handleDragEnter = React.useCallback(
@@ -436,9 +503,10 @@ export function ChatInput({
             value={value}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={placeholder}
             disabled={!ready || disabled}
-            className="min-h-[60px] max-h-[200px] resize-none border-0 bg-transparent p-2 text-sm shadow-none focus-visible:ring-0"
+            className="min-h-[60px] max-h-[200px] resize-none border-0 bg-transparent dark:bg-transparent p-2 text-sm shadow-none focus-visible:ring-0"
             rows={2}
           />
           <div className="flex items-center justify-between gap-2">
@@ -447,14 +515,14 @@ export function ChatInput({
                 <input
                   ref={fileInputRef}
                   className="hidden"
-                  accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.csv,.json"
+                  accept={DOCUMENT_UPLOAD_ACCEPT_EXTENSIONS.join(",")}
                   multiple
                   onChange={handleFileInputChange}
                   type="file"
                 />
                 <input
                   ref={imageInputRef}
-                  accept="image/*"
+                  accept={IMAGE_UPLOAD_ACCEPT}
                   className="hidden"
                   multiple
                   onChange={handleImageInputChange}
@@ -491,15 +559,16 @@ export function ChatInput({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <ModelList disabled={!canSwitchModel} className="max-w-64" />
+              <SearchPickerButton disabled={!canSwitchModel} />
+              <ReasoningPickerButton disabled={!canSwitchModel} />
+              <McpPickerButton disabled={!canSwitchModel} />
+              <InjectionPickerButton disabled={!canSwitchModel} />
               <QuickMessageButton
                 quickMessages={quickMessages}
                 disabled={!canUseQuickMessage}
                 onSelect={handleQuickMessageSelect}
               />
-              <ModelList disabled={!canSwitchModel} className="max-w-64" />
-              <ReasoningPickerButton disabled={!canSwitchModel} />
-              <McpPickerButton disabled={!canSwitchModel} />
-              <SearchPickerButton disabled={!canSwitchModel} />
             </div>
             <Button
               onClick={() => {
@@ -519,7 +588,7 @@ export function ChatInput({
               ) : isGenerating ? (
                 <Square className="size-4" />
               ) : (
-                <Send className="size-4" />
+                <ArrowUp className="size-4" />
               )}
             </Button>
           </div>
