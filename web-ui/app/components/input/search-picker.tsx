@@ -1,8 +1,13 @@
 import * as React from "react";
 
+import type { TFunction } from "i18next";
 import { ChevronDown, Earth, LoaderCircle, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useCurrentAssistant } from "~/hooks/use-current-assistant";
+import { useCurrentModel } from "~/hooks/use-current-model";
+import { usePickerPopover } from "~/hooks/use-picker-popover";
+import { extractErrorMessage } from "~/lib/error";
 import { cn } from "~/lib/utils";
 import api from "~/services/api";
 import type { BuiltInTool, ProviderModel, SearchServiceOption } from "~/types";
@@ -18,6 +23,8 @@ import {
 } from "~/components/ui/popover";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Switch } from "~/components/ui/switch";
+
+import { PickerErrorAlert } from "./picker-error-alert";
 
 const SEARCH_TOOL_NAME = "search";
 
@@ -85,59 +92,41 @@ function getServiceType(service: SearchServiceOption): string | null {
   return value.length > 0 ? value : null;
 }
 
-function getServiceLabel(service: SearchServiceOption): string {
+function getServiceLabel(
+  service: SearchServiceOption,
+  t: TFunction,
+): string {
   const type = getServiceType(service);
   if (!type) {
-    return "Search";
+    return t("search.default_service_label");
   }
 
   return SEARCH_SERVICE_LABELS[type] ?? type;
 }
 
 export function SearchPickerButton({ disabled = false, className }: SearchPickerButtonProps) {
+  const { t } = useTranslation("input");
   const { settings, currentAssistant } = useCurrentAssistant();
+  const { currentModel } = useCurrentModel();
 
-  const [open, setOpen] = React.useState(false);
   const [updatingSearchEnabled, setUpdatingSearchEnabled] = React.useState(false);
   const [updatingBuiltInSearch, setUpdatingBuiltInSearch] = React.useState(false);
   const [updatingServiceIndex, setUpdatingServiceIndex] = React.useState<number | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
 
-  const currentModelId = currentAssistant?.chatModelId ?? settings?.chatModelId ?? null;
-
-  const currentModel = React.useMemo(() => {
-    if (!settings || !currentModelId) {
-      return null;
-    }
-
-    for (const provider of settings.providers) {
-      const model = provider.models.find((item) => item.id === currentModelId);
-      if (model) {
-        return model;
-      }
-    }
-
-    return null;
-  }, [currentModelId, settings]);
+  const canUse = Boolean(settings && currentAssistant && !disabled);
+  const { error, setError, popoverProps } = usePickerPopover(canUse);
 
   const builtInSearchEnabled = hasBuiltInSearch(currentModel?.tools);
   const searchEnabled = settings?.enableWebSearch ?? false;
   const currentService = settings?.searchServices?.[settings.searchServiceSelected] ?? null;
-  const canUse = Boolean(settings && currentAssistant && !disabled);
   const checked = searchEnabled || builtInSearchEnabled;
   const loading = updatingSearchEnabled || updatingBuiltInSearch || updatingServiceIndex !== null;
 
   React.useEffect(() => {
     if (!canUse) {
-      setOpen(false);
+      popoverProps.onOpenChange(false);
     }
   }, [canUse]);
-
-  React.useEffect(() => {
-    if (!open) {
-      setError(null);
-    }
-  }, [open]);
 
   const handleToggleSearchEnabled = React.useCallback(
     async (enabled: boolean) => {
@@ -151,13 +140,12 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
       try {
         await api.post<{ status: string }>("settings/search/enabled", { enabled });
       } catch (toggleError) {
-        const message = toggleError instanceof Error ? toggleError.message : "更新网络搜索失败";
-        setError(message);
+        setError(extractErrorMessage(toggleError, t("search.update_search_failed")));
       } finally {
         setUpdatingSearchEnabled(false);
       }
     },
-    [canUse],
+    [canUse, t],
   );
 
   const handleSelectService = React.useCallback(
@@ -176,13 +164,12 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
       try {
         await api.post<{ status: string }>("settings/search/service", { index });
       } catch (serviceError) {
-        const message = serviceError instanceof Error ? serviceError.message : "切换搜索服务失败";
-        setError(message);
+        setError(extractErrorMessage(serviceError, t("search.switch_service_failed")));
       } finally {
         setUpdatingServiceIndex(null);
       }
     },
-    [canUse, settings],
+    [canUse, settings, t],
   );
 
   const handleToggleBuiltInSearch = React.useCallback(
@@ -201,27 +188,16 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
           enabled,
         });
       } catch (toolError) {
-        const message = toolError instanceof Error ? toolError.message : "更新内置搜索失败";
-        setError(message);
+        setError(extractErrorMessage(toolError, t("search.update_builtin_failed")));
       } finally {
         setUpdatingBuiltInSearch(false);
       }
     },
-    [canUse, currentModel],
+    [canUse, currentModel, t],
   );
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!canUse) {
-          setOpen(false);
-          return;
-        }
-
-        setOpen(nextOpen);
-      }}
-    >
+    <Popover {...popoverProps}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -238,7 +214,7 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
             <LoaderCircle className="size-4 animate-spin" />
           ) : searchEnabled && currentService ? (
             <AIIcon
-              name={getServiceLabel(currentService)}
+              name={getServiceLabel(currentService, t)}
               size={16}
               className="bg-transparent"
               imageClassName="h-full w-full"
@@ -256,16 +232,12 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
 
       <PopoverContent align="end" className="w-[min(92vw,28rem)] gap-0 p-0">
         <PopoverHeader className="border-b px-6 py-4">
-          <PopoverTitle>网络搜索</PopoverTitle>
-          <PopoverDescription>配置联网搜索与搜索服务</PopoverDescription>
+          <PopoverTitle>{t("search.title")}</PopoverTitle>
+          <PopoverDescription>{t("search.description")}</PopoverDescription>
         </PopoverHeader>
 
         <div className="space-y-4 px-4 py-4">
-          {error ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {error}
-            </div>
-          ) : null}
+          <PickerErrorAlert error={error} />
 
           {isGeminiModel(currentModel) ? (
             <div className="flex items-center gap-3 rounded-lg border px-3 py-3">
@@ -273,8 +245,8 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
                 <Search className="size-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">模型内置搜索</div>
-                <div className="text-muted-foreground text-xs">使用模型原生搜索能力</div>
+                <div className="text-sm font-medium">{t("search.builtin_title")}</div>
+                <div className="text-muted-foreground text-xs">{t("search.builtin_desc")}</div>
               </div>
               <Switch
                 checked={builtInSearchEnabled}
@@ -298,9 +270,9 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
                   <Earth className="size-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">联网搜索</div>
+                  <div className="text-sm font-medium">{t("search.web_title")}</div>
                   <div className="text-muted-foreground text-xs">
-                    {searchEnabled ? "已启用" : "已关闭"}
+                    {searchEnabled ? t("search.status_enabled") : t("search.status_disabled")}
                   </div>
                 </div>
                 <Switch
@@ -317,7 +289,7 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
                 />
               </div>
 
-              <ScrollArea className="h-[45vh] pr-3">
+              <ScrollArea className="h-[16rem] pr-3">
                 {settings?.searchServices?.length ? (
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {settings.searchServices.map((service, index) => {
@@ -343,17 +315,17 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
                           }}
                         >
                           <AIIcon
-                            name={getServiceLabel(service)}
+                            name={getServiceLabel(service, t)}
                             size={20}
                             className="bg-transparent"
                             imageClassName="h-full w-full"
                           />
                           <div className="min-w-0 flex-1">
                             <div className="truncate text-sm font-medium">
-                              {getServiceLabel(service)}
+                              {getServiceLabel(service, t)}
                             </div>
                             <div className="text-muted-foreground truncate text-xs">
-                              {getServiceType(service) ?? "unknown"}
+                              {getServiceType(service) ?? t("search.unknown")}
                             </div>
                           </div>
                           {switching ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
@@ -363,14 +335,14 @@ export function SearchPickerButton({ disabled = false, className }: SearchPicker
                   </div>
                 ) : (
                   <div className="rounded-md border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
-                    暂无可用搜索服务
+                    {t("search.empty")}
                   </div>
                 )}
               </ScrollArea>
             </>
           ) : (
             <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
-              当前已启用模型内置搜索，应用搜索服务设置暂不生效。
+              {t("search.builtin_notice")}
             </div>
           )}
         </div>

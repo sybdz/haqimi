@@ -132,19 +132,22 @@
   @apply scale-95;
 }
 
-/* Override syntax highlighter styles */
-.markdown .code-block pre,
-.markdown .code-block code {
-  @apply !bg-transparent;
+/* Code Block body */
+.markdown .code-block-content {
+  @apply overflow-x-auto;
 }
 
-.markdown .code-block > div {
-  @apply !m-0 overflow-x-auto;
+.markdown .code-block-content pre {
+  @apply !m-0 !rounded-none !border-0 p-3 text-sm;
+}
+
+.markdown .code-block-content pre code {
+  @apply bg-transparent p-0 font-mono leading-relaxed;
 }
 
 /* Legacy Code - Block (fallback) */
 .markdown pre {
-  @apply my-4 rounded-lg border border-border bg-muted p-4 overflow-x-auto;
+  @apply my-4 rounded-lg border border-border p-4 overflow-x-auto;
 }
 
 .markdown pre code {

@@ -38,6 +38,7 @@ import type { UIMessagePart, UploadFilesResponseDto } from "~/types";
 export interface ChatInputProps {
   value: string;
   attachments: UIMessagePart[];
+  suggestions?: string[];
   ready?: boolean;
   disabled?: boolean;
   isGenerating?: boolean;
@@ -49,6 +50,7 @@ export interface ChatInputProps {
   onSend: () => Promise<void> | void;
   onStop?: () => Promise<void> | void;
   onCancelEdit?: () => void;
+  onSuggestionClick?: (suggestion: string) => void;
   className?: string;
 }
 
@@ -158,6 +160,7 @@ function hasFilesInDataTransfer(dataTransfer: DataTransfer | null): boolean {
 export function ChatInput({
   value,
   attachments,
+  suggestions = [],
   ready = true,
   disabled = false,
   isGenerating = false,
@@ -169,9 +172,10 @@ export function ChatInput({
   onSend,
   onStop,
   onCancelEdit,
+  onSuggestionClick,
   className,
 }: ChatInputProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("input");
   const sendOnEnter = useSettingsStore(
     (state) => state.settings?.displaySetting.sendOnEnter ?? true,
   );
@@ -310,6 +314,21 @@ export function ChatInput({
     [canUseQuickMessage, error, onValueChange, value],
   );
 
+  const handleSuggestionSelect = React.useCallback(
+    (suggestion: string) => {
+      if (!canUseQuickMessage || !suggestion) {
+        return;
+      }
+
+      onSuggestionClick?.(suggestion);
+      if (error) {
+        setError(null);
+      }
+      textareaRef.current?.focus();
+    },
+    [canUseQuickMessage, error, onSuggestionClick],
+  );
+
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (event.key !== "Enter") return;
@@ -322,15 +341,7 @@ export function ChatInput({
     [handlePrimaryAction, isGenerating, sendOnEnter],
   );
 
-  const handleImageInputChange = React.useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      await uploadFiles(event.target.files);
-      event.currentTarget.value = "";
-    },
-    [uploadFiles],
-  );
-
-  const handleFileInputChange = React.useCallback(
+  const handleUploadInputChange = React.useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       await uploadFiles(event.target.files);
       event.currentTarget.value = "";
@@ -448,6 +459,26 @@ export function ChatInput({
             </div>
           ) : null}
 
+          {suggestions.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto rounded-lg px-1 py-1">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={`${suggestion}-${index}`}
+                  type="button"
+                  disabled={!canUseQuickMessage}
+                  className={cn(
+                    "shrink-0 rounded-lg border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
+                  )}
+                  onClick={() => {
+                    handleSuggestionSelect(suggestion);
+                  }}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {attachments.length > 0 ? (
             <div className="flex flex-wrap gap-2 px-2 pt-1">
               {attachments.map((part, index) => {
@@ -517,7 +548,7 @@ export function ChatInput({
                   className="hidden"
                   accept={DOCUMENT_UPLOAD_ACCEPT_EXTENSIONS.join(",")}
                   multiple
-                  onChange={handleFileInputChange}
+                  onChange={handleUploadInputChange}
                   type="file"
                 />
                 <input
@@ -525,7 +556,7 @@ export function ChatInput({
                   accept={IMAGE_UPLOAD_ACCEPT}
                   className="hidden"
                   multiple
-                  onChange={handleImageInputChange}
+                  onChange={handleUploadInputChange}
                   type="file"
                 />
                 <DropdownMenuTrigger asChild>

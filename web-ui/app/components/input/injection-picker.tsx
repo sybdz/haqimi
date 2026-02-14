@@ -1,8 +1,13 @@
 import * as React from "react";
 
 import { BookOpen, LoaderCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useCurrentAssistant } from "~/hooks/use-current-assistant";
+import { usePickerPopover } from "~/hooks/use-picker-popover";
+import { getDisplayName } from "~/lib/display";
+import { extractErrorMessage } from "~/lib/error";
+import { safeStringArray } from "~/lib/type-guards";
 import { cn } from "~/lib/utils";
 import api from "~/services/api";
 import type { LorebookProfile, ModeInjectionProfile } from "~/types";
@@ -18,17 +23,11 @@ import {
 } from "~/components/ui/popover";
 import { ScrollArea } from "~/components/ui/scroll-area";
 
+import { PickerErrorAlert } from "./picker-error-alert";
+
 export interface InjectionPickerButtonProps {
   disabled?: boolean;
   className?: string;
-}
-
-function getIdArray(source: unknown): string[] {
-  if (!Array.isArray(source)) {
-    return [];
-  }
-
-  return source.filter((item): item is string => typeof item === "string" && item.length > 0);
 }
 
 function getModeInjections(source: unknown): ModeInjectionProfile[] {
@@ -51,25 +50,16 @@ function getLorebooks(source: unknown): LorebookProfile[] {
   );
 }
 
-function getDisplayName(name: unknown, fallback: string): string {
-  if (typeof name !== "string") {
-    return fallback;
-  }
-
-  const trimmed = name.trim();
-  return trimmed || fallback;
-}
-
 export function InjectionPickerButton({ disabled = false, className }: InjectionPickerButtonProps) {
+  const { t } = useTranslation("input");
   const { settings, currentAssistant } = useCurrentAssistant();
 
-  const [open, setOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"mode" | "lorebook">("mode");
   const [updating, setUpdating] = React.useState(false);
   const [updatingKey, setUpdatingKey] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
 
   const canUse = Boolean(settings && currentAssistant && !disabled);
+  const { error, setError, popoverProps } = usePickerPopover(canUse);
 
   const modeInjections = React.useMemo(
     () => getModeInjections(settings?.modeInjections),
@@ -84,11 +74,11 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
   const lorebookIdSet = React.useMemo(() => new Set(lorebooks.map((item) => item.id)), [lorebooks]);
 
   const selectedModeInjectionIds = React.useMemo(
-    () => getIdArray(currentAssistant?.modeInjectionIds),
+    () => safeStringArray(currentAssistant?.modeInjectionIds),
     [currentAssistant?.modeInjectionIds],
   );
   const selectedLorebookIds = React.useMemo(
-    () => getIdArray(currentAssistant?.lorebookIds),
+    () => safeStringArray(currentAssistant?.lorebookIds),
     [currentAssistant?.lorebookIds],
   );
 
@@ -97,15 +87,9 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
 
   React.useEffect(() => {
     if (!canUse || !hasData) {
-      setOpen(false);
+      popoverProps.onOpenChange(false);
     }
   }, [canUse, hasData]);
-
-  React.useEffect(() => {
-    if (!open) {
-      setError(null);
-    }
-  }, [open]);
 
   React.useEffect(() => {
     if (modeInjections.length === 0 && lorebooks.length > 0) {
@@ -134,14 +118,13 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
           lorebookIds: nextLorebookIds,
         });
       } catch (updateError) {
-        const message = updateError instanceof Error ? updateError.message : "更新提示词注入失败";
-        setError(message);
+        setError(extractErrorMessage(updateError, t("injection.update_failed")));
       } finally {
         setUpdating(false);
         setUpdatingKey(null);
       }
     },
-    [canUse, currentAssistant],
+    [canUse, currentAssistant, t],
   );
 
   const handleToggleModeInjection = React.useCallback(
@@ -209,17 +192,7 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
   }
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!canUse) {
-          setOpen(false);
-          return;
-        }
-
-        setOpen(nextOpen);
-      }}
-    >
+    <Popover {...popoverProps}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -247,16 +220,12 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
 
       <PopoverContent align="end" className="w-[min(92vw,26rem)] gap-0 p-0">
         <PopoverHeader className="border-b px-6 py-4">
-          <PopoverTitle>提示词注入</PopoverTitle>
-          <PopoverDescription>为当前助手启用模式注入和 Lorebook</PopoverDescription>
+          <PopoverTitle>{t("injection.title")}</PopoverTitle>
+          <PopoverDescription>{t("injection.description")}</PopoverDescription>
         </PopoverHeader>
 
         <div className="space-y-4 px-4 py-4">
-          {error ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {error}
-            </div>
-          ) : null}
+          <PickerErrorAlert error={error} />
 
           <div className="bg-muted inline-flex rounded-full p-1">
             <button
@@ -272,7 +241,7 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
               }}
               disabled={modeInjections.length === 0}
             >
-              模式注入
+              {t("injection.tab_mode")}
             </button>
             <button
               type="button"
@@ -287,11 +256,11 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
               }}
               disabled={lorebooks.length === 0}
             >
-              Lorebook
+              {t("injection.tab_lorebook")}
             </button>
           </div>
 
-          <ScrollArea className="h-[45vh] pr-3">
+          <ScrollArea className="h-[16rem] pr-3">
             {activeTab === "mode" ? (
               modeInjections.length > 0 ? (
                 <div className="space-y-2">
@@ -320,10 +289,12 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
                         )}
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium">
-                            {getDisplayName(item.name, "未命名模式注入")}
+                            {getDisplayName(item.name, t("injection.unnamed_mode"))}
                           </div>
                           {item.enabled === false ? (
-                            <div className="text-muted-foreground mt-0.5 text-xs">已禁用</div>
+                            <div className="text-muted-foreground mt-0.5 text-xs">
+                              {t("injection.disabled")}
+                            </div>
                           ) : null}
                         </div>
                       </label>
@@ -332,7 +303,7 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
                 </div>
               ) : (
                 <div className="rounded-md border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
-                  暂无模式注入
+                  {t("injection.empty_mode")}
                 </div>
               )
             ) : lorebooks.length > 0 ? (
@@ -363,7 +334,7 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
 
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium">
-                          {getDisplayName(item.name, "未命名 Lorebook")}
+                          {getDisplayName(item.name, t("injection.unnamed_lorebook"))}
                         </div>
                         {typeof item.description === "string" &&
                         item.description.trim().length > 0 ? (
@@ -372,7 +343,9 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
                           </div>
                         ) : null}
                         {item.enabled === false ? (
-                          <div className="text-muted-foreground mt-0.5 text-xs">已禁用</div>
+                          <div className="text-muted-foreground mt-0.5 text-xs">
+                            {t("injection.disabled")}
+                          </div>
                         ) : null}
                       </div>
                     </label>
@@ -381,7 +354,7 @@ export function InjectionPickerButton({ disabled = false, className }: Injection
               </div>
             ) : (
               <div className="rounded-md border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
-                暂无 Lorebook
+                {t("injection.empty_lorebook")}
               </div>
             )}
           </ScrollArea>

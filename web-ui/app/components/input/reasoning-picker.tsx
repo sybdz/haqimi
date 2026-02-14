@@ -1,8 +1,12 @@
 import * as React from "react";
 
 import { ChevronDown, Lightbulb, LightbulbOff, LoaderCircle, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useCurrentAssistant } from "~/hooks/use-current-assistant";
+import { useCurrentModel } from "~/hooks/use-current-model";
+import { usePickerPopover } from "~/hooks/use-picker-popover";
+import { extractErrorMessage } from "~/lib/error";
 import { cn } from "~/lib/utils";
 import api from "~/services/api";
 import type { ProviderModel } from "~/types";
@@ -16,6 +20,8 @@ import {
   PopoverTrigger,
 } from "~/components/ui/popover";
 import { Input } from "~/components/ui/input";
+
+import { PickerErrorAlert } from "./picker-error-alert";
 
 const PRESET_BUDGETS = {
   OFF: 0,
@@ -34,37 +40,12 @@ interface ReasoningPreset {
   budget: number;
 }
 
-const REASONING_PRESETS: ReasoningPreset[] = [
-  {
-    key: "OFF",
-    label: "关闭",
-    description: "关闭推理功能，模型将直接回答问题。",
-    budget: PRESET_BUDGETS.OFF,
-  },
-  {
-    key: "AUTO",
-    label: "自动",
-    description: "让模型自动决定推理级别。",
-    budget: PRESET_BUDGETS.AUTO,
-  },
-  {
-    key: "LOW",
-    label: "轻度推理",
-    description: "模型将使用少量推理来回答问题。",
-    budget: PRESET_BUDGETS.LOW,
-  },
-  {
-    key: "MEDIUM",
-    label: "中度推理",
-    description: "模型将使用更多推理来回答问题。",
-    budget: PRESET_BUDGETS.MEDIUM,
-  },
-  {
-    key: "HIGH",
-    label: "重度推理",
-    description: "模型将使用大量推理来回答问题。",
-    budget: PRESET_BUDGETS.HIGH,
-  },
+const REASONING_PRESET_BUDGETS: Array<Pick<ReasoningPreset, "key" | "budget">> = [
+  { key: "OFF", budget: PRESET_BUDGETS.OFF },
+  { key: "AUTO", budget: PRESET_BUDGETS.AUTO },
+  { key: "LOW", budget: PRESET_BUDGETS.LOW },
+  { key: "MEDIUM", budget: PRESET_BUDGETS.MEDIUM },
+  { key: "HIGH", budget: PRESET_BUDGETS.HIGH },
 ];
 
 export interface ReasoningPickerButtonProps {
@@ -82,10 +63,10 @@ function isReasoningModel(model: ProviderModel | null): boolean {
 
 function getReasoningLevel(budget: number | null | undefined): ReasoningLevel {
   const value = budget ?? PRESET_BUDGETS.AUTO;
-  let closest = REASONING_PRESETS[0];
+  let closest = REASONING_PRESET_BUDGETS[0];
   let minDistance = Number.POSITIVE_INFINITY;
 
-  for (const preset of REASONING_PRESETS) {
+  for (const preset of REASONING_PRESET_BUDGETS) {
     const distance = Math.abs(value - preset.budget);
     if (distance < minDistance) {
       minDistance = distance;
@@ -96,51 +77,63 @@ function getReasoningLevel(budget: number | null | undefined): ReasoningLevel {
   return closest.key;
 }
 
-function getCurrentModel(
-  settings: { providers: { models: ProviderModel[] }[] } | null,
-  modelId: string | null,
-): ProviderModel | null {
-  if (!settings || !modelId) {
-    return null;
-  }
-
-  for (const provider of settings.providers) {
-    const model = provider.models.find((item) => item.id === modelId);
-    if (model) {
-      return model;
-    }
-  }
-
-  return null;
-}
-
 export function ReasoningPickerButton({ disabled = false, className }: ReasoningPickerButtonProps) {
+  const { t } = useTranslation("input");
   const { settings, currentAssistant } = useCurrentAssistant();
+  const { currentModel } = useCurrentModel();
 
-  const [open, setOpen] = React.useState(false);
   const [updatingBudget, setUpdatingBudget] = React.useState<number | null>(null);
   const [customValue, setCustomValue] = React.useState("");
   const [customExpanded, setCustomExpanded] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-
-  const currentModelId = currentAssistant?.chatModelId ?? settings?.chatModelId ?? null;
-  const currentModel = React.useMemo(
-    () => getCurrentModel(settings, currentModelId),
-    [currentModelId, settings],
-  );
 
   const canUse = Boolean(settings && currentAssistant && !disabled);
   const canReasoning = isReasoningModel(currentModel);
+  const { open, error, setError, popoverProps } = usePickerPopover(canUse);
+  const reasoningPresets = React.useMemo<ReasoningPreset[]>(
+    () => [
+      {
+        key: "OFF",
+        label: t("reasoning.presets.off.label"),
+        description: t("reasoning.presets.off.description"),
+        budget: PRESET_BUDGETS.OFF,
+      },
+      {
+        key: "AUTO",
+        label: t("reasoning.presets.auto.label"),
+        description: t("reasoning.presets.auto.description"),
+        budget: PRESET_BUDGETS.AUTO,
+      },
+      {
+        key: "LOW",
+        label: t("reasoning.presets.low.label"),
+        description: t("reasoning.presets.low.description"),
+        budget: PRESET_BUDGETS.LOW,
+      },
+      {
+        key: "MEDIUM",
+        label: t("reasoning.presets.medium.label"),
+        description: t("reasoning.presets.medium.description"),
+        budget: PRESET_BUDGETS.MEDIUM,
+      },
+      {
+        key: "HIGH",
+        label: t("reasoning.presets.high.label"),
+        description: t("reasoning.presets.high.description"),
+        budget: PRESET_BUDGETS.HIGH,
+      },
+    ],
+    [t],
+  );
 
   const currentBudget = currentAssistant?.thinkingBudget ?? PRESET_BUDGETS.AUTO;
   const currentLevel = getReasoningLevel(currentBudget);
   const currentPreset =
-    REASONING_PRESETS.find((preset) => preset.key === currentLevel) ?? REASONING_PRESETS[0];
+    reasoningPresets.find((preset) => preset.key === currentLevel) ?? reasoningPresets[0];
   const loading = updatingBudget !== null;
 
   React.useEffect(() => {
     if (!canUse || !canReasoning) {
-      setOpen(false);
+      popoverProps.onOpenChange(false);
     }
   }, [canReasoning, canUse]);
 
@@ -148,7 +141,6 @@ export function ReasoningPickerButton({ disabled = false, className }: Reasoning
     if (open) {
       setCustomValue(String(currentBudget));
       setCustomExpanded(false);
-      setError(null);
     }
   }, [currentBudget, open]);
 
@@ -167,13 +159,12 @@ export function ReasoningPickerButton({ disabled = false, className }: Reasoning
           thinkingBudget,
         });
       } catch (updateError) {
-        const message = updateError instanceof Error ? updateError.message : "更新推理预算失败";
-        setError(message);
+        setError(extractErrorMessage(updateError, t("reasoning.update_failed")));
       } finally {
         setUpdatingBudget(null);
       }
     },
-    [canUse, currentAssistant],
+    [canUse, currentAssistant, t],
   );
 
   if (!canReasoning) {
@@ -181,17 +172,7 @@ export function ReasoningPickerButton({ disabled = false, className }: Reasoning
   }
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!canUse) {
-          setOpen(false);
-          return;
-        }
-
-        setOpen(nextOpen);
-      }}
-    >
+    <Popover {...popoverProps}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -216,19 +197,15 @@ export function ReasoningPickerButton({ disabled = false, className }: Reasoning
 
       <PopoverContent align="end" className="w-[min(92vw,24rem)] gap-0 p-0">
         <PopoverHeader className="border-b px-6 py-4">
-          <PopoverTitle>推理</PopoverTitle>
-          <PopoverDescription>配置当前助手的推理强度和预算</PopoverDescription>
+          <PopoverTitle>{t("reasoning.title")}</PopoverTitle>
+          <PopoverDescription>{t("reasoning.description")}</PopoverDescription>
         </PopoverHeader>
 
         <div className="max-h-[70svh] space-y-3 overflow-y-auto px-4 py-4">
-          {error ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {error}
-            </div>
-          ) : null}
+          <PickerErrorAlert error={error} />
 
           <div className="grid grid-cols-3 gap-2">
-            {REASONING_PRESETS.map((preset) => {
+            {reasoningPresets.map((preset) => {
               const selected = preset.key === currentLevel;
               const switching = updatingBudget === preset.budget;
 
@@ -275,7 +252,7 @@ export function ReasoningPickerButton({ disabled = false, className }: Reasoning
                 setCustomExpanded((prev) => !prev);
               }}
             >
-              <span>自定义推理预算</span>
+              <span>{t("reasoning.custom_budget")}</span>
               <ChevronDown
                 className={cn("size-3.5 transition-transform", customExpanded && "rotate-180")}
               />
@@ -290,7 +267,7 @@ export function ReasoningPickerButton({ disabled = false, className }: Reasoning
                     onChange={(event) => {
                       setCustomValue(event.target.value);
                     }}
-                    placeholder="输入预算 token 数"
+                    placeholder={t("reasoning.custom_budget_placeholder")}
                     inputMode="numeric"
                   />
                   <Button
@@ -301,18 +278,18 @@ export function ReasoningPickerButton({ disabled = false, className }: Reasoning
                     onClick={() => {
                       const parsedValue = Number.parseInt(customValue.trim(), 10);
                       if (Number.isNaN(parsedValue)) {
-                        setError("请输入有效的整数");
+                        setError(t("reasoning.invalid_integer"));
                         return;
                       }
 
                       void updateThinkingBudget(parsedValue);
                     }}
                   >
-                    应用
+                    {t("reasoning.apply")}
                   </Button>
                 </div>
                 <div className="text-muted-foreground text-xs">
-                  示例：0（关闭）、-1（自动）、1024、16000、32000
+                  {t("reasoning.examples")}
                 </div>
               </>
             ) : null}

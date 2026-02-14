@@ -23,6 +23,7 @@ import { useIsMobile } from "~/hooks/use-mobile";
 import { toConversationSummaryUpdate, useConversationList } from "~/hooks/use-conversation-list";
 import { useCurrentAssistant } from "~/hooks/use-current-assistant";
 import { useCurrentModel } from "~/hooks/use-current-model";
+import { getAssistantDisplayName, getModelDisplayName } from "~/lib/display";
 import { cn } from "~/lib/utils";
 import api, { sse } from "~/services/api";
 import { useChatInputStore } from "~/stores";
@@ -37,14 +38,22 @@ import {
   type MessageNodeDto,
   type MessageDto,
   type ConversationNodeUpdateEventDto,
+  type ConversationErrorEventDto,
   type ConversationSnapshotEventDto,
   type UIMessagePart,
 } from "~/types";
 import { MessageSquare } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import type { PanelImperativeHandle } from "react-resizable-panels";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
+import i18n from "~/i18n";
 
-type ConversationStreamEvent = ConversationSnapshotEventDto | ConversationNodeUpdateEventDto;
+type ConversationStreamEvent =
+  | ConversationSnapshotEventDto
+  | ConversationNodeUpdateEventDto
+  | ConversationErrorEventDto;
 
 interface SelectedNodeMessage {
   node: MessageNodeDto;
@@ -72,32 +81,6 @@ function createHomeDraftId() {
   return `home-${uuidv4()}`;
 }
 
-function getAssistantDisplayName(name: string | null | undefined) {
-  const normalized = name?.trim() ?? "";
-  if (normalized.length > 0) {
-    return normalized;
-  }
-
-  return "默认助手";
-}
-
-function getModelDisplayName(
-  displayName: string | null | undefined,
-  modelId: string | null | undefined,
-) {
-  const normalizedDisplayName = displayName?.trim() ?? "";
-  if (normalizedDisplayName.length > 0) {
-    return normalizedDisplayName;
-  }
-
-  const normalizedModelId = modelId?.trim() ?? "";
-  if (normalizedModelId.length > 0) {
-    return normalizedModelId;
-  }
-
-  return "未命名模型";
-}
-
 function truncatePreviewText(value: string, maxLength = 48): string {
   if (value.length <= maxLength) {
     return value;
@@ -106,7 +89,10 @@ function truncatePreviewText(value: string, maxLength = 48): string {
   return `${value.slice(0, maxLength)}...`;
 }
 
-function getQuickJumpPreview(message: MessageDto): string {
+function getQuickJumpPreview(
+  message: MessageDto,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const textPreview = message.parts
     .filter((part): part is Extract<UIMessagePart, { type: "text" }> => part.type === "text")
     .map((part) => part.text.trim())
@@ -117,29 +103,33 @@ function getQuickJumpPreview(message: MessageDto): string {
   }
 
   const fallbackPart = message.parts.find(Boolean);
-  if (!fallbackPart) return "空消息";
+  if (!fallbackPart) return t("conversations.preview.empty_message");
 
   switch (fallbackPart.type) {
     case "image":
-      return "[图片]";
+      return t("conversations.preview.image");
     case "video":
-      return "[视频]";
+      return t("conversations.preview.video");
     case "audio":
-      return "[音频]";
+      return t("conversations.preview.audio");
     case "document":
       return fallbackPart.fileName.trim().length > 0
-        ? `[文档] ${truncatePreviewText(fallbackPart.fileName.trim(), 32)}`
-        : "[文档]";
+        ? t("conversations.preview.document_with_name", {
+            name: truncatePreviewText(fallbackPart.fileName.trim(), 32),
+          })
+        : t("conversations.preview.document");
     case "reasoning":
       return fallbackPart.reasoning.trim().length > 0
         ? truncatePreviewText(fallbackPart.reasoning.trim().replace(/\s+/g, " "))
-        : "[思考]";
+        : t("conversations.preview.thinking");
     case "tool":
       return fallbackPart.toolName.trim().length > 0
-        ? `[工具] ${truncatePreviewText(fallbackPart.toolName.trim(), 32)}`
-        : "[工具调用]";
+        ? t("conversations.preview.tool_with_name", {
+            name: truncatePreviewText(fallbackPart.toolName.trim(), 32),
+          })
+        : t("conversations.preview.tool_call");
     case "text":
-      return "空消息";
+      return t("conversations.preview.empty_message");
   }
 }
 
@@ -313,6 +303,7 @@ function applyNodeUpdate(
 }
 
 function useConversationDetail(activeId: string | null, updateSummary: ConversationSummaryUpdater) {
+  const { t } = useTranslation("page");
   const [detail, setDetail] = React.useState<ConversationDto | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [detailError, setDetailError] = React.useState<string | null>(null);
@@ -344,7 +335,7 @@ function useConversationDetail(activeId: string | null, updateSummary: Conversat
       })
       .catch((err: Error) => {
         if (!mounted) return;
-        setDetailError(err.message || "加载会话详情失败");
+        setDetailError(err.message || t("conversations.errors.load_detail_failed"));
         setDetail(null);
       })
       .finally(() => {
@@ -357,6 +348,11 @@ function useConversationDetail(activeId: string | null, updateSummary: Conversat
       {
         onMessage: ({ event, data }) => {
           if (!mounted) return;
+
+          if (event === "error" && data.type === "error") {
+            toast.error(data.message);
+            return;
+          }
 
           if (event === "snapshot" && data.type === "snapshot") {
             setDetail(data.conversation);
@@ -390,7 +386,7 @@ function useConversationDetail(activeId: string | null, updateSummary: Conversat
       mounted = false;
       abortController.abort();
     };
-  }, [activeId, resetDetail, updateSummary]);
+  }, [activeId, resetDetail, t, updateSummary]);
 
   const selectedNodeMessages = React.useMemo<SelectedNodeMessage[]>(() => {
     if (!detail) return [];
@@ -525,6 +521,7 @@ function ConversationTimeline({
   detailError,
   selectedNodeMessages,
   isGenerating,
+  contentClassName,
   onEdit,
   onDelete,
   onFork,
@@ -538,6 +535,7 @@ function ConversationTimeline({
   detailError: string | null;
   selectedNodeMessages: SelectedNodeMessage[];
   isGenerating: boolean;
+  contentClassName?: string;
   onEdit: (message: MessageDto) => void | Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
   onFork: (messageId: string) => Promise<void>;
@@ -545,30 +543,39 @@ function ConversationTimeline({
   onSelectBranch: (nodeId: string, selectIndex: number) => Promise<void>;
   onToolApproval: (toolCallId: string, approved: boolean, reason: string) => Promise<void>;
 }) {
+  const { t } = useTranslation("page");
   const canQuickJump =
     Boolean(activeId) && !detailLoading && !detailError && selectedNodeMessages.length > 1;
 
   return (
     <Conversation className="flex-1 min-h-0">
-      <ConversationContent className="mx-auto w-full max-w-3xl gap-4 px-4 py-6">
+      <ConversationContent
+        className={cn("mx-auto w-full max-w-3xl gap-4 px-4 py-6", contentClassName)}
+      >
         {!activeId && !isHomeRoute && (
           <ConversationEmptyState
             icon={<MessageSquare className="size-10" />}
-            title="请选择会话"
-            description="选择左侧会话以查看消息"
+            title={t("conversations.empty_state.select_title")}
+            description={t("conversations.empty_state.select_description")}
           />
         )}
         {activeId && detailLoading && (
-          <ConversationEmptyState title="加载中..." description="正在加载会话详情" />
+          <ConversationEmptyState
+            title={t("conversations.empty_state.loading_title")}
+            description={t("conversations.empty_state.loading_description")}
+          />
         )}
         {activeId && detailError && (
-          <ConversationEmptyState title="加载失败" description={detailError} />
+          <ConversationEmptyState
+            title={t("conversations.empty_state.error_title")}
+            description={detailError}
+          />
         )}
         {!detailLoading && !detailError && activeId && selectedNodeMessages.length === 0 && (
           <ConversationEmptyState
             icon={<MessageSquare className="size-10" />}
-            title="暂无消息"
-            description="当前会话还没有消息"
+            title={t("conversations.empty_state.no_message_title")}
+            description={t("conversations.empty_state.no_message_description")}
           />
         )}
         {!detailLoading &&
@@ -606,7 +613,7 @@ function ConversationTimeline({
           items={selectedNodeMessages.map(({ message }) => ({
             id: message.id,
             role: message.role,
-            preview: getQuickJumpPreview(message),
+            preview: getQuickJumpPreview(message, t),
           }))}
         />
       ) : null}
@@ -616,39 +623,14 @@ function ConversationTimeline({
   );
 }
 
-function ConversationSuggestions({
-  suggestions,
-  onClickSuggestion,
-}: {
-  suggestions: string[];
-  onClickSuggestion: (suggestion: string) => void;
-}) {
-  if (suggestions.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="mx-auto w-full max-w-3xl px-4">
-      <div className="flex gap-2 overflow-x-auto">
-        {suggestions.map((suggestion, index) => (
-          <button
-            key={`${suggestion}-${index}`}
-            type="button"
-            className="shrink-0 rounded-lg border bg-transparent px-3 py-1 text-xs text-foreground transition-colors hover:bg-muted/40"
-            onClick={() => {
-              onClickSuggestion(suggestion);
-            }}
-          >
-            {suggestion}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function meta() {
-  return [{ title: "RikkaHub Web" }, { name: "description", content: "RikkaHub web client" }];
+  return [
+    { title: i18n.t("page:conversations.meta.title") },
+    {
+      name: "description",
+      content: i18n.t("page:conversations.meta.description"),
+    },
+  ];
 }
 
 export default function ConversationsPage() {
@@ -662,6 +644,7 @@ export default function ConversationsPage() {
 }
 
 function ConversationsPageInner() {
+  const { t } = useTranslation("page");
   const navigate = useNavigate();
   const { id: routeId } = useParams();
   const isHomeRoute = !routeId;
@@ -712,12 +695,12 @@ function ConversationsPageInner() {
   const chatSuggestions = detail?.chatSuggestions ?? [];
 
   React.useEffect(() => {
-    const base = "RikkaHub Web";
+    const base = t("conversations.meta.title");
     document.title = activeConversation?.title ? `${activeConversation.title} - ${base}` : base;
     return () => {
       document.title = base;
     };
-  }, [activeConversation?.title]);
+  }, [activeConversation?.title, t]);
   const isNewChat = isHomeRoute && !activeId;
   const showSuggestions =
     Boolean(activeId) && !detailLoading && !detailError && chatSuggestions.length > 0;
@@ -934,12 +917,27 @@ function ConversationsPageInner() {
   }, [activeId]);
 
   const hasWorkbenchPanel = Boolean(panel);
+  const workbenchPanelRef = React.useRef<PanelImperativeHandle | null>(null);
+
+  React.useEffect(() => {
+    if (isMobile) return;
+
+    const workbenchPanel = workbenchPanelRef.current;
+    if (!workbenchPanel) return;
+
+    if (hasWorkbenchPanel) {
+      workbenchPanel.expand();
+    } else {
+      workbenchPanel.collapse();
+    }
+  }, [hasWorkbenchPanel, isMobile]);
+
   const chatContent = (
     <div
       className={cn("flex flex-1 flex-col min-h-0 overflow-hidden", isNewChat && "justify-center")}
     >
       {!isNewChat && (
-        <>
+        <div className="relative flex min-h-0 flex-1">
           <ConversationTimeline
             activeId={activeId}
             isHomeRoute={isHomeRoute}
@@ -954,14 +952,7 @@ function ConversationsPageInner() {
             onSelectBranch={handleSelectBranch}
             onToolApproval={handleToolApproval}
           />
-
-          {showSuggestions ? (
-            <ConversationSuggestions
-              suggestions={chatSuggestions}
-              onClickSuggestion={handleClickSuggestion}
-            />
-          ) : null}
-        </>
+        </div>
       )}
 
       <motion.div layout="position" transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}>
@@ -975,7 +966,7 @@ function ConversationsPageInner() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              <p className="text-lg text-muted-foreground">有什么可以帮助你的？</p>
+              <p className="text-lg text-muted-foreground">{t("conversations.welcome_prompt")}</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -987,6 +978,8 @@ function ConversationsPageInner() {
           disabled={detailLoading || Boolean(detailError)}
           onValueChange={handleInputTextChange}
           onAddParts={handleAddInputParts}
+          suggestions={showSuggestions ? chatSuggestions : []}
+          onSuggestionClick={handleClickSuggestion}
           isEditing={Boolean(editingSession)}
           onCancelEdit={editingSession ? handleCancelEdit : undefined}
           shouldDeleteFileOnRemove={shouldDeleteAttachmentFileOnRemove}
@@ -995,7 +988,6 @@ function ConversationsPageInner() {
           }}
           onSend={handleSend}
           onStop={activeId ? handleStop : undefined}
-          className={showSuggestions ? "pt-1" : undefined}
         />
       </motion.div>
     </div>
@@ -1010,7 +1002,9 @@ function ConversationsPageInner() {
         error={error}
         hasMore={hasMore}
         loadMore={loadMore}
-        userName={settings?.displaySetting.userNickname?.trim() || "用户"}
+        userName={
+          settings?.displaySetting.userNickname?.trim() || t("conversations.user.default_name")
+        }
         userAvatar={settings?.displaySetting.userAvatar}
         assistants={assistants}
         assistantTags={settings?.assistantTags ?? []}
@@ -1029,7 +1023,9 @@ function ConversationsPageInner() {
           <SidebarTrigger />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm text-muted-foreground">
-              {activeConversation ? activeConversation.title : "请选择会话"}
+              {activeConversation
+                ? activeConversation.title
+                : t("conversations.header.select_conversation")}
             </div>
             {currentModel && currentProvider ? (
               <div className="truncate text-xs text-muted-foreground/80">
@@ -1039,14 +1035,30 @@ function ConversationsPageInner() {
           </div>
         </div>
 
-        {!isMobile && hasWorkbenchPanel && panel ? (
+        {!isMobile ? (
           <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-            <ResizablePanel defaultSize={64} minSize={40}>
+            <ResizablePanel
+              defaultSize={hasWorkbenchPanel ? 64 : 100}
+              minSize={40}
+              className="flex min-h-0 flex-col"
+            >
               {chatContent}
             </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={36} minSize={24}>
-              <WorkbenchHost panel={panel} onClose={closePanel} className="border-l-0" />
+            <ResizableHandle
+              withHandle
+              className={cn(!hasWorkbenchPanel && "pointer-events-none opacity-0")}
+            />
+            <ResizablePanel
+              defaultSize={hasWorkbenchPanel ? 36 : 0}
+              minSize={24}
+              collapsible
+              collapsedSize={0}
+              panelRef={workbenchPanelRef}
+              className="flex min-h-0 flex-col"
+            >
+              {panel ? (
+                <WorkbenchHost panel={panel} onClose={closePanel} className="border-l-0" />
+              ) : null}
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (

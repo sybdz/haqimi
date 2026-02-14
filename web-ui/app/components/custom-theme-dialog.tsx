@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -27,53 +28,49 @@ export function CustomThemeDialog({
   initialCss,
   onSave,
 }: CustomThemeDialogProps) {
-  const [lightDraft, setLightDraft] = React.useState(initialCss.light);
-  const [darkDraft, setDarkDraft] = React.useState(initialCss.dark);
+  const { t } = useTranslation();
+  const [cssDraft, setCssDraft] = React.useState(initialCss.light || initialCss.dark || "");
 
   React.useEffect(() => {
     if (!open) {
       return;
     }
 
-    setLightDraft(initialCss.light);
-    setDarkDraft(initialCss.dark);
-  }, [initialCss.dark, initialCss.light, open]);
+    setCssDraft(initialCss.light || initialCss.dark || "");
+  }, [initialCss.light, initialCss.dark, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85svh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>自定义主题 CSS</DialogTitle>
-          <DialogDescription>
-            仅提取并应用 CSS 变量声明（例如 --primary: ...;），支持 Light 和 Dark 两套。
-          </DialogDescription>
+          <DialogTitle>{t("custom_theme_dialog.title")}</DialogTitle>
+          <DialogDescription>{t("custom_theme_dialog.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <div className="text-sm font-medium">Light 变量</div>
+            <div className="text-sm font-medium">{t("custom_theme_dialog.theme_variables")}</div>
             <Textarea
-              value={lightDraft}
+              value={cssDraft}
               onChange={(event) => {
-                setLightDraft(event.target.value);
+                setCssDraft(event.target.value);
               }}
-              placeholder=":root {\n  --background: ...;\n  --primary: ...;\n}"
+              placeholder={t("custom_theme_dialog.theme_placeholder")}
               rows={CUSTOM_THEME_EDITOR_ROWS}
               className="field-sizing-fixed h-56 max-h-56 overflow-y-auto font-mono text-xs"
             />
           </div>
 
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Dark 变量</div>
-            <Textarea
-              value={darkDraft}
-              onChange={(event) => {
-                setDarkDraft(event.target.value);
-              }}
-              placeholder=":root.dark {\n  --background: ...;\n  --primary: ...;\n}"
-              rows={CUSTOM_THEME_EDITOR_ROWS}
-              className="field-sizing-fixed h-56 max-h-56 overflow-y-auto font-mono text-xs"
-            />
+          <div className="text-sm text-muted-foreground">
+            {t("custom_theme_dialog.tip")}{" "}
+            <a
+              href="https://tweakcn.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              https://tweakcn.com/
+            </a>
           </div>
         </div>
 
@@ -85,19 +82,35 @@ export function CustomThemeDialog({
               onOpenChange(false);
             }}
           >
-            取消
+            {t("custom_theme_dialog.cancel")}
           </Button>
           <Button
             type="button"
             onClick={() => {
+              // 分离浅色和深色主题变量
+              let lightCss = "";
+              let darkCss = "";
+
+              // 提取 :root 选择器下的变量作为浅色主题
+              const rootMatch = cssDraft.match(/:root\s*\{([\s\S]*?)\}/);
+              if (rootMatch) {
+                lightCss = rootMatch[1];
+              }
+
+              // 提取 .dark 或 :root.dark 选择器下的变量作为深色主题
+              const darkMatch = cssDraft.match(/(?:\.dark|:root\.dark)\s*\{([\s\S]*?)\}/);
+              if (darkMatch) {
+                darkCss = darkMatch[1];
+              }
+
               onSave({
-                light: lightDraft,
-                dark: darkDraft,
+                light: lightCss,
+                dark: darkCss,
               });
               onOpenChange(false);
             }}
           >
-            保存并应用
+            {t("custom_theme_dialog.save_and_apply")}
           </Button>
         </DialogFooter>
       </DialogContent>
