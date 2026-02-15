@@ -256,6 +256,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item {
                 SettingItem(
                     navController = navController,
+                    title = { Text(stringResource(R.string.setting_page_termux)) },
+                    description = { Text(stringResource(R.string.setting_page_termux_desc)) },
+                    icon = { Icon(Lucide.FolderOpen, "Termux") },
+                    link = Screen.SettingTermux
+                )
+            }
+
+            item {
+                SettingItem(
+                    navController = navController,
                     title = { Text(stringResource(R.string.setting_page_web_server)) },
                     description = { Text(stringResource(R.string.setting_page_web_server_desc)) },
                     icon = { Icon(Lucide.Globe, "Web Server") },

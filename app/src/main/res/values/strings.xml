@@ -67,6 +67,12 @@
   <string name="assistant_page_local_tools_time_info_title">Time Info</string>
   <string name="assistant_page_local_tools_clipboard_desc">Read or write plain text from the device clipboard</string>
   <string name="assistant_page_local_tools_clipboard_title">Clipboard</string>
+  <string name="assistant_page_local_tools_termux_exec_title">Termux Command</string>
+  <string name="assistant_page_local_tools_termux_exec_desc">Execute commands in local Termux (com.termux) via the termux_exec tool</string>
+  <string name="assistant_page_local_tools_termux_python_title">Termux Python</string>
+  <string name="assistant_page_local_tools_termux_python_desc">Run Python code in Termux via the termux_python tool (requires Termux python)</string>
+  <string name="assistant_page_local_tools_termux_needs_approval_title">Require Approval</string>
+  <string name="assistant_page_local_tools_termux_needs_approval_desc">When enabled, Termux tools require manual approval before running</string>
   <string name="assistant_page_manage_memory_title">Manage Memory</string>
   <string name="assistant_page_max_tokens">Max Tokens</string>
   <string name="assistant_page_max_tokens_desc">Maximum number of tokens to generate. Leave empty for no limit.</string>
@@ -481,6 +487,8 @@
   <string name="setting_page_general_settings">General Settings</string>
   <string name="setting_page_mcp">MCP</string>
   <string name="setting_page_mcp_desc">Configure MCP Servers</string>
+  <string name="setting_page_termux">Termux</string>
+  <string name="setting_page_termux_desc">Configure local Termux tools (workdir, permissions)</string>
   <string name="setting_page_model_and_services">Models &amp; Services</string>
   <string name="setting_page_no_share_app">No sharing app found</string>
   <string name="setting_page_providers">Providers</string>
@@ -807,7 +815,15 @@
   <string name="setting_page_web_server_error">Error</string>
   <string name="setting_page_web_server_start">Start</string>
   <string name="setting_page_web_server_stop">Stop</string>
+  <string name="setting_termux_page_title">Termux</string>
+  <string name="setting_termux_page_workdir_title">Termux Workdir</string>
+  <string name="setting_termux_page_workdir_desc">Default working directory for termux_exec and termux_python (e.g. /data/data/com.termux/files/home/workspace)</string>
+  <string name="setting_termux_page_setup_title">Setup checklist</string>
+  <string name="setting_termux_page_setup_step_1">1) Install Termux (com.termux)</string>
+  <string name="setting_termux_page_setup_step_2">2) In Termux: set allow-external-apps=true in ~/.termux/termux.properties, then restart Termux</string>
+  <string name="setting_termux_page_setup_step_3">3) Android Settings: grant “Run commands in Termux environment” to this app (Additional permissions)</string>
+  <string name="setting_termux_page_setup_step_4">4) For termux_python: install Python in Termux (pkg install python)</string>
+  <string name="setting_termux_page_open_app_settings">Open App Settings</string>
   <string name="setting_display_page_enable_latex_rendering_title">Enable LaTeX Rendering</string>
   <string name="setting_display_page_enable_latex_rendering_desc">Render mathematical expressions and formulas using LaTeX syntax</string>
 </resources>
-

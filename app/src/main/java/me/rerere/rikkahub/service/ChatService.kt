@@ -474,7 +474,8 @@ class ChatService(
                     if (settings.enableWebSearch) {
                         addAll(createSearchTools(settings))
                     }
-                    addAll(localTools.getTools(settings.getCurrentAssistant().localTools))
+                    val currentAssistant = settings.getCurrentAssistant()
+                    addAll(localTools.getTools(currentAssistant.localTools, currentAssistant))
                     mcpManager.getAllAvailableTools().forEach { tool ->
                         add(
                             Tool(

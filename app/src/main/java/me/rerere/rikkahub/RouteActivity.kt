@@ -95,6 +95,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTTSPage
+import me.rerere.rikkahub.ui.pages.setting.SettingTermuxPage
 import me.rerere.rikkahub.ui.pages.setting.SettingWebPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
@@ -355,6 +356,10 @@ class RouteActivity : ComponentActivity() {
                         SettingMcpPage()
                     }
 
+                    composable<Screen.SettingTermux> {
+                        SettingTermuxPage()
+                    }
+
                     composable<Screen.SettingDonate> {
                         SettingDonatePage()
                     }
@@ -519,6 +524,9 @@ sealed interface Screen {
 
     @Serializable
     data object SettingMcp : Screen
+
+    @Serializable
+    data object SettingTermux : Screen
 
     @Serializable
     data object SettingDonate : Screen

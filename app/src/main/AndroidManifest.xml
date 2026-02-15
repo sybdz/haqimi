@@ -8,6 +8,7 @@
   <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
   <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
   <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+  <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
 
   <uses-feature
     android:name="android.hardware.camera"
@@ -69,6 +70,10 @@
       android:name="com.yalantis.ucrop.UCropActivity"
       android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
 
+    <service
+      android:name=".data.ai.tools.termux.TermuxResultService"
+      android:exported="false" />
+
     <provider
       android:name="androidx.core.content.FileProvider"
       android:authorities="${applicationId}.fileprovider"
@@ -92,6 +97,7 @@
   </application>
 
   <queries>
+    <package android:name="com.termux" />
     <intent>
       <action android:name="android.intent.action.TTS_SERVICE" />
     </intent>

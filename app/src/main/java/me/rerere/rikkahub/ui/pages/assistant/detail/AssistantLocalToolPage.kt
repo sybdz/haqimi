@@ -115,6 +115,50 @@ private fun AssistantLocalToolContent(
                 onUpdate(assistant.copy(localTools = newLocalTools))
             }
         )
+
+        // Termux 命令工具卡片
+        LocalToolCard(
+            title = stringResource(R.string.assistant_page_local_tools_termux_exec_title),
+            description = stringResource(R.string.assistant_page_local_tools_termux_exec_desc),
+            isEnabled = assistant.localTools.contains(LocalToolOption.TermuxExec),
+            onToggle = { enabled ->
+                val newLocalTools = if (enabled) {
+                    assistant.localTools + LocalToolOption.TermuxExec
+                } else {
+                    assistant.localTools - LocalToolOption.TermuxExec
+                }
+                onUpdate(assistant.copy(localTools = newLocalTools))
+            }
+        )
+
+        // Termux Python 工具卡片
+        LocalToolCard(
+            title = stringResource(R.string.assistant_page_local_tools_termux_python_title),
+            description = stringResource(R.string.assistant_page_local_tools_termux_python_desc),
+            isEnabled = assistant.localTools.contains(LocalToolOption.TermuxPython),
+            onToggle = { enabled ->
+                val newLocalTools = if (enabled) {
+                    assistant.localTools + LocalToolOption.TermuxPython
+                } else {
+                    assistant.localTools - LocalToolOption.TermuxPython
+                }
+                onUpdate(assistant.copy(localTools = newLocalTools))
+            }
+        )
+
+        val termuxToolsEnabled = assistant.localTools.any {
+            it == LocalToolOption.TermuxExec || it == LocalToolOption.TermuxPython
+        }
+        if (termuxToolsEnabled) {
+            LocalToolCard(
+                title = stringResource(R.string.assistant_page_local_tools_termux_needs_approval_title),
+                description = stringResource(R.string.assistant_page_local_tools_termux_needs_approval_desc),
+                isEnabled = assistant.termuxNeedsApproval,
+                onToggle = { enabled ->
+                    onUpdate(assistant.copy(termuxNeedsApproval = enabled))
+                }
+            )
+        }
     }
 }
 
