@@ -28,7 +28,7 @@ class TermuxCommandManager(
         val resultIntent = Intent(context, TermuxResultService::class.java).apply {
             putExtra(TermuxResultService.EXTRA_EXECUTION_ID, executionId)
         }
-        val pendingIntentFlags = PendingIntent.FLAG_ONE_SHOT or
+        val pendingIntentFlags = PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_CANCEL_CURRENT or
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
         val pendingIntent = PendingIntent.getService(
             context,
@@ -52,11 +52,15 @@ class TermuxCommandManager(
             request.description?.let { putExtra(TermuxProtocol.EXTRA_COMMAND_DESCRIPTION, it) }
         }
 
-        runCatching {
+        val startedService = runCatching {
             context.startService(intent)
-        }.onFailure { e ->
+        }.getOrElse { e ->
             pending.remove(executionId)
             throw e
+        }
+        if (startedService == null) {
+            pending.remove(executionId)
+            error("Failed to start Termux RunCommandService (startService returned null)")
         }
 
         return runCatching {
@@ -106,4 +110,3 @@ class TermuxCommandManager(
         }
     }
 }
-

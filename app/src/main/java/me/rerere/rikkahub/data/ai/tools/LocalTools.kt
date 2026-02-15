@@ -335,11 +335,10 @@ class LocalTools(
         return Tool(
             name = "termux_python",
             description = """
-                Execute Python code in the local Termux environment. Input only Python code, returns
-                result/stdout/stderr.
+                Execute Python code in the local Termux environment. Input only Python code.
                 Default workdir comes from app Settings -> Termux.
                 Requires Termux installed and Python installed in Termux (pkg install python).
-                Returns plain text output like a terminal, and prints the repr() of the last expression (if any).
+                Returns plain text output like a terminal (stdout + stderr).
             """.trimIndent().replace("\n", " "),
             needsApproval = needsApproval,
             parameters = {
@@ -375,7 +374,7 @@ class LocalTools(
                     termuxCommandManager.run(
                         TermuxRunCommandRequest(
                             commandPath = TERMUX_PYTHON3_PATH,
-                            arguments = listOf("-c", PYTHON_WRAPPER),
+                            arguments = listOf("-"),
                             workdir = workdir,
                             stdin = code,
                             background = true,
@@ -445,32 +444,5 @@ class LocalTools(
     companion object {
         private const val TERMUX_BASH_PATH = "/data/data/com.termux/files/usr/bin/bash"
         private const val TERMUX_PYTHON3_PATH = "/data/data/com.termux/files/usr/bin/python3"
-
-        private val PYTHON_WRAPPER = """
-            import sys, ast, traceback
-            code = sys.stdin.read()
-            try:
-                mod = ast.parse(code, mode="exec")
-            except Exception:
-                traceback.print_exc()
-                raise SystemExit(1)
-
-            expr = None
-            if mod.body and isinstance(mod.body[-1], ast.Expr):
-                expr = mod.body.pop().value
-
-            ns = {}
-            try:
-                exec(compile(mod, "<termux_python>", "exec"), ns, ns)
-                if expr is not None:
-                    val = eval(compile(ast.Expression(expr), "<termux_python>", "eval"), ns, ns)
-                    sys.stdout.write(repr(val))
-                    sys.stdout.write("\n")
-            except SystemExit:
-                raise
-            except Exception:
-                traceback.print_exc()
-                raise SystemExit(1)
-        """.trimIndent()
     }
 }
