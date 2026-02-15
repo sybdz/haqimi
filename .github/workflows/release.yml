@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --tags --force
-          latest="$(git tag -l 'v0.0.*' | grep -E '^v0\\.0\\.[0-9]+$' | sort -V | tail -n 1 || true)"
+          latest="$(git tag -l 'v0.0.*' | grep -E '^v0[.]0[.][0-9]+$' | sort -V | tail -n 1 || true)"
           if [[ -z "${latest}" ]]; then
             next="v0.0.1"
           else
