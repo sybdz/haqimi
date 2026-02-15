@@ -7,19 +7,16 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.rikkahub.data.ai.tools.termux.DEFAULT_TIMEOUT_MS
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxCommandManager
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxRunCommandRequest
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -220,6 +217,7 @@ class LocalTools(
                 Execute commands in the local Termux app (com.termux) via RUN_COMMAND intent.
                 You can provide either 'command' (shell string executed via bash -lc) OR 'command_path' + 'arguments'.
                 Default workdir comes from app Settings -> Termux.
+                Background and timeout are controlled by app Settings -> Termux.
                 Requires Termux installed, Termux allow-external-apps=true, and granting
                 com.termux.permission.RUN_COMMAND.
                 Returns plain text output like a terminal (stdout + stderr).
@@ -252,18 +250,6 @@ class LocalTools(
                                 "Working directory in Termux (defaults to global Termux workdir setting)"
                             )
                         })
-                        put("background", buildJsonObject {
-                            put("type", "boolean")
-                            put(
-                                "description",
-                                "Run as background command. Default follows Settings -> Termux -> Run in background. " +
-                                    "If that setting is enabled, this is forced to true."
-                            )
-                        })
-                        put("timeout_ms", buildJsonObject {
-                            put("type", "integer")
-                            put("description", "Timeout in milliseconds. Default 120000.")
-                        })
                     },
                 )
             },
@@ -274,13 +260,8 @@ class LocalTools(
                 val stdin = params["stdin"]?.jsonPrimitive?.contentOrNull
                 val workdir = params["workdir"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
                     ?: settingsStore.settingsFlow.value.termuxWorkdir
-                val requestedBackground = params["background"]?.jsonPrimitive?.booleanOrNull
-                val background = if (settingsStore.settingsFlow.value.termuxRunInBackground) {
-                    true
-                } else {
-                    requestedBackground ?: false
-                }
-                val timeoutMs = params["timeout_ms"]?.jsonPrimitive?.longOrNull ?: DEFAULT_TIMEOUT_MS
+                val background = settingsStore.settingsFlow.value.termuxRunInBackground
+                val timeoutMs = settingsStore.settingsFlow.value.termuxTimeoutMs
 
                 val (finalCommandPath, finalArgs) = if (command != null) {
                     TERMUX_BASH_PATH to listOf("-lc", command)
@@ -346,6 +327,7 @@ class LocalTools(
             description = """
                 Execute Python code in the local Termux environment. Input only Python code.
                 Default workdir comes from app Settings -> Termux.
+                Background and timeout are controlled by app Settings -> Termux.
                 Requires Termux installed and Python installed in Termux (pkg install python).
                 Returns plain text output like a terminal (stdout + stderr).
             """.trimIndent().replace("\n", " "),
@@ -364,10 +346,6 @@ class LocalTools(
                                 "Working directory in Termux (defaults to global Termux workdir setting)"
                             )
                         })
-                        put("timeout_ms", buildJsonObject {
-                            put("type", "integer")
-                            put("description", "Timeout in milliseconds. Default 120000.")
-                        })
                     },
                     required = listOf("code"),
                 )
@@ -377,7 +355,7 @@ class LocalTools(
                 val code = params["code"]?.jsonPrimitive?.contentOrNull ?: error("code is required")
                 val workdir = params["workdir"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
                     ?: settingsStore.settingsFlow.value.termuxWorkdir
-                val timeoutMs = params["timeout_ms"]?.jsonPrimitive?.longOrNull ?: DEFAULT_TIMEOUT_MS
+                val timeoutMs = settingsStore.settingsFlow.value.termuxTimeoutMs
 
                 val termuxResult = runCatching {
                     termuxCommandManager.run(
