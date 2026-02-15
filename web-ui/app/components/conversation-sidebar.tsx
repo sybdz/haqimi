@@ -213,7 +213,7 @@ interface ConversationListRowProps {
   onDelete?: (id: string) => Promise<void>;
 }
 
-function ConversationListRow({
+const ConversationListRow = React.memo(({
   conversation,
   isActive,
   assistants,
@@ -223,7 +223,7 @@ function ConversationListRow({
   onMoveToAssistant,
   onUpdateTitle,
   onDelete,
-}: ConversationListRowProps) {
+}: ConversationListRowProps) => {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [pendingAction, setPendingAction] = React.useState<string | null>(null);
@@ -469,7 +469,7 @@ function ConversationListRow({
       </DropdownMenu>
     </SidebarMenuItem>
   );
-}
+});
 
 function resolveLanguage(language: string): (typeof LANGUAGE_OPTIONS)[number]["value"] {
   return language.startsWith("zh") ? "zh-CN" : "en-US";
@@ -950,9 +950,6 @@ export function ConversationSidebar({
                     key={option.value}
                     onClick={() => {
                       setColorTheme(option.value);
-                      if (option.value === "custom") {
-                        setCustomThemeOpen(true);
-                      }
                     }}
                   >
                     <span className="flex-1">{t(`conversation_sidebar.${option.labelKey}`)}</span>
