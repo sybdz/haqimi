@@ -822,6 +822,8 @@
   <string name="setting_termux_page_workdir_desc">termux_exec 与 termux_python 的默认工作目录（例如 /data/data/com.termux/files/home/workspace）</string>
   <string name="setting_termux_page_background_title">后台运行</string>
   <string name="setting_termux_page_background_desc">让 Termux 工具在后台执行，不自动切换到 Termux 前台（推荐）</string>
+  <string name="setting_termux_page_timeout_title">超时（毫秒）</string>
+  <string name="setting_termux_page_timeout_desc">termux_exec 与 termux_python 的超时时间。最小 1000ms，默认 120000ms（2 分钟）。</string>
   <string name="setting_termux_page_setup_title">设置清单</string>
   <string name="setting_termux_page_setup_step_1">1）安装 Termux（com.termux）</string>
   <string name="setting_termux_page_setup_step_2">2）在 Termux 中：在 ~/.termux/termux.properties 设置 allow-external-apps=true，然后重启 Termux</string>

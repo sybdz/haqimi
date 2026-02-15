@@ -820,6 +820,8 @@
   <string name="setting_termux_page_workdir_desc">Default working directory for termux_exec and termux_python (e.g. /data/data/com.termux/files/home/workspace)</string>
   <string name="setting_termux_page_background_title">Run in background</string>
   <string name="setting_termux_page_background_desc">Execute Termux tools in background without bringing Termux to the foreground (recommended)</string>
+  <string name="setting_termux_page_timeout_title">Timeout (ms)</string>
+  <string name="setting_termux_page_timeout_desc">Timeout for termux_exec and termux_python. Minimum 1000ms. Default 120000ms (2 minutes).</string>
   <string name="setting_termux_page_setup_title">Setup checklist</string>
   <string name="setting_termux_page_setup_step_1">1) Install Termux (com.termux)</string>
   <string name="setting_termux_page_setup_step_2">2) In Termux: set allow-external-apps=true in ~/.termux/termux.properties, then restart Termux</string>

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.pebbletemplates.pebble.PebbleEngine
@@ -27,6 +28,7 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.LEARNING_MODE_PROMPT
+import me.rerere.rikkahub.data.ai.tools.termux.DEFAULT_TIMEOUT_MS
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
@@ -105,6 +107,7 @@ class SettingsStore(
         // Termux
         val TERMUX_WORKDIR = stringPreferencesKey("termux_workdir")
         val TERMUX_RUN_IN_BACKGROUND = booleanPreferencesKey("termux_run_in_background")
+        val TERMUX_TIMEOUT_MS = longPreferencesKey("termux_timeout_ms")
 
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
@@ -181,6 +184,7 @@ class SettingsStore(
                 } ?: emptyList(),
                 termuxWorkdir = preferences[TERMUX_WORKDIR] ?: "/data/data/com.termux/files/home",
                 termuxRunInBackground = preferences[TERMUX_RUN_IN_BACKGROUND] != false,
+                termuxTimeoutMs = (preferences[TERMUX_TIMEOUT_MS] ?: DEFAULT_TIMEOUT_MS).coerceAtLeast(1_000L),
                 webDavConfig = preferences[WEBDAV_CONFIG]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: WebDavConfig(),
@@ -332,6 +336,7 @@ class SettingsStore(
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
             preferences[TERMUX_WORKDIR] = settings.termuxWorkdir
             preferences[TERMUX_RUN_IN_BACKGROUND] = settings.termuxRunInBackground
+            preferences[TERMUX_TIMEOUT_MS] = settings.termuxTimeoutMs.coerceAtLeast(1_000L)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
             preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
             preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settings.ttsProviders)
@@ -453,6 +458,7 @@ data class Settings(
     val mcpServers: List<McpServerConfig> = emptyList(),
     val termuxWorkdir: String = "/data/data/com.termux/files/home",
     val termuxRunInBackground: Boolean = true,
+    val termuxTimeoutMs: Long = DEFAULT_TIMEOUT_MS,
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),
     val ttsProviders: List<TTSProviderSetting> = DEFAULT_TTS_PROVIDERS,
