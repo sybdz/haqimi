@@ -177,6 +177,7 @@ class TermuxWorkdirServerManager(
             STATE_DIR="$TERMUX_STATE_DIR"
             PID_FILE="${'$'}STATE_DIR/workdir_http_server.pid"
             PORT_FILE="${'$'}STATE_DIR/workdir_http_server.port"
+            LOG_FILE="${'$'}STATE_DIR/workdir_http_server.log"
             SERVE_DIR='$safeWorkdir'
             PORT=$port
 
@@ -202,19 +203,26 @@ class TermuxWorkdirServerManager(
               rm -f "${'$'}PID_FILE" "${'$'}PORT_FILE"
             fi
 
+            if [ ! -d "${'$'}SERVE_DIR" ]; then
+              echo "Workdir not found: ${'$'}SERVE_DIR"
+              exit 1
+            fi
+
+            : > "${'$'}LOG_FILE"
             cd "${'$'}SERVE_DIR"
-            nohup python3 -m http.server "${'$'}PORT" --bind 127.0.0.1 >/dev/null 2>&1 &
+            nohup python3 -m http.server "${'$'}PORT" --bind 127.0.0.1 > "${'$'}LOG_FILE" 2>&1 &
             NEW_PID="${'$'}!"
-            echo "${'$'}NEW_PID" > "${'$'}PID_FILE"
-            echo "${'$'}PORT" > "${'$'}PORT_FILE"
 
             sleep 0.2
             if kill -0 "${'$'}NEW_PID" 2>/dev/null; then
+              echo "${'$'}NEW_PID" > "${'$'}PID_FILE"
+              echo "${'$'}PORT" > "${'$'}PORT_FILE"
               echo "STARTED ${'$'}NEW_PID ${'$'}PORT"
               exit 0
             fi
 
             echo "FAILED_TO_START"
+            tail -n 50 "${'$'}LOG_FILE" 2>/dev/null || true
             exit 1
         """.trimIndent()
     }
@@ -227,6 +235,7 @@ class TermuxWorkdirServerManager(
             PORT_HINT="$portHintText"
             FAILED=0
             PORTS=""
+            CLEAN_FILES=""
 
             is_port_listening() {
               PORT="${'$'}1"
@@ -283,6 +292,7 @@ class TermuxWorkdirServerManager(
               STATE_DIR="${'$'}1"
               PID_FILE="${'$'}STATE_DIR/workdir_http_server.pid"
               PORT_FILE="${'$'}STATE_DIR/workdir_http_server.port"
+              CLEAN_FILES="${'$'}CLEAN_FILES ${'$'}PID_FILE ${'$'}PORT_FILE"
               PORT_FROM_FILE="${'$'}(cat \"${'$'}PORT_FILE\" 2>/dev/null || true)"
               case "${'$'}PORT_FROM_FILE" in
                 ''|*[!0-9]*) : ;;
@@ -302,8 +312,6 @@ class TermuxWorkdirServerManager(
                   FAILED=1
                 fi
               fi
-
-              rm -f "${'$'}PID_FILE" "${'$'}PORT_FILE"
             }
 
             stop_in_dir "$TERMUX_STATE_DIR"
@@ -330,6 +338,7 @@ class TermuxWorkdirServerManager(
             if [ "${'$'}FAILED" -ne 0 ]; then
               exit 1
             fi
+            rm -f ${'$'}CLEAN_FILES
             echo "STOPPED"
             exit 0
         """.trimIndent()
