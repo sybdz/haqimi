@@ -124,22 +124,28 @@ class McpManager(
     fun getAllAvailableTools(): List<McpTool> {
         val settings = settingsStore.settingsFlow.value
         val assistant = settings.getCurrentAssistant()
-        val mcpServers = settings.mcpServers
-            .filter {
-                it.commonOptions.enable && it.id in assistant.mcpServers
-            }
-            .flatMap {
-                it.commonOptions.tools.filter { tool -> tool.enable }
-            }
-        return mcpServers
+        return getAvailableTools(assistant.mcpServers)
+    }
+
+    fun getAvailableTools(serverIds: Set<Uuid>): List<McpTool> {
+        val settings = settingsStore.settingsFlow.value
+        return settings.mcpServers
+            .filter { it.commonOptions.enable && it.id in serverIds }
+            .flatMap { it.commonOptions.tools.filter { tool -> tool.enable } }
     }
 
     suspend fun callTool(toolName: String, args: JsonObject): List<UIMessagePart> {
-        val tools = getAllAvailableTools()
+        val settings = settingsStore.settingsFlow.value
+        val assistant = settings.getCurrentAssistant()
+        return callTool(toolName = toolName, args = args, serverIds = assistant.mcpServers)
+    }
+
+    suspend fun callTool(toolName: String, args: JsonObject, serverIds: Set<Uuid>): List<UIMessagePart> {
+        val tools = getAvailableTools(serverIds)
         val tool = tools.find { it.name == toolName }
             ?: return listOf(UIMessagePart.Text("Failed to execute tool, because no such tool"))
         val client =
-            clients.entries.find { it.key.commonOptions.tools.any { it.name == toolName } }?.value
+            clients.entries.find { it.key.id in serverIds && it.key.commonOptions.tools.any { it.name == toolName } }?.value
         if (client == null) return listOf(UIMessagePart.Text("Failed to execute tool, because no such mcp client for the tool"))
         val config = clients.entries.first { it.value == client }.key
         Log.i(TAG, "callTool: $toolName / $args")

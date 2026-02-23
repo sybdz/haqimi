@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.service
 
 import me.rerere.rikkahub.data.model.ScheduleType
-import me.rerere.rikkahub.data.model.ScheduledPromptTask
+import me.rerere.rikkahub.data.model.ScheduledTask
 import me.rerere.rikkahub.data.model.TaskRunStatus
 import java.time.DayOfWeek
 import java.time.Duration
@@ -11,7 +11,7 @@ import java.time.temporal.TemporalAdjusters
 
 internal object ScheduledPromptTime {
     fun nextTriggerAt(
-        task: ScheduledPromptTask,
+        task: ScheduledTask,
         now: ZonedDateTime = ZonedDateTime.now()
     ): ZonedDateTime {
         val atTimeToday = now.toLocalDate()
@@ -35,7 +35,7 @@ internal object ScheduledPromptTime {
     }
 
     fun latestDueAt(
-        task: ScheduledPromptTask,
+        task: ScheduledTask,
         now: ZonedDateTime = ZonedDateTime.now()
     ): ZonedDateTime {
         val todayAtTaskTime = now.toLocalDate()
@@ -59,7 +59,7 @@ internal object ScheduledPromptTime {
     }
 
     fun shouldRunCatchUp(
-        task: ScheduledPromptTask,
+        task: ScheduledTask,
         now: ZonedDateTime = ZonedDateTime.now()
     ): Boolean {
         if (task.lastStatus == TaskRunStatus.RUNNING) return false
@@ -68,7 +68,7 @@ internal object ScheduledPromptTime {
         return latestDue > marker
     }
 
-    fun initialDelayMillis(task: ScheduledPromptTask, zoneId: ZoneId = ZoneId.systemDefault()): Long {
+    fun initialDelayMillis(task: ScheduledTask, zoneId: ZoneId = ZoneId.systemDefault()): Long {
         val now = ZonedDateTime.now(zoneId)
         val target = nextTriggerAt(task, now)
         return Duration.between(now, target).toMillis().coerceAtLeast(60_000L)

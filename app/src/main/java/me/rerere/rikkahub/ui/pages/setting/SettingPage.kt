@@ -44,6 +44,7 @@ import me.rerere.rikkahub.ui.context.Navigator
 import com.composables.icons.lucide.BadgeInfo
 import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.Boxes
+import com.composables.icons.lucide.Clock
 import com.composables.icons.lucide.Database
 import com.composables.icons.lucide.Drama
 import com.composables.icons.lucide.Earth
@@ -274,6 +275,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     description = { Text(stringResource(R.string.setting_page_mcp_desc)) },
                     icon = { Icon(Lucide.Terminal, "MCP") },
                     link = Screen.SettingMcp
+                )
+            }
+
+            item {
+                SettingItem(
+                    navController = navController,
+                    title = { Text(stringResource(R.string.setting_page_scheduled_tasks)) },
+                    description = { Text(stringResource(R.string.setting_page_scheduled_tasks_desc)) },
+                    icon = { Icon(Lucide.Clock, "Scheduled Tasks") },
+                    link = Screen.SettingScheduledTasks
                 )
             }
 

@@ -17,8 +17,9 @@ import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.model.ScheduleType
-import me.rerere.rikkahub.data.model.ScheduledPromptTask
+import me.rerere.rikkahub.data.model.ScheduledTask
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -48,25 +49,27 @@ class ScheduledPromptManager(
     }
 
     suspend fun reconcile(settings: Settings) {
-        val enabledTasks = settings.assistants.flatMap { assistant ->
-            assistant.scheduledPromptTasks
-                .filter { it.enabled && it.prompt.isNotBlank() }
-                .map { assistant.id to it }
-        }
-        val expectedTaskIds = enabledTasks.map { it.second.id }.toSet()
+        val enabledTasks = settings.scheduledTasks
+            .filter { task ->
+                task.enabled &&
+                    task.prompt.isNotBlank() &&
+                    task.modelId != null &&
+                    settings.findModelById(task.modelId) != null
+            }
+        val expectedTaskIds = enabledTasks.map { it.id }.toSet()
 
         cancelStaleWorks(expectedTaskIds)
 
         val now = ZonedDateTime.now()
-        enabledTasks.forEach { (assistantId, task) ->
-            schedulePeriodic(assistantId, task)
+        enabledTasks.forEach { task ->
+            schedulePeriodic(task)
             if (ScheduledPromptTime.shouldRunCatchUp(task, now)) {
-                scheduleCatchUp(assistantId, task)
+                scheduleCatchUp(task)
             }
         }
     }
 
-    private fun schedulePeriodic(assistantId: Uuid, task: ScheduledPromptTask) {
+    private fun schedulePeriodic(task: ScheduledTask) {
         val repeatDays = when (task.scheduleType) {
             ScheduleType.DAILY -> 1L
             ScheduleType.WEEKLY -> 7L
@@ -84,7 +87,7 @@ class ScheduledPromptManager(
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
             )
-            .setInputData(scheduledPromptInputData(assistantId = assistantId, taskId = task.id))
+            .setInputData(scheduledPromptInputData(taskId = task.id))
             .addTag(SCHEDULED_PROMPT_WORK_TAG)
             .addTag(taskIdTag(task.id))
             .build()
@@ -96,7 +99,7 @@ class ScheduledPromptManager(
         )
     }
 
-    private fun scheduleCatchUp(assistantId: Uuid, task: ScheduledPromptTask) {
+    private fun scheduleCatchUp(task: ScheduledTask) {
         val request = OneTimeWorkRequestBuilder<ScheduledPromptWorker>()
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10L, TimeUnit.MINUTES)
             .setConstraints(
@@ -104,7 +107,7 @@ class ScheduledPromptManager(
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
             )
-            .setInputData(scheduledPromptInputData(assistantId = assistantId, taskId = task.id))
+            .setInputData(scheduledPromptInputData(taskId = task.id))
             .addTag(SCHEDULED_PROMPT_WORK_TAG)
             .addTag(taskIdTag(task.id))
             .build()

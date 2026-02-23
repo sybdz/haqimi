@@ -16,6 +16,7 @@ import kotlin.uuid.Uuid
 data class Conversation(
     val id: Uuid = Uuid.random(),
     val assistantId: Uuid,
+    val source: ConversationSource = ConversationSource.NORMAL,
     val title: String = "",
     val messageNodes: List<MessageNode>,
     val truncateIndex: Int = -1,

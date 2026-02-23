@@ -31,10 +31,13 @@ import me.rerere.rikkahub.data.ai.prompts.LEARNING_MODE_PROMPT
 import me.rerere.rikkahub.data.ai.tools.termux.DEFAULT_TIMEOUT_MS
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
+import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.data.model.PromptInjection
+import me.rerere.rikkahub.data.model.ScheduledTask
+import me.rerere.rikkahub.data.model.ScheduledTaskRun
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.sync.s3.S3Config
@@ -55,7 +58,8 @@ private val Context.settingsStore by preferencesDataStore(
     produceMigrations = { context ->
         listOf(
             PreferenceStoreV1Migration(),
-            PreferenceStoreV2Migration()
+            PreferenceStoreV2Migration(),
+            PreferenceStoreV3Migration()
         )
     }
 )
@@ -102,6 +106,10 @@ class SettingsStore(
         val SEARCH_SERVICES = stringPreferencesKey("search_services")
         val SEARCH_COMMON = stringPreferencesKey("search_common")
         val SEARCH_SELECTED = intPreferencesKey("search_selected")
+
+        // 全局自动任务
+        val SCHEDULED_TASKS = stringPreferencesKey("scheduled_tasks")
+        val SCHEDULED_TASK_RUNS = stringPreferencesKey("scheduled_task_runs")
 
         // MCP
         val MCP_SERVERS = stringPreferencesKey("mcp_servers")
@@ -193,6 +201,12 @@ class SettingsStore(
                     JsonInstant.decodeFromString(it)
                 } ?: SearchCommonOptions(),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
+                scheduledTasks = preferences[SCHEDULED_TASKS]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
+                scheduledTaskRuns = preferences[SCHEDULED_TASK_RUNS]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
                 mcpServers = preferences[MCP_SERVERS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -268,6 +282,7 @@ class SettingsStore(
         .map { settings ->
             // 去重并清理无效引用
             val validMcpServerIds = settings.mcpServers.map { it.id }.toSet()
+            val validSearchServiceIds = settings.searchServices.map { it.id }.toSet()
             val validModeInjectionIds = settings.modeInjections.map { it.id }.toSet()
             val validLorebookIds = settings.lorebooks.map { it.id }.toSet()
             settings.copy(
@@ -308,6 +323,22 @@ class SettingsStore(
                 },
                 modeInjections = settings.modeInjections.distinctBy { it.id },
                 lorebooks = settings.lorebooks.distinctBy { it.id },
+                scheduledTasks = settings.scheduledTasks
+                    .distinctBy { it.id }
+                    .map { task ->
+                        task.copy(
+                            mcpServerIds = task.mcpServerIds.filter { it in validMcpServerIds }.toSet(),
+                            searchServiceId = task.searchServiceId?.takeIf { it in validSearchServiceIds },
+                            localTools = task.localTools.distinct()
+                        )
+                    },
+                scheduledTaskRuns = settings.scheduledTaskRuns
+                    .sortedByDescending { it.runAt }
+                    .distinctBy { it.id }
+                    .groupBy { it.taskId }
+                    .values
+                    .flatMap { runs -> runs.sortedByDescending { it.runAt }.take(100) }
+                    .sortedByDescending { it.runAt },
             )
         }
         .onEach {
@@ -354,6 +385,8 @@ class SettingsStore(
             preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settings.searchServices)
             preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settings.searchCommonOptions)
             preferences[SEARCH_SELECTED] = settings.searchServiceSelected.coerceIn(0, settings.searchServices.size - 1)
+            preferences[SCHEDULED_TASKS] = JsonInstant.encodeToString(settings.scheduledTasks)
+            preferences[SCHEDULED_TASK_RUNS] = JsonInstant.encodeToString(settings.scheduledTaskRuns)
 
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
             preferences[TERMUX_WORKDIR] = settings.termuxWorkdir
@@ -483,6 +516,8 @@ data class Settings(
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
+    val scheduledTasks: List<ScheduledTask> = emptyList(),
+    val scheduledTaskRuns: List<ScheduledTaskRun> = emptyList(),
     val mcpServers: List<McpServerConfig> = emptyList(),
     val termuxWorkdir: String = "/data/data/com.termux/files/home",
     val termuxRunInBackground: Boolean = true,

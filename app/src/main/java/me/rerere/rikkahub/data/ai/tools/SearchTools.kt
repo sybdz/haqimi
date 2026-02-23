@@ -16,7 +16,9 @@ import me.rerere.search.SearchServiceOptions
 import java.time.LocalDate
 import kotlin.uuid.Uuid
 
-fun createSearchTools(settings: Settings): Set<Tool> {
+fun createSearchTools(settings: Settings, searchServiceId: Uuid? = null): Set<Tool> {
+    val selectedOptions = settings.selectSearchServiceOptions(searchServiceId)
+    val service = SearchService.getService(selectedOptions)
     return buildSet {
         add(
             Tool(
@@ -40,21 +42,13 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                     The population is about 2.1 million. [citation,example.com](abc123) [citation,example2.com](def456)
                     """.trimIndent(),
                 parameters = {
-                    val options = settings.searchServices.getOrElse(
-                        index = settings.searchServiceSelected,
-                        defaultValue = { SearchServiceOptions.DEFAULT })
-                    val service = SearchService.getService(options)
                     service.parameters
                 },
                 execute = {
-                    val options = settings.searchServices.getOrElse(
-                        index = settings.searchServiceSelected,
-                        defaultValue = { SearchServiceOptions.DEFAULT })
-                    val service = SearchService.getService(options)
                     val result = service.search(
                         params = it.jsonObject,
                         commonOptions = settings.searchCommonOptions,
-                        serviceOptions = options,
+                        serviceOptions = selectedOptions,
                     )
                     val results =
                         JsonInstantPretty.encodeToJsonElement(result.getOrThrow()).jsonObject.let { json ->
@@ -73,10 +67,6 @@ fun createSearchTools(settings: Settings): Set<Tool> {
             )
         )
 
-        val options = settings.searchServices.getOrElse(
-            index = settings.searchServiceSelected,
-            defaultValue = { SearchServiceOptions.DEFAULT })
-        val service = SearchService.getService(options)
         if (service.scrapingParameters != null) {
             add(
                 Tool(
@@ -87,26 +77,29 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                         Avoid using it for common questions unless the user asks.
                         """.trimIndent(),
                     parameters = {
-                        val options = settings.searchServices.getOrElse(
-                            index = settings.searchServiceSelected,
-                            defaultValue = { SearchServiceOptions.DEFAULT })
-                        val service = SearchService.getService(options)
                         service.scrapingParameters
                     },
                     execute = {
-                        val options = settings.searchServices.getOrElse(
-                            index = settings.searchServiceSelected,
-                            defaultValue = { SearchServiceOptions.DEFAULT })
-                        val service = SearchService.getService(options)
                         val result = service.scrape(
                             params = it.jsonObject,
                             commonOptions = settings.searchCommonOptions,
-                            serviceOptions = options,
+                            serviceOptions = selectedOptions,
                         )
                         val payload = JsonInstantPretty.encodeToJsonElement(result.getOrThrow()).jsonObject
                         listOf(UIMessagePart.Text(payload.toString()))
                     }
-                ))
+                )
+            )
         }
     }
+}
+
+private fun Settings.selectSearchServiceOptions(searchServiceId: Uuid?): SearchServiceOptions {
+    if (searchServiceId != null) {
+        return searchServices.firstOrNull { it.id == searchServiceId } ?: error("Search service not found: $searchServiceId")
+    }
+    return searchServices.getOrElse(
+        index = searchServiceSelected,
+        defaultValue = { SearchServiceOptions.DEFAULT }
+    )
 }

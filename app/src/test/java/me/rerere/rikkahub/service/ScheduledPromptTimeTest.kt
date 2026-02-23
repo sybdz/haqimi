@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.service
 
 import me.rerere.rikkahub.data.model.ScheduleType
-import me.rerere.rikkahub.data.model.ScheduledPromptTask
+import me.rerere.rikkahub.data.model.ScheduledTask
 import me.rerere.rikkahub.data.model.TaskRunStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -98,8 +98,8 @@ class ScheduledPromptTimeTest {
         createdAt: Long = 0L,
         lastRunAt: Long = 0L,
         lastStatus: TaskRunStatus = TaskRunStatus.IDLE
-    ): ScheduledPromptTask {
-        return ScheduledPromptTask(
+    ): ScheduledTask {
+        return ScheduledTask(
             id = Uuid.random(),
             scheduleType = scheduleType,
             timeMinutesOfDay = timeMinutesOfDay,
@@ -107,7 +107,6 @@ class ScheduledPromptTimeTest {
             createdAt = createdAt,
             lastRunAt = lastRunAt,
             lastStatus = lastStatus,
-            conversationId = Uuid.random(),
             prompt = "hello"
         )
     }

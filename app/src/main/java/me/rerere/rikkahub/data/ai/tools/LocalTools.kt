@@ -22,7 +22,6 @@ import me.rerere.rikkahub.data.ai.tools.termux.TermuxRunCommandRequest
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
-import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.utils.readClipboardText
 import me.rerere.rikkahub.utils.writeClipboardText
 import java.time.ZonedDateTime
@@ -435,7 +434,7 @@ class LocalTools(
         )
     }
 
-    fun getTools(options: List<LocalToolOption>, assistant: Assistant): List<Tool> {
+    fun getTools(options: List<LocalToolOption>): List<Tool> {
         val tools = mutableListOf<Tool>()
         if (options.contains(LocalToolOption.JavascriptEngine)) {
             tools.add(javascriptTool)

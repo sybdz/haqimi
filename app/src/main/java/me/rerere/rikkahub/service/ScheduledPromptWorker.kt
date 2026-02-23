@@ -12,13 +12,15 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.SCHEDULED_TASK_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.model.ScheduledPromptTask
+import me.rerere.rikkahub.data.model.ScheduledTask
+import me.rerere.rikkahub.data.model.ScheduledTaskRun
 import me.rerere.rikkahub.data.model.TaskRunStatus
-import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.utils.sendNotification
 import kotlin.uuid.Uuid
 
 private const val TAG = "ScheduledPromptWorker"
+private const val MAX_RUN_HISTORY_PER_TASK = 100
+const val EXTRA_SCHEDULED_TASK_RUN_ID = "scheduledTaskRunId"
 
 class ScheduledPromptWorker(
     appContext: Context,
@@ -27,74 +29,92 @@ class ScheduledPromptWorker(
     private val chatService: ChatService,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
-        val assistantId = inputData.getString(INPUT_ASSISTANT_ID)?.let { runCatching { Uuid.parse(it) }.getOrNull() }
-            ?: return Result.failure()
         val taskId = inputData.getString(INPUT_TASK_ID)?.let { runCatching { Uuid.parse(it) }.getOrNull() }
             ?: return Result.failure()
 
         val settings = settingsStore.settingsFlow.first()
-        val assistant = settings.getAssistantById(assistantId) ?: return Result.success()
-        val task = assistant.scheduledPromptTasks.firstOrNull { it.id == taskId } ?: return Result.success()
+        val task = settings.scheduledTasks.firstOrNull { it.id == taskId } ?: return Result.success()
         if (!task.enabled || task.prompt.isBlank()) return Result.success()
 
-        updateTask(assistantId, taskId) {
-            it.copy(lastStatus = TaskRunStatus.RUNNING, lastError = "")
-        }
-
         val startedAt = System.currentTimeMillis()
-        return runCatching {
-            chatService.sendScheduledPrompt(
-                assistantId = assistantId,
-                conversationId = task.conversationId,
-                prompt = task.prompt
-            ).getOrThrow()
-        }.fold(
-            onSuccess = { replyPreview ->
-                updateTask(assistantId, taskId) {
+        updateTask(taskId) { it.copy(lastStatus = TaskRunStatus.RUNNING, lastError = "") }
+
+        return chatService.executeScheduledTask(task).fold(
+            onSuccess = { result ->
+                val run = ScheduledTaskRun(
+                    taskId = task.id,
+                    taskTitle = taskDisplayTitle(task),
+                    status = TaskRunStatus.SUCCESS,
+                    runAt = startedAt,
+                    conversationId = result.conversationId,
+                )
+                updateTaskAndAppendRun(taskId, run) {
                     it.copy(
                         lastStatus = TaskRunStatus.SUCCESS,
                         lastRunAt = startedAt,
                         lastError = ""
                     )
                 }
-                maybeNotifySuccess(task, replyPreview)
+                maybeNotifySuccess(task, run.id, result.replyPreview)
                 Result.success()
             },
             onFailure = { error ->
                 Log.e(TAG, "Scheduled task execution failed: ${task.id}", error)
-                updateTask(assistantId, taskId) {
+                val run = ScheduledTaskRun(
+                    taskId = task.id,
+                    taskTitle = taskDisplayTitle(task),
+                    status = TaskRunStatus.FAILED,
+                    runAt = startedAt,
+                    error = error.message.orEmpty().take(200),
+                )
+                updateTaskAndAppendRun(taskId, run) {
                     it.copy(
                         lastStatus = TaskRunStatus.FAILED,
                         lastRunAt = startedAt,
                         lastError = error.message.orEmpty().take(200)
                     )
                 }
-                maybeNotifyFailure(task, error)
-                Result.retry()
+                maybeNotifyFailure(task, run.id, error)
+                Result.success()
             }
         )
     }
 
     private suspend fun updateTask(
-        assistantId: Uuid,
         taskId: Uuid,
-        transform: (ScheduledPromptTask) -> ScheduledPromptTask
+        transform: (ScheduledTask) -> ScheduledTask
     ) {
         settingsStore.update { settings ->
             settings.copy(
-                assistants = settings.assistants.map { assistant ->
-                    if (assistant.id != assistantId) return@map assistant
-                    assistant.copy(
-                        scheduledPromptTasks = assistant.scheduledPromptTasks.map { task ->
-                            if (task.id == taskId) transform(task) else task
-                        }
-                    )
+                scheduledTasks = settings.scheduledTasks.map { task ->
+                    if (task.id == taskId) transform(task) else task
                 }
             )
         }
     }
 
-    private suspend fun maybeNotifySuccess(task: ScheduledPromptTask, replyPreview: String?) {
+    private suspend fun updateTaskAndAppendRun(
+        taskId: Uuid,
+        run: ScheduledTaskRun,
+        transform: (ScheduledTask) -> ScheduledTask
+    ) {
+        settingsStore.update { settings ->
+            val nextTaskRuns = (listOf(run) + settings.scheduledTaskRuns.filter {
+                it.taskId == taskId && it.id != run.id
+            })
+                .sortedByDescending { it.runAt }
+                .take(MAX_RUN_HISTORY_PER_TASK)
+            val otherRuns = settings.scheduledTaskRuns.filter { it.taskId != taskId }
+            settings.copy(
+                scheduledTasks = settings.scheduledTasks.map { task ->
+                    if (task.id == taskId) transform(task) else task
+                },
+                scheduledTaskRuns = (otherRuns + nextTaskRuns).sortedByDescending { it.runAt }
+            )
+        }
+    }
+
+    private suspend fun maybeNotifySuccess(task: ScheduledTask, runId: Uuid, replyPreview: String?) {
         val settings = settingsStore.settingsFlow.first()
         if (!settings.displaySetting.enableScheduledTaskNotification) return
 
@@ -112,11 +132,11 @@ class ScheduledPromptWorker(
             autoCancel = true
             useDefaults = true
             category = NotificationCompat.CATEGORY_REMINDER
-            contentIntent = getPendingIntent(task.conversationId)
+            contentIntent = getPendingIntent(runId)
         }
     }
 
-    private suspend fun maybeNotifyFailure(task: ScheduledPromptTask, error: Throwable) {
+    private suspend fun maybeNotifyFailure(task: ScheduledTask, runId: Uuid, error: Throwable) {
         val settings = settingsStore.settingsFlow.first()
         if (!settings.displaySetting.enableScheduledTaskNotification) return
 
@@ -134,18 +154,18 @@ class ScheduledPromptWorker(
             autoCancel = true
             useDefaults = true
             category = NotificationCompat.CATEGORY_ERROR
-            contentIntent = getPendingIntent(task.conversationId)
+            contentIntent = getPendingIntent(runId)
         }
     }
 
-    private fun getPendingIntent(conversationId: Uuid): PendingIntent {
+    private fun getPendingIntent(runId: Uuid): PendingIntent {
         val intent = Intent(applicationContext, RouteActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("conversationId", conversationId.toString())
+            putExtra(EXTRA_SCHEDULED_TASK_RUN_ID, runId.toString())
         }
         return PendingIntent.getActivity(
             applicationContext,
-            conversationId.hashCode(),
+            runId.hashCode(),
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
@@ -153,7 +173,7 @@ class ScheduledPromptWorker(
 
     private fun notificationId(taskId: Uuid): Int = taskId.hashCode() + 20000
 
-    private fun taskDisplayTitle(task: ScheduledPromptTask): String {
+    private fun taskDisplayTitle(task: ScheduledTask): String {
         return task.title.ifBlank {
             task.prompt.lineSequence().firstOrNull().orEmpty().take(24)
                 .ifBlank { applicationContext.getString(R.string.assistant_schedule_untitled) }

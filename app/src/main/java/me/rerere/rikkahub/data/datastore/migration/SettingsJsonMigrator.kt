@@ -36,7 +36,7 @@ object SettingsJsonMigrator {
                 root["assistants"] = JsonInstant.parseToJsonElement(migrated)
             }
 
-            JsonInstant.encodeToString(JsonObject(root))
+            migrateSettingsScheduledTasksJson(JsonInstant.encodeToString(JsonObject(root)))
         }.onFailure {
             Log.e(TAG, "migrate: Failed to migrate settings JSON, using original", it)
         }.getOrDefault(settingsJson)

@@ -12,37 +12,37 @@ import me.rerere.rikkahub.data.repository.LightConversationEntity
 
 @Dao
 interface ConversationDAO {
-    @Query("SELECT * FROM conversationentity ORDER BY is_pinned DESC, update_at DESC")
+    @Query("SELECT * FROM conversationentity WHERE source = 'normal' ORDER BY is_pinned DESC, update_at DESC")
     fun getAll(): Flow<List<ConversationEntity>>
 
-    @Query("SELECT * FROM conversationentity ORDER BY is_pinned DESC, update_at DESC")
+    @Query("SELECT * FROM conversationentity WHERE source = 'normal' ORDER BY is_pinned DESC, update_at DESC")
     fun getAllPaging(): PagingSource<Int, ConversationEntity>
 
-    @Query("SELECT * FROM conversationentity WHERE assistant_id = :assistantId ORDER BY is_pinned DESC, update_at DESC")
+    @Query("SELECT * FROM conversationentity WHERE assistant_id = :assistantId AND source = 'normal' ORDER BY is_pinned DESC, update_at DESC")
     fun getConversationsOfAssistant(assistantId: String): Flow<List<ConversationEntity>>
 
-    @Query("SELECT id, assistant_id as assistantId, title, is_pinned as isPinned, create_at as createAt, update_at as updateAt FROM conversationentity WHERE assistant_id = :assistantId ORDER BY is_pinned DESC, update_at DESC")
+    @Query("SELECT id, assistant_id as assistantId, title, is_pinned as isPinned, create_at as createAt, update_at as updateAt FROM conversationentity WHERE assistant_id = :assistantId AND source = 'normal' ORDER BY is_pinned DESC, update_at DESC")
     fun getConversationsOfAssistantPaging(assistantId: String): PagingSource<Int, LightConversationEntity>
 
-    @Query("SELECT * FROM conversationentity WHERE assistant_id = :assistantId ORDER BY is_pinned DESC, update_at DESC LIMIT :limit")
+    @Query("SELECT * FROM conversationentity WHERE assistant_id = :assistantId AND source = 'normal' ORDER BY is_pinned DESC, update_at DESC LIMIT :limit")
     suspend fun getRecentConversationsOfAssistant(assistantId: String, limit: Int): List<ConversationEntity>
 
-    @Query("SELECT * FROM conversationentity WHERE title LIKE '%' || :searchText || '%' ORDER BY is_pinned DESC, update_at DESC")
+    @Query("SELECT * FROM conversationentity WHERE source = 'normal' AND title LIKE '%' || :searchText || '%' ORDER BY is_pinned DESC, update_at DESC")
     fun searchConversations(searchText: String): Flow<List<ConversationEntity>>
 
-    @Query("SELECT id, assistant_id as assistantId, title, is_pinned as isPinned, create_at as createAt, update_at as updateAt FROM conversationentity WHERE title LIKE '%' || :searchText || '%' ORDER BY is_pinned DESC, update_at DESC")
+    @Query("SELECT id, assistant_id as assistantId, title, is_pinned as isPinned, create_at as createAt, update_at as updateAt FROM conversationentity WHERE source = 'normal' AND title LIKE '%' || :searchText || '%' ORDER BY is_pinned DESC, update_at DESC")
     fun searchConversationsPaging(searchText: String): PagingSource<Int, LightConversationEntity>
 
-    @Query("SELECT * FROM conversationentity WHERE assistant_id = :assistantId AND title LIKE '%' || :searchText || '%' ORDER BY is_pinned DESC, update_at DESC")
+    @Query("SELECT * FROM conversationentity WHERE assistant_id = :assistantId AND source = 'normal' AND title LIKE '%' || :searchText || '%' ORDER BY is_pinned DESC, update_at DESC")
     fun searchConversationsOfAssistant(assistantId: String, searchText: String): Flow<List<ConversationEntity>>
 
-    @Query("SELECT id, assistant_id as assistantId, title, is_pinned as isPinned, create_at as createAt, update_at as updateAt FROM conversationentity WHERE assistant_id = :assistantId AND title LIKE '%' || :searchText || '%' ORDER BY is_pinned DESC, update_at DESC")
+    @Query("SELECT id, assistant_id as assistantId, title, is_pinned as isPinned, create_at as createAt, update_at as updateAt FROM conversationentity WHERE assistant_id = :assistantId AND source = 'normal' AND title LIKE '%' || :searchText || '%' ORDER BY is_pinned DESC, update_at DESC")
     fun searchConversationsOfAssistantPaging(assistantId: String, searchText: String): PagingSource<Int, LightConversationEntity>
 
     @Query("SELECT * FROM conversationentity WHERE id = :id")
     fun getConversationFlowById(id: String): Flow<ConversationEntity?>
 
-    @Query("SELECT id FROM conversationentity")
+    @Query("SELECT id FROM conversationentity WHERE source = 'normal'")
     suspend fun getAllIds(): List<String>
 
     @Query("SELECT * FROM conversationentity WHERE id = :id")
@@ -66,20 +66,20 @@ interface ConversationDAO {
     @Query("DELETE FROM conversationentity")
     suspend fun deleteAll()
 
-    @Query("SELECT * FROM conversationentity WHERE is_pinned = 1 ORDER BY update_at DESC")
+    @Query("SELECT * FROM conversationentity WHERE source = 'normal' AND is_pinned = 1 ORDER BY update_at DESC")
     fun getPinnedConversations(): Flow<List<ConversationEntity>>
 
     @Query("UPDATE conversationentity SET is_pinned = :isPinned WHERE id = :id")
     suspend fun updatePinStatus(id: String, isPinned: Boolean)
 
-    @Query("SELECT COUNT(*) FROM conversationentity")
+    @Query("SELECT COUNT(*) FROM conversationentity WHERE source = 'normal'")
     suspend fun countAll(): Int
 
     @Query(
         "SELECT strftime('%Y-%m-%d', create_at/1000, 'unixepoch', 'localtime') AS day, " +
             "COUNT(*) AS count " +
             "FROM conversationentity " +
-            "WHERE create_at >= :startMillis " +
+            "WHERE source = 'normal' AND create_at >= :startMillis " +
             "GROUP BY day"
     )
     suspend fun getConversationCountPerDay(startMillis: Long): List<ConversationDayCount>

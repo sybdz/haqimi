@@ -50,6 +50,7 @@ import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.History
 import com.composables.icons.lucide.Image
 import com.composables.icons.lucide.Languages
+import com.composables.icons.lucide.Clock
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Pencil
 import com.composables.icons.lucide.Search
@@ -469,6 +470,35 @@ private fun DrawerActions(navController: Navigator) {
         }
 
         // 历史记录入口
+        Surface(
+            onClick = { navController.navigate(Screen.ScheduledTaskRuns) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(
+                    imageVector = Lucide.Clock,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(R.string.chat_page_task_results),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+
         Surface(
             onClick = { navController.navigate(Screen.History) },
             modifier = Modifier

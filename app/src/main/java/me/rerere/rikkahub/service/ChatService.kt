@@ -74,6 +74,8 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.AssistantAffectScope
+import me.rerere.rikkahub.data.model.ConversationSource
+import me.rerere.rikkahub.data.model.ScheduledTask
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -95,6 +97,11 @@ data class ChatError(
     val error: Throwable,
     val conversationId: Uuid? = null,
     val timestamp: Long = System.currentTimeMillis()
+)
+
+data class ScheduledTaskExecutionResult(
+    val conversationId: Uuid,
+    val replyPreview: String?,
 )
 
 private val inputTransformers by lazy {
@@ -326,56 +333,111 @@ class ChatService(
         }
     }
 
-    suspend fun sendScheduledPrompt(
-        assistantId: Uuid,
-        conversationId: Uuid,
-        prompt: String
-    ): Result<String?> = runCatching {
-        if (prompt.isBlank()) return@runCatching null
+    suspend fun executeScheduledTask(task: ScheduledTask): Result<ScheduledTaskExecutionResult> = runCatching {
+        if (task.prompt.isBlank()) error("Task prompt is blank")
+
         val settings = settingsStore.settingsFlow.first()
-        val assistant = settings.getAssistantById(assistantId)
-            ?: throw NotFoundException("Assistant not found: $assistantId")
+        val modelId = task.modelId ?: error("Task model is not configured")
+        val model = settings.findModelById(modelId) ?: error("Task model not found: $modelId")
+        val assistant = Assistant(
+            id = task.id,
+            name = task.title,
+            chatModelId = modelId,
+            streamOutput = false,
+            enableMemory = false,
+            enableRecentChatsReference = false,
+            enableTimeReminder = false,
+            localTools = task.localTools,
+            mcpServers = task.mcpServerIds,
+        )
 
-        val session = getOrCreateSession(conversationId)
-        session.getJob()?.cancel()
-
-        val existing = conversationRepo.getConversationById(conversationId)
-        val baseConversation = when {
-            existing == null -> {
-                Conversation.ofId(
-                    id = conversationId,
-                    assistantId = assistantId,
-                    newConversation = true
-                ).updateCurrentMessages(assistant.presetMessages)
+        val tools = buildList {
+            if (task.enableWebSearch) {
+                addAll(createSearchTools(settings = settings, searchServiceId = task.searchServiceId))
             }
-
-            existing.assistantId != assistantId -> existing.copy(assistantId = assistantId)
-            else -> existing
+            addAll(localTools.getTools(task.localTools))
+            mcpManager.getAvailableTools(task.mcpServerIds).forEach { tool ->
+                add(
+                    Tool(
+                        name = "mcp__" + tool.name,
+                        description = tool.description ?: "",
+                        parameters = { tool.inputSchema },
+                        needsApproval = tool.needsApproval,
+                        execute = {
+                            mcpManager.callTool(
+                                toolName = tool.name,
+                                args = it.jsonObject,
+                                serverIds = task.mcpServerIds
+                            )
+                        },
+                    )
+                )
+            }
         }
+        if (tools.isNotEmpty() && !model.abilities.contains(ModelAbility.TOOL)) {
+            error(context.getString(R.string.tools_warning))
+        }
+
+        val conversationId = Uuid.random()
+        val baseConversation = Conversation.ofId(
+            id = conversationId,
+            assistantId = settings.assistantId,
+            newConversation = true
+        ).copy(source = ConversationSource.SCHEDULED_TASK)
         saveConversation(conversationId, baseConversation)
 
         val processedContent = preprocessUserInputParts(
-            parts = listOf(UIMessagePart.Text(prompt)),
+            parts = listOf(UIMessagePart.Text(task.prompt)),
             assistant = assistant
         )
-        val currentConversation = getConversationFlow(conversationId).value
-        val conversationWithPrompt = currentConversation.copy(
-            messageNodes = currentConversation.messageNodes + UIMessage(
+        val conversationWithPrompt = baseConversation.copy(
+            messageNodes = baseConversation.messageNodes + UIMessage(
                 role = MessageRole.USER,
                 parts = processedContent,
             ).toMessageNode()
         )
         saveConversation(conversationId, conversationWithPrompt)
-        handleMessageComplete(conversationId, notifyOnCompletion = false)
-        _generationDoneFlow.emit(conversationId)
 
-        val finalMessage = getConversationFlow(conversationId).value.currentMessages.lastOrNull()
-        if (finalMessage == null || finalMessage.role != MessageRole.ASSISTANT) {
-            throw IllegalStateException("Scheduled prompt did not generate an assistant reply")
+        generationHandler.generateText(
+            settings = settings,
+            model = model,
+            messages = conversationWithPrompt.currentMessages,
+            assistant = assistant,
+            memories = emptyList(),
+            inputTransformers = emptyList(),
+            outputTransformers = outputTransformers,
+            tools = tools,
+            truncateIndex = conversationWithPrompt.truncateIndex,
+        ).onCompletion {
+            val updatedConversation = getConversationFlow(conversationId).value.copy(
+                messageNodes = getConversationFlow(conversationId).value.messageNodes.map { node ->
+                    node.copy(messages = node.messages.map { it.finishReasoning() })
+                },
+                updateAt = Instant.now()
+            )
+            updateConversation(conversationId, updatedConversation)
+        }.collect { chunk ->
+            when (chunk) {
+                is GenerationChunk.Messages -> {
+                    val updatedConversation = getConversationFlow(conversationId).value
+                        .updateCurrentMessages(chunk.messages)
+                    updateConversation(conversationId, updatedConversation)
+                }
+            }
         }
-        finalMessage.toText().take(200)
+
+        val finalConversation = getConversationFlow(conversationId).value
+        saveConversation(conversationId, finalConversation)
+        val finalMessage = finalConversation.currentMessages.lastOrNull()
+        if (finalMessage == null || finalMessage.role != MessageRole.ASSISTANT) {
+            error("Scheduled task did not generate an assistant reply")
+        }
+        ScheduledTaskExecutionResult(
+            conversationId = conversationId,
+            replyPreview = finalMessage.toText().take(200)
+        )
     }.onFailure {
-        addError(it, conversationId)
+        addError(it, conversationId = null)
     }
 
     // ---- 重新生成消息 ----
@@ -500,7 +562,7 @@ class ChatService(
 
             // memory tool
             if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (settings.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
+                if (settings.enableWebSearch || mcpManager.getAvailableTools(assistant.mcpServers).isNotEmpty()) {
                     addError(
                         IllegalStateException(context.getString(R.string.tools_warning)),
                         conversationId
@@ -537,8 +599,8 @@ class ChatService(
                     if (settings.enableWebSearch) {
                         addAll(createSearchTools(settings))
                     }
-                    addAll(localTools.getTools(assistant.localTools, assistant))
-                    mcpManager.getAllAvailableTools().forEach { tool ->
+                    addAll(localTools.getTools(assistant.localTools))
+                    mcpManager.getAvailableTools(assistant.mcpServers).forEach { tool ->
                         add(
                             Tool(
                                 name = "mcp__" + tool.name,
@@ -546,7 +608,7 @@ class ChatService(
                                 parameters = { tool.inputSchema },
                                 needsApproval = tool.needsApproval,
                                 execute = {
-                                    mcpManager.callTool(tool.name, it.jsonObject)
+                                    mcpManager.callTool(tool.name, it.jsonObject, assistant.mcpServers)
                                 },
                             )
                         )

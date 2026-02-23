@@ -28,7 +28,6 @@ data class Assistant(
     val messageTemplate: String = "{{ message }}",
     val presetMessages: List<UIMessage> = emptyList(),
     val quickMessages: List<QuickMessage> = emptyList(),
-    val scheduledPromptTasks: List<ScheduledPromptTask> = emptyList(),
     val regexes: List<AssistantRegex> = emptyList(),
     val thinkingBudget: Int? = 1024,
     val maxTokens: Int? = null,
@@ -43,36 +42,6 @@ data class Assistant(
     val lorebookIds: Set<Uuid> = emptySet(),            // 关联的 Lorebook ID
     val enableTimeReminder: Boolean = false,            // 时间间隔提醒注入
 )
-
-@Serializable
-data class ScheduledPromptTask(
-    val id: Uuid = Uuid.random(),
-    val enabled: Boolean = true,
-    val title: String = "",
-    val prompt: String = "",
-    val scheduleType: ScheduleType = ScheduleType.DAILY,
-    val timeMinutesOfDay: Int = 9 * 60,
-    val dayOfWeek: Int? = null, // 1..7, Monday..Sunday, only used when scheduleType == WEEKLY
-    val conversationId: Uuid = Uuid.random(),
-    val createdAt: Long = System.currentTimeMillis(),
-    val lastRunAt: Long = 0L,
-    val lastStatus: TaskRunStatus = TaskRunStatus.IDLE,
-    val lastError: String = "",
-)
-
-@Serializable
-enum class ScheduleType {
-    DAILY,
-    WEEKLY,
-}
-
-@Serializable
-enum class TaskRunStatus {
-    IDLE,
-    RUNNING,
-    SUCCESS,
-    FAILED,
-}
 
 @Serializable
 data class QuickMessage(

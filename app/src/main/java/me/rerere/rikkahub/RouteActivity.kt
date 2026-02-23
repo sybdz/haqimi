@@ -73,7 +73,6 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMcpPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMemoryPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantPromptPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantRequestPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantSchedulePage
 import me.rerere.rikkahub.ui.pages.backup.BackupPage
 import me.rerere.rikkahub.ui.pages.chat.ChatPage
 import me.rerere.rikkahub.ui.pages.debug.DebugPage
@@ -84,6 +83,8 @@ import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
 import me.rerere.rikkahub.ui.pages.prompts.PromptPage
 import me.rerere.rikkahub.ui.pages.search.SearchPage
+import me.rerere.rikkahub.ui.pages.scheduled.ScheduledTaskRunDetailPage
+import me.rerere.rikkahub.ui.pages.scheduled.ScheduledTaskRunsPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
@@ -94,6 +95,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
+import me.rerere.rikkahub.ui.pages.setting.SettingScheduledTasksPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTTSPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTermuxPage
@@ -108,6 +110,7 @@ import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.db.MigrationState
+import me.rerere.rikkahub.service.EXTRA_SCHEDULED_TASK_RUN_ID
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 import org.koin.compose.koinInject
@@ -176,10 +179,22 @@ class RouteActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Navigate to the chat screen if a conversation ID is provided
+        setIntent(intent)
+        handleRouteIntent(intent)
+    }
+
+    private fun handleRouteIntent(intent: Intent) {
+        val stack = navStack ?: return
+        intent.getStringExtra(EXTRA_SCHEDULED_TASK_RUN_ID)?.let { runId ->
+            stack.add(Screen.ScheduledTaskRunDetail(runId))
+            intent.removeExtra(EXTRA_SCHEDULED_TASK_RUN_ID)
+            return
+        }
         intent.getStringExtra("conversationId")?.let { text ->
-            navStack?.add(Screen.Chat(text))
-        }    }
+            stack.add(Screen.Chat(text))
+            intent.removeExtra("conversationId")
+        }
+    }
 
     @Composable
     fun AppRoutes() {
@@ -209,6 +224,9 @@ class RouteActivity : ComponentActivity() {
 
         val backStack = rememberNavBackStack(startScreen)
         SideEffect { this@RouteActivity.navStack = backStack }
+        LaunchedEffect(backStack) {
+            handleRouteIntent(intent)
+        }
 
         ShareHandler(backStack)
 
@@ -301,8 +319,8 @@ class RouteActivity : ComponentActivity() {
                                 AssistantPromptPage(key.id)
                             }
 
-                            entry<Screen.AssistantSchedule> { key ->
-                                AssistantSchedulePage(key.id)
+                            entry<Screen.AssistantSchedule> { _ ->
+                                SettingScheduledTasksPage()
                             }
 
                             entry<Screen.AssistantMemory> { key ->
@@ -370,6 +388,10 @@ class RouteActivity : ComponentActivity() {
                                 SettingSearchPage()
                             }
 
+                            entry<Screen.SettingScheduledTasks> {
+                                SettingScheduledTasksPage()
+                            }
+
                             entry<Screen.SettingTTS> {
                                 SettingTTSPage()
                             }
@@ -411,6 +433,14 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.MessageSearch> {
                                 SearchPage()
+                            }
+
+                            entry<Screen.ScheduledTaskRuns> {
+                                ScheduledTaskRunsPage()
+                            }
+
+                            entry<Screen.ScheduledTaskRunDetail> { key ->
+                                ScheduledTaskRunDetailPage(key.runId)
                             }
 
                             entry<Screen.Stats> {
@@ -548,6 +578,9 @@ sealed interface Screen : NavKey {
     data object SettingSearch : Screen
 
     @Serializable
+    data object SettingScheduledTasks : Screen
+
+    @Serializable
     data object SettingTTS : Screen
 
     @Serializable
@@ -579,6 +612,12 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object MessageSearch : Screen
+
+    @Serializable
+    data object ScheduledTaskRuns : Screen
+
+    @Serializable
+    data class ScheduledTaskRunDetail(val runId: String) : Screen
 
     @Serializable
     data object Stats : Screen

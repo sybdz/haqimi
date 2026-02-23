@@ -20,9 +20,11 @@ import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.ConversationSource
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.utils.JsonInstant
 import java.time.Instant
+import java.util.Locale
 import kotlin.uuid.Uuid
 
 class ConversationRepository(
@@ -205,7 +207,11 @@ class ConversationRepository(
             )
             saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
         }
-        messageFtsManager.indexConversation(conversation)
+        if (conversation.source == ConversationSource.NORMAL) {
+            messageFtsManager.indexConversation(conversation)
+        } else {
+            messageFtsManager.deleteConversation(conversation.id.toString())
+        }
     }
 
     suspend fun updateConversation(conversation: Conversation) {
@@ -217,7 +223,11 @@ class ConversationRepository(
             messageNodeDAO.deleteByConversation(conversation.id.toString())
             saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
         }
-        messageFtsManager.indexConversation(conversation)
+        if (conversation.source == ConversationSource.NORMAL) {
+            messageFtsManager.indexConversation(conversation)
+        } else {
+            messageFtsManager.deleteConversation(conversation.id.toString())
+        }
     }
 
     suspend fun deleteConversation(conversation: Conversation) {
@@ -269,7 +279,8 @@ class ConversationRepository(
             assistantId = conversation.assistantId.toString(),
             truncateIndex = conversation.truncateIndex,
             chatSuggestions = JsonInstant.encodeToString(conversation.chatSuggestions),
-            isPinned = conversation.isPinned
+            isPinned = conversation.isPinned,
+            source = conversation.source.toDbValue(),
         )
     }
 
@@ -287,6 +298,7 @@ class ConversationRepository(
             truncateIndex = conversationEntity.truncateIndex,
             chatSuggestions = JsonInstant.decodeFromString(conversationEntity.chatSuggestions),
             isPinned = conversationEntity.isPinned,
+            source = conversationEntity.source.toConversationSource(),
         )
     }
 
@@ -311,6 +323,7 @@ class ConversationRepository(
         return Conversation(
             id = Uuid.parse(entity.id),
             assistantId = Uuid.parse(entity.assistantId),
+            source = ConversationSource.NORMAL,
             title = entity.title,
             isPinned = entity.isPinned,
             createAt = Instant.ofEpochMilli(entity.createAt),
@@ -368,6 +381,16 @@ class ConversationRepository(
         }
         messageNodeDAO.insertAll(entities)
     }
+}
+
+private fun ConversationSource.toDbValue(): String = when (this) {
+    ConversationSource.NORMAL -> "normal"
+    ConversationSource.SCHEDULED_TASK -> "scheduled_task"
+}
+
+private fun String.toConversationSource(): ConversationSource = when (lowercase(Locale.ROOT)) {
+    "scheduled_task" -> ConversationSource.SCHEDULED_TASK
+    else -> ConversationSource.NORMAL
 }
 
 /**
