@@ -99,11 +99,13 @@ fun SettingThemeStudioPage(vm: SettingVM = koinViewModel()) {
     }
 
     val latestSettings by rememberUpdatedState(settings)
+    val latestDraftConfig by rememberUpdatedState(draftConfig)
 
     fun updateDraftConfig(newConfig: ThemeStudioConfig) {
-        val normalized = newConfig.ensureValid(settings.themeId)
+        val themeId = latestSettings.themeId
+        val normalized = newConfig.ensureValid(themeId)
         draftConfig = normalized
-        ThemeStudioDraftStore.setDraftProfile(normalized.activeProfileOrDefault(settings.themeId))
+        ThemeStudioDraftStore.setDraftProfile(normalized.activeProfileOrDefault(themeId))
     }
 
     fun updateActiveProfile(transform: (ThemeProfile) -> ThemeProfile) {
@@ -157,10 +159,12 @@ fun SettingThemeStudioPage(vm: SettingVM = koinViewModel()) {
     val importFailedMsg = stringResource(R.string.export_import_failed)
     val importer = rememberImporter(ThemeStudioConfigSerializer) { result ->
         result.onSuccess { imported ->
-            val incoming = imported.ensureValid(settings.themeId)
-            val mergedProfiles = draftConfig.profiles + incoming.profiles
+            val themeId = latestSettings.themeId
+            val currentDraft = latestDraftConfig
+            val incoming = imported.ensureValid(themeId)
+            val mergedProfiles = currentDraft.profiles + incoming.profiles
             updateDraftConfig(
-                draftConfig.copy(
+                currentDraft.copy(
                     activeProfileId = incoming.activeProfileId ?: mergedProfiles.first().id,
                     profiles = mergedProfiles,
                 )

@@ -120,6 +120,26 @@ fun ThemeGlassContainer(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(blurModifier)
+            ) {
+                // Blur a textured backdrop layer so glass blur is visually meaningful.
+                ThemeAtmosphereLayer(modifier = Modifier.fillMaxSize())
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
+                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
+                                )
+                            )
+                        )
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
                     .background(tintColor)
             )
             if (glass.borderOpacity > 0f) {
