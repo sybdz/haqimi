@@ -4,7 +4,6 @@ private val HTML_CODE_BLOCK_LANGUAGES = setOf(
     "html",
     "htm",
     "xhtml",
-    "xml",
     "svg",
 )
 

@@ -28,6 +28,17 @@ class HtmlCodeBlockRenderDeciderTest {
     }
 
     @Test
+    fun `do not render generic xml blocks`() {
+        assertFalse(
+            shouldRenderHtmlCodeBlock(
+                language = "xml",
+                code = "<manifest package='me.rerere.app'></manifest>",
+                completeCodeBlock = true,
+            )
+        )
+    }
+
+    @Test
     fun `render when code body contains html tags`() {
         assertTrue(
             shouldRenderHtmlCodeBlock(
