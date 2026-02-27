@@ -67,7 +67,7 @@ fun InlineHtmlRenderer(
     val density = LocalDensity.current
 
     var contentHeight by remember {
-        mutableIntStateOf(htmlHeightCache.getIfPresent(code) ?: 200)
+        mutableIntStateOf(htmlHeightCache.getIfPresent(code) ?: 100)
     }
     val height = with(density) { contentHeight.toDp() }
 
@@ -102,7 +102,7 @@ fun InlineHtmlRenderer(
             .fillMaxWidth()
             .clip(RoundedCornerShape(4.dp))
             .animateContentSize()
-            .height(height.coerceIn(50.dp, 800.dp)),
+            .height(height.coerceIn(10.dp, 800.dp)),
         onUpdated = {
             it.evaluateJavascript("reportHeightToAndroid();", null)
         }
@@ -133,7 +133,7 @@ private fun wrapContentForWebView(content: String): String {
         return buildString {
             append("<!DOCTYPE html><html><head>")
             append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">")
-            append("<style>body{margin:0;padding:0;display:flex;justify-content:center;align-items:center;min-height:100%}svg{max-width:100%;height:auto}</style>")
+            append("<style>html,body{margin:0;padding:0;height:auto}body{display:flex;justify-content:center}svg{max-width:100%;height:auto}</style>")
             append("</head><body>")
             append(content)
             append("</body></html>")
@@ -144,7 +144,7 @@ private fun wrapContentForWebView(content: String): String {
     return buildString {
         append("<!DOCTYPE html><html><head>")
         append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">")
-        append("<style>body{margin:0;padding:8px;word-wrap:break-word}</style>")
+        append("<style>html,body{margin:0;height:auto}body{padding:8px;word-wrap:break-word}</style>")
         append("</head><body>")
         append(content)
         append("</body></html>")
@@ -156,11 +156,14 @@ private fun injectHeightReportingScript(html: String): String {
         <script>
         (function() {
             window.reportHeightToAndroid = function() {
+                // Only measure body height, NOT documentElement.
+                // documentElement.scrollHeight includes viewport height,
+                // which creates a circular dependency: Compose sets WebView height →
+                // viewport grows → JS reports inflated height → Compose keeps it large.
+                // body.scrollHeight correctly reports only the content height.
                 var height = Math.max(
                     document.body.scrollHeight || 0,
-                    document.body.offsetHeight || 0,
-                    document.documentElement.scrollHeight || 0,
-                    document.documentElement.offsetHeight || 0
+                    document.body.offsetHeight || 0
                 );
                 if (height > 0 && window.AndroidHtmlInterface) {
                     AndroidHtmlInterface.updateHeight(height);
@@ -174,7 +177,7 @@ private fun injectHeightReportingScript(html: String): String {
             if (window.ResizeObserver) {
                 new ResizeObserver(function() {
                     reportHeightToAndroid();
-                }).observe(document.documentElement);
+                }).observe(document.body);
             }
 
             window.addEventListener('resize', reportHeightToAndroid);
