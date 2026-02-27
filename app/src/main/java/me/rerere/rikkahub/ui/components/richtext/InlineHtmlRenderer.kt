@@ -24,14 +24,36 @@ private val htmlHeightCache = SimpleCache.builder<String, Int>()
     .maximumSize(100)
     .build()
 
+// Matches <svg followed by whitespace, > or / — avoids matching hypothetical tags like <svgIcon>
+private val SVG_TAG_REGEX = Regex("<svg[\\s>/]", RegexOption.IGNORE_CASE)
+
+private val COMPLEX_CSS_INDICATORS = listOf(
+    "gradient(", "box-shadow", "text-shadow",
+    "border-radius", "transform:", "animation:",
+    "transition:", "display:", "position:",
+    "backdrop-filter", "filter:",
+)
+
 /**
- * Checks if the given code content looks like a full HTML document.
- * Similar to JS-Slash-Runner's isFrontend() detection.
+ * Checks if the given code content looks like a full HTML document,
+ * SVG content, or HTML with complex CSS styling that needs WebView rendering.
  */
 fun isFrontendHtml(content: String): Boolean {
-    return listOf("html>", "<head>", "<body").any { tag ->
-        content.contains(tag, ignoreCase = true)
-    }
+    val lower = content.lowercase()
+    if (listOf("html>", "<head>", "<body").any { lower.contains(it) }) return true
+    if (SVG_TAG_REGEX.containsMatchIn(lower)) return true
+    if (isRichStyledHtml(lower)) return true
+    return false
+}
+
+/**
+ * Checks if HTML content contains complex CSS that needs WebView rendering
+ * (gradients, shadows, transforms, etc. that SimpleHtmlBlock cannot handle).
+ */
+fun isRichStyledHtml(content: String): Boolean {
+    val lower = content.lowercase()
+    if (!lower.contains("style=") && !lower.contains("<style")) return false
+    return COMPLEX_CSS_INDICATORS.any { lower.contains(it) }
 }
 
 /**
@@ -59,7 +81,8 @@ fun InlineHtmlRenderer(
     }
 
     val processedHtml = remember(code) {
-        injectHeightReportingScript(code)
+        val wrapped = wrapContentForWebView(code)
+        injectHeightReportingScript(wrapped)
     }
 
     val webViewState = rememberWebViewState(
@@ -92,6 +115,39 @@ private class HtmlRendererInterface(
     @JavascriptInterface
     fun updateHeight(height: Int) {
         onHeightChanged(height)
+    }
+}
+
+private fun wrapContentForWebView(content: String): String {
+    val lower = content.lowercase().trimStart()
+
+    // Already a full HTML document
+    if (listOf("<!doctype", "<html").any { lower.startsWith(it) } ||
+        listOf("html>", "<head>", "<body").any { lower.contains(it) }
+    ) {
+        return content
+    }
+
+    // SVG content (raw or XML-wrapped like <?xml ...><svg ...>)
+    if (SVG_TAG_REGEX.containsMatchIn(lower)) {
+        return buildString {
+            append("<!DOCTYPE html><html><head>")
+            append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">")
+            append("<style>body{margin:0;padding:0;display:flex;justify-content:center;align-items:center;min-height:100%}svg{max-width:100%;height:auto}</style>")
+            append("</head><body>")
+            append(content)
+            append("</body></html>")
+        }
+    }
+
+    // HTML fragment
+    return buildString {
+        append("<!DOCTYPE html><html><head>")
+        append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">")
+        append("<style>body{margin:0;padding:8px;word-wrap:break-word}</style>")
+        append("</head><body>")
+        append(content)
+        append("</body></html>")
     }
 }
 

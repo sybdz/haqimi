@@ -105,7 +105,7 @@ fun HighlightCodeBlock(
     val autoWrap = settings.displaySetting.codeBlockAutoWrap
     val showLineNumbers = settings.displaySetting.showLineNumbers
 
-    val isHtmlFrontend = completeCodeBlock && isFrontendHtml(code)
+    val isHtmlFrontend = completeCodeBlock && (isFrontendHtml(code) || language.lowercase() == "svg")
     var showRenderedHtml by remember { mutableStateOf(true) }
 
     val createDocumentLauncher = rememberLauncherForActivityResult(
@@ -390,6 +390,7 @@ private fun HighlightCodeActions(
                         "html" -> "html"
                         "css" -> "css"
                         "xml" -> "xml"
+                        "svg" -> "svg"
                         "json" -> "json"
                         "yaml", "yml" -> "yml"
                         "markdown", "md" -> "md"
@@ -417,7 +418,7 @@ private fun HighlightCodeActions(
                 }
             )
 
-            if (language == "html") {
+            if (language == "html" || language == "svg") {
                 Text(
                     text = stringResource(id = R.string.code_block_preview),
                     fontSize = 12.sp,

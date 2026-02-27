@@ -564,9 +564,16 @@ private fun MarkdownNode(
 
         MarkdownElementTypes.HTML_BLOCK -> {
             val text = node.getTextInNode(content)
-            SimpleHtmlBlock(
-                html = text, modifier = modifier
-            )
+            if (isFrontendHtml(text)) {
+                InlineHtmlRenderer(
+                    code = text,
+                    modifier = modifier.fillMaxWidth(),
+                )
+            } else {
+                SimpleHtmlBlock(
+                    html = text, modifier = modifier
+                )
+            }
         }
 
         // 其他类型的节点，递归处理子节点
