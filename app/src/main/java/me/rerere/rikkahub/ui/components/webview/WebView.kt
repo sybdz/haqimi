@@ -3,6 +3,8 @@ package me.rerere.rikkahub.ui.components.webview
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.util.Log
+import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup.LayoutParams
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
@@ -68,6 +70,8 @@ internal class MyWebViewClient(private val state: WebViewState) : WebViewClient(
 fun WebView(
     state: WebViewState,
     modifier: Modifier = Modifier,
+    preferInnerScrollWhenScrollable: Boolean = false,
+    showScrollBars: Boolean = true,
     onCreated: (WebView) -> Unit = {},
     onUpdated: (WebView) -> Unit = {},
 ) {
@@ -97,6 +101,11 @@ fun WebView(
                     settings.allowContentAccess = true
                     settings.apply(state.settings)
 
+                    isVerticalScrollBarEnabled = showScrollBars
+                    isHorizontalScrollBarEnabled = showScrollBars
+                    overScrollMode = View.OVER_SCROLL_NEVER
+                    setOnTouchListener(createScrollPriorityTouchListener(preferInnerScrollWhenScrollable))
+
                     // Use the created clients
                     this.webChromeClient = webChromeClient
                     this.webViewClient = webViewClient
@@ -125,6 +134,10 @@ fun WebView(
 
                 // Update settings that might change
                 webView.settings.javaScriptEnabled = state.javaScriptEnabled
+                webView.isVerticalScrollBarEnabled = showScrollBars
+                webView.isHorizontalScrollBarEnabled = showScrollBars
+                webView.overScrollMode = View.OVER_SCROLL_NEVER
+                webView.setOnTouchListener(createScrollPriorityTouchListener(preferInnerScrollWhenScrollable))
 
                 when (val content = state.content) {
                     is WebContent.Url -> {
@@ -168,6 +181,27 @@ fun WebView(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
+}
+
+private fun createScrollPriorityTouchListener(
+    preferInnerScrollWhenScrollable: Boolean,
+): View.OnTouchListener? {
+    if (!preferInnerScrollWhenScrollable) return null
+
+    return View.OnTouchListener { view, motionEvent ->
+        val webView = view as WebView
+        when (motionEvent.actionMasked) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                val canScrollInternally = webView.canScrollVertically(-1) || webView.canScrollVertically(1)
+                view.parent?.requestDisallowInterceptTouchEvent(canScrollInternally)
+            }
+
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                view.parent?.requestDisallowInterceptTouchEvent(false)
+            }
+        }
+        false
     }
 }
 

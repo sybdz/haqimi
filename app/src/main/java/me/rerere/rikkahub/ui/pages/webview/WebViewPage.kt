@@ -56,8 +56,11 @@ fun WebViewPage(url: String, content: String) {
             baseUrl = "https://rikkahub.local",
             mimeType = "text/html",
             settings = {
-                builtInZoomControls = true
+                setSupportZoom(false)
+                builtInZoomControls = false
                 displayZoomControls = false
+                useWideViewPort = true
+                loadWithOverviewMode = true
             }
         )
     }

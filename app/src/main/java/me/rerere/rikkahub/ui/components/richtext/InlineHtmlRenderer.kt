@@ -88,14 +88,19 @@ fun InlineHtmlRenderer(
         encoding = "UTF-8",
         interfaces = mapOf("AndroidHtmlInterface" to jsInterface),
         settings = {
-            builtInZoomControls = true
+            setSupportZoom(false)
+            builtInZoomControls = false
             displayZoomControls = false
+            useWideViewPort = true
+            loadWithOverviewMode = true
             javaScriptCanOpenWindowsAutomatically = false
         }
     )
 
     WebView(
         state = webViewState,
+        preferInnerScrollWhenScrollable = true,
+        showScrollBars = false,
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(4.dp))
@@ -130,7 +135,7 @@ private fun wrapContentForWebView(content: String): String {
     if (SVG_TAG_REGEX.containsMatchIn(lower)) {
         return buildString {
             append("<!DOCTYPE html><html><head>")
-            append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">")
+            append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">")
             append("<style>html,body{margin:0;padding:0;height:auto;background:transparent}body{display:flex;justify-content:center}svg{max-width:100%;height:auto}</style>")
             append("</head><body>")
             append(content)
@@ -141,7 +146,7 @@ private fun wrapContentForWebView(content: String): String {
     // HTML fragment
     return buildString {
         append("<!DOCTYPE html><html><head>")
-        append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">")
+        append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">")
         append("<style>html,body{margin:0;height:auto;background:transparent}body{padding:8px;word-wrap:break-word}</style>")
         append("</head><body>")
         append(content)
@@ -153,6 +158,49 @@ private fun injectHeightReportingScript(html: String): String {
     val script = """
         <script>
         (function() {
+            function ensureViewport() {
+                var content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
+                var viewport = document.querySelector('meta[name="viewport"]');
+                if (!viewport) {
+                    viewport = document.createElement("meta");
+                    viewport.setAttribute("name", "viewport");
+                    (document.head || document.documentElement).appendChild(viewport);
+                }
+                viewport.setAttribute("content", content);
+            }
+
+            function ensureResponsiveStyle() {
+                var styleId = "rk-inline-html-responsive-style";
+                if (document.getElementById(styleId)) return;
+                var style = document.createElement("style");
+                style.id = styleId;
+                style.textContent = [
+                    "html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%;}",
+                    "img,svg,video,canvas,iframe,table,pre{max-width:100% !important;height:auto;}",
+                    "table,pre{display:block;overflow-x:auto;}",
+                    "*{box-sizing:border-box;}"
+                ].join("");
+                (document.head || document.documentElement).appendChild(style);
+            }
+
+            function bindScrollPriorityEvents() {
+                function canPageScroll() {
+                    var body = document.body;
+                    var doc = document.documentElement;
+                    if (!body || !doc) return false;
+                    return body.scrollHeight > body.clientHeight + 1 || doc.scrollHeight > doc.clientHeight + 1;
+                }
+
+                function handleScrollableEvent(event) {
+                    if (canPageScroll()) {
+                        event.stopPropagation();
+                    }
+                }
+
+                document.addEventListener("touchmove", handleScrollableEvent, { capture: true, passive: true });
+                document.addEventListener("wheel", handleScrollableEvent, { capture: true, passive: true });
+            }
+
             window.reportHeightToAndroid = function() {
                 // Only measure body height, NOT documentElement.
                 // documentElement.scrollHeight includes viewport height,
@@ -169,6 +217,9 @@ private fun injectHeightReportingScript(html: String): String {
             };
 
             window.addEventListener('load', function() {
+                ensureViewport();
+                ensureResponsiveStyle();
+                bindScrollPriorityEvents();
                 reportHeightToAndroid();
             });
 
