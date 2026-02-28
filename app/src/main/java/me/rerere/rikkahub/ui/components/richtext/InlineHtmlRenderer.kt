@@ -136,7 +136,7 @@ private fun wrapContentForWebView(content: String): String {
         return buildString {
             append("<!DOCTYPE html><html><head>")
             append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">")
-            append("<style>html,body{margin:0;padding:0;height:auto;background:transparent}body{display:flex;justify-content:center}svg{max-width:100%;height:auto}</style>")
+            append("<style>html,body{margin:0;padding:0;height:auto;background:transparent;overflow:hidden;max-width:100%}body{display:flex;justify-content:center}svg{max-width:100%;height:auto}*{box-sizing:border-box}</style>")
             append("</head><body>")
             append(content)
             append("</body></html>")
@@ -147,7 +147,7 @@ private fun wrapContentForWebView(content: String): String {
     return buildString {
         append("<!DOCTYPE html><html><head>")
         append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">")
-        append("<style>html,body{margin:0;height:auto;background:transparent}body{padding:8px;word-wrap:break-word}</style>")
+        append("<style>html,body{margin:0;height:auto;background:transparent;overflow-x:hidden;max-width:100%}body{padding:8px;word-wrap:break-word}*{box-sizing:border-box}</style>")
         append("</head><body>")
         append(content)
         append("</body></html>")
@@ -175,10 +175,10 @@ private fun injectHeightReportingScript(html: String): String {
                 var style = document.createElement("style");
                 style.id = styleId;
                 style.textContent = [
-                    "html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%;}",
-                    "img,svg,video,canvas,iframe,table,pre{max-width:100% !important;height:auto;}",
+                    "html,body{max-width:100%!important;width:100%!important;overflow-x:hidden!important;-webkit-text-size-adjust:100%;}",
+                    "img,svg,video,canvas,iframe,table,pre{max-width:100%!important;height:auto;}",
                     "table,pre{display:block;overflow-x:auto;}",
-                    "*{box-sizing:border-box;}"
+                    "*{box-sizing:border-box;max-width:100vw;}"
                 ].join("");
                 (document.head || document.documentElement).appendChild(style);
             }
