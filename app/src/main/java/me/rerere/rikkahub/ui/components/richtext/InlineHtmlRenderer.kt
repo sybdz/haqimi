@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.components.richtext
 
+import android.annotation.SuppressLint
+import android.view.MotionEvent
 import android.webkit.JavascriptInterface
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,6 +60,7 @@ fun isRichStyledHtml(content: String): Boolean {
 /**
  * Renders HTML content inline using a WebView with auto-height adjustment.
  */
+@SuppressLint("ClickableViewAccessibility")
 @Composable
 fun InlineHtmlRenderer(
     code: String,
@@ -88,8 +91,9 @@ fun InlineHtmlRenderer(
         encoding = "UTF-8",
         interfaces = mapOf("AndroidHtmlInterface" to jsInterface),
         settings = {
-            builtInZoomControls = true
-            displayZoomControls = false
+            builtInZoomControls = false
+            loadWithOverviewMode = true
+            useWideViewPort = true
             javaScriptCanOpenWindowsAutomatically = false
         }
     )
@@ -101,6 +105,21 @@ fun InlineHtmlRenderer(
             .clip(RoundedCornerShape(4.dp))
             .animateContentSize()
             .height(height.coerceIn(10.dp, 800.dp)),
+        onCreated = { webView ->
+            webView.setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        if (v.canScrollVertically(1) || v.canScrollVertically(-1)) {
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        v.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                false
+            }
+        },
         onUpdated = {
             it.evaluateJavascript("reportHeightToAndroid();", null)
         }
