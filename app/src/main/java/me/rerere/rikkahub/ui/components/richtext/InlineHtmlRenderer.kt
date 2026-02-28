@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.components.richtext
 
 import android.webkit.JavascriptInterface
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -91,8 +90,8 @@ fun InlineHtmlRenderer(
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
-            useWideViewPort = true
-            loadWithOverviewMode = true
+            useWideViewPort = false
+            loadWithOverviewMode = false
             javaScriptCanOpenWindowsAutomatically = false
         }
     )
@@ -104,7 +103,6 @@ fun InlineHtmlRenderer(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(4.dp))
-            .animateContentSize()
             .height(height.coerceIn(10.dp, 800.dp)),
         onUpdated = {
             it.evaluateJavascript("reportHeightToAndroid();", null)
