@@ -6,13 +6,13 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
-import android.view.ViewGroup.LayoutParams
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
@@ -87,11 +87,6 @@ fun WebView(
         AndroidView(
             factory = { context ->
                 WebView(context).apply {
-                    layoutParams = LayoutParams(
-                        LayoutParams.MATCH_PARENT,
-                        LayoutParams.MATCH_PARENT
-                    )
-
                     setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
                     state.webView = this // Assign the WebView instance to the state
@@ -117,11 +112,13 @@ fun WebView(
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth(), // Make WebView fill the width
-            onReset = {
+            modifier = Modifier.fillMaxSize(),
+            onReset = { webView ->
                 state.interfaces.forEach { (name, _) ->
-                    it.removeJavascriptInterface(name)
+                    webView.removeJavascriptInterface(name)
                 }
+                if (state.webView === webView) state.webView = null
+                if (state.lastLoadedDataWebView === webView) state.lastLoadedDataWebView = null
                 Log.d(TAG, "AndroidView: Resetting WebView")
             },
             update = { webView ->
@@ -154,18 +151,22 @@ fun WebView(
                     }
 
                     is WebContent.Data -> {
-                        // Check if the data needs to be reloaded (e.g., if different from last loaded data)
-                        // For simplicity, we might just reload it every time the update block runs with Data content.
-                        // A more complex check could involve comparing `content.data` with a previously stored value.
-                        webView.loadDataWithBaseURL(
-                            content.baseUrl,
-                            content.data,
-                            content.mimeType,
-                            content.encoding,
-                            content.historyUrl
-                        )
-                        // Assuming data loading is fast, but let's reflect the state more accurately
-                        // state.isLoading = false // This might be too soon, let WebViewClient handle it
+                        val dataFingerprint = content.fingerprint()
+                        val shouldReloadData = state.forceReload ||
+                            state.lastLoadedDataFingerprint != dataFingerprint ||
+                            state.lastLoadedDataWebView !== webView
+                        if (shouldReloadData) {
+                            webView.loadDataWithBaseURL(
+                                content.baseUrl,
+                                content.data,
+                                content.mimeType,
+                                content.encoding,
+                                content.historyUrl
+                            )
+                            state.forceReload = false
+                            state.lastLoadedDataFingerprint = dataFingerprint
+                            state.lastLoadedDataWebView = webView
+                        }
                     }
 
                     WebContent.NavigatorOnly -> {
@@ -238,6 +239,15 @@ private fun createScrollPriorityTouchListener(
     }
 }
 
+private fun WebContent.Data.fingerprint(): Int {
+    var result = data.hashCode()
+    result = 31 * result + (baseUrl?.hashCode() ?: 0)
+    result = 31 * result + encoding.hashCode()
+    result = 31 * result + (mimeType?.hashCode() ?: 0)
+    result = 31 * result + (historyUrl?.hashCode() ?: 0)
+    return result
+}
+
 // --- State and Content Definition ---
 sealed class WebContent {
     data class Url(
@@ -296,6 +306,10 @@ class WebViewState(
     // Hold the WebView instance internally to perform actions.
     // Be cautious with this reference, ensure it doesn't leak context.
     internal var webView: WebView? by mutableStateOf(null)
+
+    // Avoid reloading static HTML data on every recomposition/update.
+    internal var lastLoadedDataFingerprint: Int? = null
+    internal var lastLoadedDataWebView: WebView? = null
 
     // --- Public Actions ---
 

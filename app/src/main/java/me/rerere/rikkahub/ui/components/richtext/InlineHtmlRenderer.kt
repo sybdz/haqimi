@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.ui.components.webview.WebView
 import me.rerere.rikkahub.ui.components.webview.rememberWebViewState
@@ -71,8 +72,10 @@ fun InlineHtmlRenderer(
     val jsInterface = remember(code) {
         HtmlRendererInterface(
             onHeightChanged = { newHeight ->
-                contentHeightDp = newHeight
-                htmlHeightCache.put(code, contentHeightDp)
+                if (newHeight > 0 && newHeight != contentHeightDp) {
+                    contentHeightDp = newHeight
+                    htmlHeightCache.put(code, contentHeightDp)
+                }
             }
         )
     }
@@ -99,16 +102,13 @@ fun InlineHtmlRenderer(
 
     WebView(
         state = webViewState,
-        preferInnerScrollWhenScrollable = true,
         showScrollBars = false,
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(4.dp))
+            .clipToBounds()
             .animateContentSize()
             .height(height.coerceIn(10.dp, 800.dp)),
-        onUpdated = {
-            it.evaluateJavascript("reportHeightToAndroid();", null)
-        }
     )
 }
 
@@ -183,24 +183,6 @@ private fun injectHeightReportingScript(html: String): String {
                 (document.head || document.documentElement).appendChild(style);
             }
 
-            function bindScrollPriorityEvents() {
-                function canPageScroll() {
-                    var body = document.body;
-                    var doc = document.documentElement;
-                    if (!body || !doc) return false;
-                    return body.scrollHeight > body.clientHeight + 1 || doc.scrollHeight > doc.clientHeight + 1;
-                }
-
-                function handleScrollableEvent(event) {
-                    if (canPageScroll()) {
-                        event.stopPropagation();
-                    }
-                }
-
-                document.addEventListener("touchmove", handleScrollableEvent, { capture: true, passive: true });
-                document.addEventListener("wheel", handleScrollableEvent, { capture: true, passive: true });
-            }
-
             window.reportHeightToAndroid = function() {
                 // Only measure body height, NOT documentElement.
                 // documentElement.scrollHeight includes viewport height,
@@ -219,7 +201,6 @@ private fun injectHeightReportingScript(html: String): String {
             window.addEventListener('load', function() {
                 ensureViewport();
                 ensureResponsiveStyle();
-                bindScrollPriorityEvents();
                 reportHeightToAndroid();
             });
 
