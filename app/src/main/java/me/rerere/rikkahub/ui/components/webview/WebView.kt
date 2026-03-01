@@ -10,6 +10,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
@@ -122,7 +123,9 @@ fun WebView(
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth(), // Make WebView fill the width
+            // Keep AndroidView size aligned with the outer Box constraints
+            // so WebView scrolling works reliably in both fixed-height and full-screen usage.
+            modifier = Modifier.fillMaxSize(),
             onReset = {
                 state.interfaces.forEach { (name, _) ->
                     it.removeJavascriptInterface(name)
