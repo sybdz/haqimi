@@ -178,10 +178,13 @@ class CodeBlockRenderResolverTest {
 
         val html = CodeBlockRenderResolver.buildHtmlForWebView(target, code)
 
-        assertTrue(html.contains("""<div id="RH_RENDER_ROOT">"""))
         assertTrue(html.contains("display: inline-block"))
-        assertTrue(html.contains("var nextHeight = readRootHeight();"))
+        assertTrue(html.contains("var nextHeight = readContentHeight();"))
+        assertTrue(html.contains("function readVisualContentHeight()"))
+        assertTrue(html.contains("function readContentHeight()"))
+        assertTrue(html.contains("body.getBoundingClientRect()"))
         assertFalse(html.contains("doc ? doc.offsetHeight"))
         assertFalse(html.contains("body ? body.offsetHeight"))
+        assertFalse(html.contains("RH_RENDER_ROOT"))
     }
 }
