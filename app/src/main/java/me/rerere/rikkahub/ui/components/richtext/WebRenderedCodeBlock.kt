@@ -107,13 +107,34 @@ internal fun WebRenderedCodeBlock(
             .height(contentHeightDp.coerceAtLeast(MIN_PREVIEW_HEIGHT_DP).dp),
         onCreated = { webView ->
             webView.setTag(R.id.tag_code_block_render_signature, renderSignature)
+            var lastY = 0f
+            var hasLastY = false
             webView.setOnTouchListener { view, event ->
                 when (event?.actionMasked) {
-                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                    MotionEvent.ACTION_DOWN -> {
+                        lastY = event.y
+                        hasLastY = true
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!hasLastY) {
+                            lastY = event.y
+                            hasLastY = true
+                            return@setOnTouchListener false
+                        }
+                        val deltaY = event.y - lastY
+                        val canScrollInner = when {
+                            deltaY > 0f -> view.canScrollVertically(-1)
+                            deltaY < 0f -> view.canScrollVertically(1)
+                            else -> view.canScrollVertically(-1) || view.canScrollVertically(1)
+                        }
+                        view.parent?.requestDisallowInterceptTouchEvent(canScrollInner)
+                        lastY = event.y
                     }
 
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        hasLastY = false
                         view.parent?.requestDisallowInterceptTouchEvent(false)
                     }
                 }

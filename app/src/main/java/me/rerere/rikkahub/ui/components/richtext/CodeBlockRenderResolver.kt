@@ -158,7 +158,9 @@ internal object CodeBlockRenderResolver {
             <style>
             :root{--TH-viewport-height:100vh;}
             *,*::before,*::after{box-sizing:border-box;}
-            html,body{margin:0!important;padding:0;overflow:hidden!important;max-width:100%!important;}
+            html,body{margin:0!important;padding:0!important;overflow:hidden!important;max-width:100%!important;}
+            body{width:100%!important;}
+            #RH_RENDER_ROOT{display:flow-root;width:100%;max-width:100%;}
             </style>
             <script>
             (function() {
@@ -166,17 +168,38 @@ internal object CodeBlockRenderResolver {
                 document.documentElement.style.setProperty('--TH-viewport-height', window.innerHeight + 'px');
               }
 
-              function reportHeight() {
+              function readRootHeight() {
+                var root = document.getElementById('RH_RENDER_ROOT');
+                if (!root) return 0;
+
+                var candidates = [];
+                var rect = root.getBoundingClientRect();
+                if (Number.isFinite(rect.height) && rect.height > 0) candidates.push(rect.height);
+                if (Number.isFinite(root.scrollHeight) && root.scrollHeight > 0) candidates.push(root.scrollHeight);
+                if (Number.isFinite(root.offsetHeight) && root.offsetHeight > 0) candidates.push(root.offsetHeight);
+                if (candidates.length === 0) return 0;
+                return Math.ceil(Math.max.apply(null, candidates));
+              }
+
+              function readFallbackHeight() {
                 var body = document.body;
                 var doc = document.documentElement;
-                var height = Math.max(
-                  body ? body.scrollHeight : 0,
-                  body ? body.offsetHeight : 0,
-                  doc ? doc.scrollHeight : 0,
-                  doc ? doc.offsetHeight : 0
-                );
-                if (!Number.isFinite(height) || height <= 0) return;
-                var nextHeight = Math.ceil(height);
+                var height = body ? body.scrollHeight : 0;
+                if (!Number.isFinite(height) || height <= 0) {
+                  height = doc ? doc.scrollHeight : 0;
+                }
+                if (!Number.isFinite(height) || height <= 0) {
+                  return 0;
+                }
+                return Math.ceil(height);
+              }
+
+              function reportHeight() {
+                var nextHeight = readRootHeight();
+                if (nextHeight <= 0) {
+                  nextHeight = readFallbackHeight();
+                }
+                if (nextHeight <= 0) return;
                 if (window.__RH_LAST_REPORTED_HEIGHT__ === nextHeight) return;
                 window.__RH_LAST_REPORTED_HEIGHT__ = nextHeight;
                 try {
@@ -203,11 +226,12 @@ internal object CodeBlockRenderResolver {
               window.__RH_CODE_BLOCK_OBSERVER_ATTACHED__ = true;
 
               function observeHeightChanges() {
+                var root = document.getElementById('RH_RENDER_ROOT');
                 if (typeof ResizeObserver === 'function') {
                   var resizeObserver = new ResizeObserver(function() {
                     scheduleReportHeight();
                   });
-                  if (document.documentElement) resizeObserver.observe(document.documentElement);
+                  if (root) resizeObserver.observe(root);
                   if (document.body) resizeObserver.observe(document.body);
                 } else if (typeof MutationObserver === 'function' && document.body) {
                   var mutationObserver = new MutationObserver(function() {
@@ -247,7 +271,9 @@ internal object CodeBlockRenderResolver {
             </script>
             </head>
             <body>
+            <div id="RH_RENDER_ROOT">
             $content
+            </div>
             </body>
             </html>
         """.trimIndent()

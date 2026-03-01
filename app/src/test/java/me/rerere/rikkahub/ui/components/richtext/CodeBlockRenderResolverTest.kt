@@ -162,4 +162,26 @@ class CodeBlockRenderResolverTest {
         assertTrue(html.contains("height:100vh"))
         assertFalse(html.contains("height:var(--TH-viewport-height)"))
     }
+
+    @Test
+    fun build_html_uses_render_root_height_measurement_for_short_inline_block() {
+        val target = CodeBlockRenderTarget(
+            normalizedLanguage = "html",
+            renderType = CodeBlockRenderType.HTML
+        )
+        val code = """
+            <span style="display: inline-block; width: 100%; max-width: 95vw; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 4px 10px; margin: 3px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #fff; font-size: 0.85em; box-shadow: 0 1px 4px rgba(102, 126, 234, 0.4); white-space: normal; line-height: 1.4;">
+              <strong style="margin-right: 2px;">⏰ 时间：</strong>$1
+              <strong style="margin: 0 2px 0 6px;">📍 地点：</strong>$2
+            </span>
+        """.trimIndent()
+
+        val html = CodeBlockRenderResolver.buildHtmlForWebView(target, code)
+
+        assertTrue(html.contains("""<div id="RH_RENDER_ROOT">"""))
+        assertTrue(html.contains("display: inline-block"))
+        assertTrue(html.contains("var nextHeight = readRootHeight();"))
+        assertFalse(html.contains("doc ? doc.offsetHeight"))
+        assertFalse(html.contains("body ? body.offsetHeight"))
+    }
 }
