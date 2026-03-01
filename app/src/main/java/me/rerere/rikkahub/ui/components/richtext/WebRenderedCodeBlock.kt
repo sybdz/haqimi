@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.components.richtext
 
 import android.os.Handler
 import android.os.Looper
-import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -107,44 +106,6 @@ internal fun WebRenderedCodeBlock(
             .height(contentHeightDp.coerceAtLeast(MIN_PREVIEW_HEIGHT_DP).dp),
         onCreated = { webView ->
             webView.setTag(R.id.tag_code_block_render_signature, renderSignature)
-            var lastY = 0f
-            var hasLastY = false
-            fun requestParentInterceptAfterTouch(view: android.view.View, disallow: Boolean) {
-                view.post {
-                    view.parent?.requestDisallowInterceptTouchEvent(disallow)
-                }
-            }
-            webView.setOnTouchListener { view, event ->
-                when (event?.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        lastY = event.y
-                        hasLastY = true
-                        requestParentInterceptAfterTouch(view, false)
-                    }
-
-                    MotionEvent.ACTION_MOVE -> {
-                        if (!hasLastY) {
-                            lastY = event.y
-                            hasLastY = true
-                            return@setOnTouchListener false
-                        }
-                        val deltaY = event.y - lastY
-                        val canScrollInner = when {
-                            deltaY > 0f -> view.canScrollVertically(-1)
-                            deltaY < 0f -> view.canScrollVertically(1)
-                            else -> view.canScrollVertically(-1) || view.canScrollVertically(1)
-                        }
-                        requestParentInterceptAfterTouch(view, canScrollInner)
-                        lastY = event.y
-                    }
-
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        hasLastY = false
-                        requestParentInterceptAfterTouch(view, false)
-                    }
-                }
-                false
-            }
         },
         onUpdated = { webView ->
             val currentSignature = webView.getTag(R.id.tag_code_block_render_signature) as? String
