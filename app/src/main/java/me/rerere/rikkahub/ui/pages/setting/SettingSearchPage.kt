@@ -449,7 +449,7 @@ private fun TavilyOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -467,7 +467,7 @@ private fun TavilyOptions(
 
     FormItem(
         label = {
-            Text("Depth")
+            Text(stringResource(R.string.setting_page_search_depth))
         }
     ) {
         val depthOptions = listOf("basic", "advanced")
@@ -486,7 +486,7 @@ private fun TavilyOptions(
                     },
                     selected = options.depth == depth
                 ) {
-                    Text(depth.replaceFirstChar { it.uppercase() })
+                    Text(searchDepthLabel(depth))
                 }
             }
         }
@@ -500,7 +500,7 @@ private fun ExaOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -525,7 +525,7 @@ fun ZhipuOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -587,13 +587,22 @@ private fun CommonOptions(
 }
 
 @Composable
+private fun searchDepthLabel(depth: String): String = when (depth.lowercase()) {
+    "basic" -> stringResource(R.string.setting_page_search_depth_basic)
+    "advanced" -> stringResource(R.string.setting_page_search_depth_advanced)
+    "standard" -> stringResource(R.string.setting_page_search_depth_standard)
+    "deep" -> stringResource(R.string.setting_page_search_depth_deep)
+    else -> depth.replaceFirstChar { it.uppercase() }
+}
+
+@Composable
 private fun SearXNGOptions(
     options: SearchServiceOptions.SearXNGOptions,
     onUpdateOptions: (SearchServiceOptions.SearXNGOptions) -> Unit
 ) {
     FormItem(
         label = {
-            Text("API URL")
+            Text(stringResource(R.string.setting_page_search_api_url))
         }
     ) {
         OutlinedTextField(
@@ -611,7 +620,7 @@ private fun SearXNGOptions(
 
     FormItem(
         label = {
-            Text("Engines")
+            Text(stringResource(R.string.setting_page_search_engines))
         }
     ) {
         OutlinedTextField(
@@ -629,7 +638,7 @@ private fun SearXNGOptions(
 
     FormItem(
         label = {
-            Text("Language")
+            Text(stringResource(R.string.setting_page_search_language))
         }
     ) {
         OutlinedTextField(
@@ -647,7 +656,7 @@ private fun SearXNGOptions(
 
     FormItem(
         label = {
-            Text("Username")
+            Text(stringResource(R.string.backup_page_username))
         }
     ) {
         OutlinedTextField(
@@ -665,7 +674,7 @@ private fun SearXNGOptions(
 
     FormItem(
         label = {
-            Text("Password")
+            Text(stringResource(R.string.backup_page_password))
         }
     ) {
         OutlinedTextField(
@@ -689,7 +698,7 @@ private fun SearchLinkUpOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -707,7 +716,7 @@ private fun SearchLinkUpOptions(
 
     FormItem(
         label = {
-            Text("Depth")
+            Text(stringResource(R.string.setting_page_search_depth))
         }
     ) {
         val depthOptions = listOf("standard", "deep")
@@ -726,7 +735,7 @@ private fun SearchLinkUpOptions(
                     },
                     selected = options.depth == depth
                 ) {
-                    Text(depth.replaceFirstChar { it.uppercase() })
+                    Text(searchDepthLabel(depth))
                 }
             }
         }
@@ -740,7 +749,7 @@ private fun BraveOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -765,7 +774,7 @@ private fun MetasoOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -789,7 +798,7 @@ private fun OllamaOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -813,7 +822,7 @@ private fun PerplexityOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -831,7 +840,7 @@ private fun PerplexityOptions(
 
     FormItem(
         label = {
-            Text("Max Tokens")
+            Text(stringResource(R.string.assistant_page_max_tokens))
         }
     ) {
         OutlinedTextField(
@@ -850,7 +859,7 @@ private fun PerplexityOptions(
 
     FormItem(
         label = {
-            Text("Max Tokens / Page")
+            Text(stringResource(R.string.setting_page_search_max_tokens_per_page))
         }
     ) {
         OutlinedTextField(
@@ -875,7 +884,7 @@ private fun FirecrawlOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -899,7 +908,7 @@ private fun JinaOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -923,7 +932,7 @@ private fun BochaOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -941,10 +950,10 @@ private fun BochaOptions(
 
     FormItem(
         label = {
-            Text("Summary")
+            Text(stringResource(R.string.setting_page_search_summary))
         },
         description = {
-            Text("Enable summary generation")
+            Text(stringResource(R.string.setting_page_search_summary_desc))
         },
         tail = {
             Switch(
@@ -968,7 +977,7 @@ private fun RikkaHubOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -986,7 +995,7 @@ private fun RikkaHubOptions(
 
     FormItem(
         label = {
-            Text("Depth")
+            Text(stringResource(R.string.setting_page_search_depth))
         }
     ) {
         val depthOptions = listOf("standard", "deep")
@@ -1005,7 +1014,7 @@ private fun RikkaHubOptions(
                     },
                     selected = options.depth == depth
                 ) {
-                    Text(depth.replaceFirstChar { it.uppercase() })
+                    Text(searchDepthLabel(depth))
                 }
             }
         }
@@ -1019,7 +1028,7 @@ private fun GrokOptions(
 ) {
     FormItem(
         label = {
-            Text("API Key")
+            Text(stringResource(R.string.setting_provider_page_api_key))
         }
     ) {
         OutlinedTextField(
@@ -1037,7 +1046,7 @@ private fun GrokOptions(
 
     FormItem(
         label = {
-            Text("Model")
+            Text(stringResource(R.string.setting_tts_page_model))
         }
     ) {
         OutlinedTextField(

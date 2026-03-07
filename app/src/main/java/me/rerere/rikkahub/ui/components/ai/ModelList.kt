@@ -139,7 +139,7 @@ fun ModelSelector(
                 ) {
                     Icon(
                         imageVector = HugeIcons.Cancel01,
-                        contentDescription = "Clear"
+                        contentDescription = stringResource(R.string.history_page_clear)
                     )
                 }
             }

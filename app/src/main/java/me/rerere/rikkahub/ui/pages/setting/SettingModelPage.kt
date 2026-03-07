@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -48,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.ModelType
@@ -61,6 +63,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -165,6 +168,11 @@ private fun DefaultTranslationModelSetting(
     )
 
     if (showModal) {
+        var autoTriggerText by remember(settings.compressAutoTriggerInputTokens) {
+            mutableStateOf(settings.compressAutoTriggerInputTokens?.toString().orEmpty())
+        }
+        val autoTriggerValue = autoTriggerText.toIntOrNull()?.takeIf { it > 0 }
+        val isAutoTriggerValid = autoTriggerText.isBlank() || autoTriggerValue != null
         ModalBottomSheet(
             onDismissRequest = {
                 showModal = false
@@ -177,6 +185,84 @@ private fun DefaultTranslationModelSetting(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                FormItem(
+                    label = {
+                        Text(stringResource(R.string.setting_model_page_compress_auto_trigger_title))
+                    },
+                    description = {
+                        Text(stringResource(R.string.setting_model_page_compress_auto_trigger_desc))
+                    }
+                ) {
+                    OutlinedTextField(
+                        value = autoTriggerText,
+                        onValueChange = { value ->
+                            autoTriggerText = value
+                            when {
+                                value.isBlank() -> {
+                                    vm.updateSettings(
+                                        settings.copy(
+                                            compressAutoTriggerInputTokens = null
+                                        )
+                                    )
+                                }
+
+                                value.toIntOrNull()?.let { it > 0 } == true -> {
+                                    vm.updateSettings(
+                                        settings.copy(
+                                            compressAutoTriggerInputTokens = value.toInt()
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(stringResource(R.string.setting_model_page_compress_auto_trigger_disabled))
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = !isAutoTriggerValid,
+                    )
+                }
+                FormItem(
+                    label = {
+                        Text(stringResource(R.string.setting_model_page_compress_target_tokens_title))
+                    },
+                    description = {
+                        Text(stringResource(R.string.setting_model_page_compress_target_tokens_desc))
+                    }
+                ) {
+                    OutlinedNumberInput(
+                        value = settings.compressTargetTokens,
+                        onValueChange = { value ->
+                            vm.updateSettings(
+                                settings.copy(
+                                    compressTargetTokens = value.coerceAtLeast(1)
+                                )
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                FormItem(
+                    label = {
+                        Text(stringResource(R.string.setting_model_page_compress_keep_recent_title))
+                    },
+                    description = {
+                        Text(stringResource(R.string.setting_model_page_compress_keep_recent_desc))
+                    }
+                ) {
+                    OutlinedNumberInput(
+                        value = settings.compressKeepRecentMessages,
+                        onValueChange = { value ->
+                            vm.updateSettings(
+                                settings.copy(
+                                    compressKeepRecentMessages = value.coerceAtLeast(0)
+                                )
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 FormItem(
                     label = {
                         Text(stringResource(R.string.setting_model_page_prompt))

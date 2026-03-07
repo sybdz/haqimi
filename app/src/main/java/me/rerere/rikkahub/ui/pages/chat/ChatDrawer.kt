@@ -181,7 +181,7 @@ fun ChatDrawerContent(
 
                         Icon(
                             imageVector = HugeIcons.PencilEdit01,
-                            contentDescription = "Edit",
+                            contentDescription = stringResource(R.string.edit),
                             modifier = Modifier
                                 .onClick {
                                     nicknameEditState.open(settings.displaySetting.userNickname)
@@ -326,10 +326,10 @@ fun ChatDrawerContent(
 
                 DrawerAction(
                     icon = {
-                        Icon(HugeIcons.ChartColumn, "统计数据")
+                        Icon(HugeIcons.ChartColumn, stringResource(R.string.stats_page_title))
                     },
                     label = {
-                        Text("统计数据")
+                        Text(stringResource(R.string.stats_page_title))
                     },
                     onClick = {
                         navController.navigate(Screen.Stats)

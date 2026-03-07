@@ -31,11 +31,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.common.android.LogEntry
 import me.rerere.common.android.Logging
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.JsonTree
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -53,7 +55,7 @@ fun LogPage() {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("Logs") },
+                title = { Text(stringResource(R.string.log_page_title)) },
                 navigationIcon = { BackButton() },
                 actions = {
                     IconButton(
@@ -62,7 +64,7 @@ fun LogPage() {
                             logs = Logging.getRecentLogs()
                         }
                     ) {
-                        Icon(HugeIcons.Delete01, null)
+                        Icon(HugeIcons.Delete01, stringResource(R.string.history_page_clear))
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -161,7 +163,7 @@ private fun RequestLogCard(log: LogEntry.RequestLog, onClick: () -> Unit) {
             ) {
                 log.responseCode?.let { code ->
                     Text(
-                        text = "Status: $code",
+                        text = stringResource(R.string.log_page_status, code.toString()),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (code in 200..299) {
                             MaterialTheme.colorScheme.primary
@@ -181,7 +183,7 @@ private fun RequestLogCard(log: LogEntry.RequestLog, onClick: () -> Unit) {
 
             log.error?.let { error ->
                 Text(
-                    text = "Error: $error",
+                    text = stringResource(R.string.log_page_error, error),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error
                 )

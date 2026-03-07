@@ -394,7 +394,7 @@ private fun ChatListNormal(
                 ) {
                     Tooltip(
                         tooltip = {
-                            Text("Clear selection")
+                            Text(stringResource(R.string.chat_list_clear_selection))
                         }
                     ) {
                         IconButton(
@@ -408,7 +408,7 @@ private fun ChatListNormal(
                     }
                     Tooltip(
                         tooltip = {
-                            Text("Select all")
+                            Text(stringResource(R.string.chat_list_select_all))
                         }
                     ) {
                         IconButton(
@@ -425,7 +425,7 @@ private fun ChatListNormal(
                     }
                     Tooltip(
                         tooltip = {
-                            Text("Confirm")
+                            Text(stringResource(R.string.confirm))
                         }
                     ) {
                         FilledIconButton(
@@ -583,15 +583,15 @@ private fun ChatListPreview(
                     modifier = Modifier.size(20.dp)
                 )
             },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(
-                            imageVector = HugeIcons.Cancel01,
-                            contentDescription = "Clear",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = HugeIcons.Cancel01,
+                                contentDescription = stringResource(R.string.history_page_clear),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                 }
             },
             singleLine = true,

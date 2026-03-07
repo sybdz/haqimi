@@ -887,11 +887,11 @@ private fun FilesPicker(
             leadingContent = {
                 Icon(
                     imageVector = HugeIcons.Package01,
-                    contentDescription = "Termux Command Mode",
+                    contentDescription = stringResource(R.string.chat_page_termux_command_mode),
                 )
             },
             headlineContent = {
-                Text("指令模式")
+                Text(stringResource(R.string.chat_page_termux_command_mode))
             },
             supportingContent = {
                 Text("/termux")
@@ -946,6 +946,8 @@ private fun FilesPicker(
     // Compress Context Dialog
     if (showCompressDialog) {
         CompressContextDialog(
+            defaultTargetTokens = settings.compressTargetTokens,
+            defaultKeepRecentMessages = settings.compressKeepRecentMessages,
             onDismiss = {
                 onShowCompressDialogChange(false)
                 onDismiss()
@@ -1312,7 +1314,10 @@ fun FilePickButton(onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}) {
                             mime = mime
                         )
                     } else {
-                        toaster.show("不支持的文件类型: $fileName", type = ToastType.Error)
+                        toaster.show(
+                            context.getString(R.string.chat_page_unsupported_file_type, fileName),
+                            type = ToastType.Error
+                        )
                         null
                     }
                 }

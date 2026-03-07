@@ -179,7 +179,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(HugeIcons.Cancel01, contentDescription = "Clear")
+                            Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.history_page_clear))
                         }
                     }
                 },
@@ -563,7 +563,7 @@ private fun ProviderItem(
                     }
                     if (provider.name == "AiHubMix") {
                         Tag(type = TagType.INFO) {
-                            Text("10% 优惠")
+                            Text(stringResource(R.string.setting_provider_page_aihubmix_discount_badge))
                         }
                     }
                 }

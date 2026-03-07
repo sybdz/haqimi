@@ -441,7 +441,7 @@ private fun ImageGalleryScreen(
                                             onClick = {
                                                 clipboardManager.setText(AnnotatedString(it.prompt))
                                                 toaster.show(
-                                                    message = "Prompt copied to clipboard",
+                                                    message = context.getString(R.string.copied),
                                                     type = ToastType.Success
                                                 )
                                             },
@@ -449,7 +449,7 @@ private fun ImageGalleryScreen(
                                         ) {
                                             Icon(
                                                 imageVector = HugeIcons.Copy01,
-                                                contentDescription = "Copy prompt",
+                                                contentDescription = stringResource(R.string.copy),
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }

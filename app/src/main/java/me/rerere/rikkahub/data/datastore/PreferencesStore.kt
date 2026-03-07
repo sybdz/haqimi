@@ -52,6 +52,8 @@ import org.koin.core.component.get
 import kotlin.uuid.Uuid
 
 private const val TAG = "PreferencesStore"
+const val DEFAULT_COMPRESS_TARGET_TOKENS = 2000
+const val DEFAULT_COMPRESS_KEEP_RECENT_MESSAGES = 32
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
@@ -92,6 +94,9 @@ class SettingsStore(
         val OCR_PROMPT = stringPreferencesKey("ocr_prompt")
         val COMPRESS_MODEL = stringPreferencesKey("compress_model")
         val COMPRESS_PROMPT = stringPreferencesKey("compress_prompt")
+        val COMPRESS_TARGET_TOKENS = intPreferencesKey("compress_target_tokens")
+        val COMPRESS_KEEP_RECENT_MESSAGES = intPreferencesKey("compress_keep_recent_messages")
+        val COMPRESS_AUTO_TRIGGER_INPUT_TOKENS = intPreferencesKey("compress_auto_trigger_input_tokens")
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")
@@ -186,6 +191,12 @@ class SettingsStore(
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
                 compressModelId = preferences[COMPRESS_MODEL]?.let { Uuid.parse(it) } ?: DEFAULT_AUTO_MODEL_ID,
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
+                compressTargetTokens = (preferences[COMPRESS_TARGET_TOKENS] ?: DEFAULT_COMPRESS_TARGET_TOKENS)
+                    .takeIf { it > 0 }
+                    ?: DEFAULT_COMPRESS_TARGET_TOKENS,
+                compressKeepRecentMessages = (preferences[COMPRESS_KEEP_RECENT_MESSAGES]
+                    ?: DEFAULT_COMPRESS_KEEP_RECENT_MESSAGES).coerceAtLeast(0),
+                compressAutoTriggerInputTokens = preferences[COMPRESS_AUTO_TRIGGER_INPUT_TOKENS]?.takeIf { it > 0 },
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
                     ?: DEFAULT_ASSISTANT_ID,
                 assistantTags = preferences[ASSISTANT_TAGS]?.let {
@@ -410,6 +421,11 @@ class SettingsStore(
             preferences[OCR_PROMPT] = settings.ocrPrompt
             preferences[COMPRESS_MODEL] = settings.compressModelId.toString()
             preferences[COMPRESS_PROMPT] = settings.compressPrompt
+            preferences[COMPRESS_TARGET_TOKENS] = settings.compressTargetTokens.coerceAtLeast(1)
+            preferences[COMPRESS_KEEP_RECENT_MESSAGES] = settings.compressKeepRecentMessages.coerceAtLeast(0)
+            settings.compressAutoTriggerInputTokens?.takeIf { it > 0 }?.let {
+                preferences[COMPRESS_AUTO_TRIGGER_INPUT_TOKENS] = it
+            } ?: preferences.remove(COMPRESS_AUTO_TRIGGER_INPUT_TOKENS)
 
             preferences[PROVIDERS] = JsonInstant.encodeToString(settings.providers)
 
@@ -548,6 +564,9 @@ data class Settings(
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
     val compressModelId: Uuid = Uuid.random(),
     val compressPrompt: String = DEFAULT_COMPRESS_PROMPT,
+    val compressTargetTokens: Int = DEFAULT_COMPRESS_TARGET_TOKENS,
+    val compressKeepRecentMessages: Int = DEFAULT_COMPRESS_KEEP_RECENT_MESSAGES,
+    val compressAutoTriggerInputTokens: Int? = null,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,

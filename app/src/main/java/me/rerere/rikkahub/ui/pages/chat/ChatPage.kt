@@ -247,6 +247,7 @@ private fun ChatPageContent(
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
+    val selectModelFirstText = stringResource(R.string.chat_page_select_model_first)
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
 
@@ -317,7 +318,7 @@ private fun ChatPageContent(
                         }
 
                         if (currentChatModel == null && termuxDirect?.isDirect != true) {
-                            toaster.show("请先选择模型", type = ToastType.Error)
+                            toaster.show(selectModelFirstText, type = ToastType.Error)
                             return@ChatInput
                         }
                         if (inputState.isEditing()) {

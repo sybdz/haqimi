@@ -144,8 +144,8 @@ private fun AssistantLocalToolContent(
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 3,
                             maxLines = 8,
-                            label = { Text("Tool Prompt") },
-                            placeholder = { Text("Optional") },
+                            label = { Text(stringResource(R.string.assistant_page_local_tool_prompt)) },
+                            placeholder = { Text(stringResource(R.string.optional)) },
                         )
                     }
                 }

@@ -15,6 +15,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.ui.UIMessage
@@ -25,6 +26,7 @@ import me.rerere.hugeicons.stroke.Clock01
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.Zap
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
@@ -55,17 +57,25 @@ fun ChatMessageNerdLine(
                         icon = {
                             Icon(
                                 imageVector = HugeIcons.Upload02,
-                                contentDescription = "Input",
+                                contentDescription = stringResource(R.string.stats_page_input_tokens),
                                 tint = color,
                                 modifier = Modifier.size(12.dp)
                             )
                         },
                         content = {
-                            Text(text = "${usage.promptTokens.formatNumber()} tokens")
+                            Text(
+                                text = stringResource(
+                                    R.string.chat_stats_token_count,
+                                    usage.promptTokens.formatNumber()
+                                )
+                            )
                             // Cached tokens
                             if (usage.cachedTokens > 0) {
                                 Text(
-                                    text = "(${message.usage?.cachedTokens?.formatNumber() ?: "0"} cached)"
+                                    text = stringResource(
+                                        R.string.chat_stats_cached_token_count,
+                                        usage.cachedTokens.formatNumber()
+                                    )
                                 )
                             }
                         }
@@ -75,12 +85,17 @@ fun ChatMessageNerdLine(
                         icon = {
                             Icon(
                                 imageVector = HugeIcons.Download04,
-                                contentDescription = "Output",
+                                contentDescription = stringResource(R.string.stats_page_output_tokens),
                                 modifier = Modifier.size(12.dp)
                             )
                         },
                         content = {
-                            Text(text = "${usage.completionTokens.formatNumber()} tokens")
+                            Text(
+                                text = stringResource(
+                                    R.string.chat_stats_token_count,
+                                    usage.completionTokens.formatNumber()
+                                )
+                            )
                         }
                     )
                     // TPS
@@ -95,12 +110,17 @@ fun ChatMessageNerdLine(
                             icon = {
                                 Icon(
                                     imageVector = HugeIcons.Zap,
-                                    contentDescription = "Speed",
+                                    contentDescription = stringResource(R.string.setting_tts_page_speed),
                                     modifier = Modifier.size(12.dp)
                                 )
                             },
                             content = {
-                                Text(text = "${tps.toFixed(1)} tok/s")
+                                Text(
+                                    text = stringResource(
+                                        R.string.chat_stats_token_per_second,
+                                        tps.toFixed(1)
+                                    )
+                                )
                             }
                         )
 
@@ -108,12 +128,17 @@ fun ChatMessageNerdLine(
                             icon = {
                                 Icon(
                                     imageVector = HugeIcons.Clock01,
-                                    contentDescription = "Duration",
+                                    contentDescription = stringResource(R.string.scheduled_task_run_duration),
                                     modifier = Modifier.size(12.dp)
                                 )
                             },
                             content = {
-                                Text(text = "${seconds}s")
+                                Text(
+                                    text = stringResource(
+                                        R.string.chat_stats_duration_seconds,
+                                        seconds
+                                    )
+                                )
                             }
                         )
                     }

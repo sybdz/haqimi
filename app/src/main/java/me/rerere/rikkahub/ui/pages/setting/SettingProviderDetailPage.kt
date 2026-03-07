@@ -1567,14 +1567,17 @@ private fun ProviderOverrideSettings(
                                 showProviderConfig = true
                             }
                         ) {
-                            Icon(HugeIcons.Tools, contentDescription = "Edit override")
+                            Icon(HugeIcons.Tools, contentDescription = stringResource(R.string.setting_provider_page_edit_override))
                         }
                         IconButton(
                             onClick = {
                                 onUpdateProviderOverride(null)
                             }
                         ) {
-                            Icon(HugeIcons.Cancel01, contentDescription = "Remove override")
+                            Icon(
+                                HugeIcons.Cancel01,
+                                contentDescription = stringResource(R.string.setting_provider_page_remove_override)
+                            )
                         }
                     }
                 }

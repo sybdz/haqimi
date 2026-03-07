@@ -353,7 +353,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                             ) {
                                 Icon(
                                     imageVector = HugeIcons.Refresh01,
-                                    contentDescription = "Replay",
+                                    contentDescription = stringResource(R.string.chat_message_tool_replay_audio),
                                     modifier = Modifier.size(14.dp),
                                 )
                             }
@@ -640,7 +640,7 @@ private fun GenericToolPreview(
                 ) {
                     Icon(
                         imageVector = HugeIcons.Delete01,
-                        contentDescription = "Delete memory"
+                        contentDescription = stringResource(R.string.chat_message_tool_delete_memory_action)
                     )
                 }
             }

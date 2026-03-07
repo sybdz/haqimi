@@ -146,7 +146,7 @@ fun ErrorCard(
             ) {
                 Icon(
                     imageVector = HugeIcons.Copy01,
-                    contentDescription = "Copy error message",
+                    contentDescription = stringResource(R.string.copy),
                     tint = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.size(18.dp),
                 )

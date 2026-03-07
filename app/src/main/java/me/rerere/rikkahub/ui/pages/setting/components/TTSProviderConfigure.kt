@@ -615,8 +615,8 @@ private fun QwenTTSConfiguration(
     val languageTypes = listOf("Auto", "Chinese", "English", "Japanese", "Korean")
 
     FormItem(
-        label = { Text("Language Type") },
-        description = { Text("Language type for TTS synthesis") }
+        label = { Text(stringResource(R.string.setting_tts_page_language_type)) },
+        description = { Text(stringResource(R.string.setting_tts_page_language_type_desc)) }
     ) {
         ExposedDropdownMenuBox(
             expanded = languageExpanded,

@@ -73,6 +73,8 @@ import me.rerere.rikkahub.data.ai.transformers.RegexPromptOnlyTransformer
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
+import me.rerere.rikkahub.data.datastore.DEFAULT_COMPRESS_KEEP_RECENT_MESSAGES
+import me.rerere.rikkahub.data.datastore.DEFAULT_COMPRESS_TARGET_TOKENS
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -342,6 +344,10 @@ class ChatService(
                         parseResult = directCommand
                     )
                 } else if (answer) {
+                    maybeAutoCompressConversation(
+                        conversationId = conversationId,
+                        conversation = getConversationFlow(conversationId).value
+                    )
                     // 开始补全
                     handleMessageComplete(conversationId)
                 }
@@ -363,7 +369,7 @@ class ChatService(
         if (command.isBlank()) {
             appendDirectTermuxResultMessage(
                 conversationId = conversationId,
-                payload = "命令不能为空，请输入 /termux <command>"
+                payload = context.getString(R.string.chat_page_termux_command_empty)
             )
             return
         }
@@ -386,7 +392,7 @@ class ChatService(
                 withContext(NonCancellable) {
                     appendDirectTermuxResultMessage(
                         conversationId = conversationId,
-                        payload = "命令执行已取消。"
+                        payload = context.getString(R.string.chat_page_termux_command_cancelled)
                     )
                 }
                 throw e
@@ -395,10 +401,7 @@ class ChatService(
                 errMsg = buildString {
                     append(e.message ?: e.javaClass.name)
                     append("\n")
-                    append(
-                        "请确认已安装 Termux，并在 Termux 中开启 allow-external-apps，" +
-                            "同时授予本应用 com.termux.permission.RUN_COMMAND 权限。"
-                    )
+                    append(context.getString(R.string.chat_page_termux_setup_hint))
                 }
             )
         }
@@ -435,12 +438,34 @@ class ChatService(
             result.errMsg?.takeIf { it.isNotBlank() }?.let(::add)
             result.exitCode?.takeIf { it != 0 }?.let { add("Exit code: $it") }
             result.errCode?.takeIf { it != 0 }?.let { add("Err code: $it") }
-            if (result.timedOut) add("状态: 超时")
+            if (result.timedOut) add(context.getString(R.string.chat_page_termux_status_timeout))
         }
         if (fallback.isNotEmpty()) {
             return fallback.joinToString(separator = "\n")
         }
-        return "命令执行完成，但没有输出。"
+        return context.getString(R.string.chat_page_termux_no_output)
+    }
+
+    private suspend fun maybeAutoCompressConversation(
+        conversationId: Uuid,
+        conversation: Conversation,
+    ) {
+        val settings = settingsStore.settingsFlow.value
+        val inputTokenBudget = settings.compressAutoTriggerInputTokens?.takeIf { it > 0 } ?: return
+        if (estimateConversationInputTokens(conversation.currentMessages) < inputTokenBudget) return
+
+        val keepRecentMessages = settings.compressKeepRecentMessages.coerceAtLeast(1)
+        if (conversation.currentMessages.size <= keepRecentMessages) return
+
+        compressConversation(
+            conversationId = conversationId,
+            conversation = conversation,
+            additionalPrompt = "",
+            targetTokens = settings.compressTargetTokens.takeIf { it > 0 } ?: DEFAULT_COMPRESS_TARGET_TOKENS,
+            keepRecentMessages = keepRecentMessages,
+        ).onFailure {
+            addError(it, conversationId)
+        }
     }
 
     private fun preprocessUserInputParts(
@@ -984,14 +1009,14 @@ class ChatService(
         conversation: Conversation,
         additionalPrompt: String,
         targetTokens: Int,
-        keepRecentMessages: Int = 32
+        keepRecentMessages: Int = DEFAULT_COMPRESS_KEEP_RECENT_MESSAGES
     ): Result<Unit> = runCatching {
         val settings = settingsStore.settingsFlow.first()
         val model = settings.findModelById(settings.compressModelId)
             ?: settings.getCurrentChatModel()
-            ?: throw IllegalStateException("No model available for compression")
+            ?: throw IllegalStateException(context.getString(R.string.chat_page_compress_model_unavailable))
         val provider = model.findProvider(settings.providers)
-            ?: throw IllegalStateException("Provider not found")
+            ?: throw IllegalStateException(context.getString(R.string.chat_page_compress_provider_not_found))
 
         val providerHandler = providerManager.getProviderByType(provider)
 
@@ -1041,7 +1066,7 @@ class ChatService(
             )
 
             return result.choices[0].message?.toText()?.trim()
-                ?: throw IllegalStateException("Failed to generate compressed summary")
+                ?: throw IllegalStateException(context.getString(R.string.chat_page_compress_summary_failed))
         }
 
         val compressedSummaries = coroutineScope {

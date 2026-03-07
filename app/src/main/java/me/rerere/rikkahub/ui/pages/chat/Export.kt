@@ -219,7 +219,10 @@ fun ChatExportSheet(
                                         }.onFailure {
                                             it.printStackTrace()
                                             toaster.show(
-                                                message = "Failed to export image: ${it.message}",
+                                                message = context.getString(
+                                                    R.string.chat_page_export_image_failed,
+                                                    it.message
+                                                ),
                                                 type = ToastType.Error
                                             )
                                         }
@@ -509,7 +512,7 @@ private fun ExportedChatImage(
                         val painter = painterResource(id = R.mipmap.ic_launcher_foreground)
                         Image(
                             painter = painter,
-                            contentDescription = "Logo",
+                            contentDescription = null,
                             modifier = Modifier.size(60.dp)
                         )
                     }
@@ -639,7 +642,7 @@ private fun ExportedChatMessage(
                                         .allowHardware(false)
                                         .crossfade(false)
                                         .build(),
-                                    contentDescription = "Image",
+                                    contentDescription = null,
                                     modifier = Modifier
                                         .sizeIn(maxHeight = 300.dp)
                                         .clip(RoundedCornerShape(12.dp)),
