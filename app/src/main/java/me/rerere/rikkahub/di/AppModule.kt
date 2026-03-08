@@ -12,6 +12,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxCommandManager
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxWorkdirServerManager
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.service.ConversationCompressionWorker
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.service.ScheduledPromptManager
 import me.rerere.rikkahub.service.ScheduledPromptWorker
@@ -96,7 +97,8 @@ val appModule = module {
             localTools = get(),
             termuxCommandManager = get(),
             mcpManager = get(),
-            filesManager = get()
+            filesManager = get(),
+            appEventBus = get(),
         )
     }
 
@@ -109,6 +111,7 @@ val appModule = module {
     }
 
     workerOf(::ScheduledPromptWorker)
+    workerOf(::ConversationCompressionWorker)
 
     single {
         WebServerManager(

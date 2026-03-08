@@ -1095,7 +1095,7 @@
   <string name="update_card_close">Close</string>
   <string name="update_card_downloading">Downloading, please check status bar for progress</string>
   <string name="setting_model_page_compress_auto_trigger_title">Auto-Compress Input Token Budget</string>
-  <string name="setting_model_page_compress_auto_trigger_desc">When recent input tokens reach this budget, compress history automatically before generating the next reply. Leave blank to disable.</string>
+  <string name="setting_model_page_compress_auto_trigger_desc">When recent input tokens reach this budget, queue history compression in the background after the current reply finishes. The compressed history will be used on the next request. Leave blank to disable.</string>
   <string name="setting_model_page_compress_auto_trigger_disabled">Disabled</string>
   <string name="setting_model_page_compress_target_tokens_title">Default Target Tokens</string>
   <string name="setting_model_page_compress_target_tokens_desc">Default summary token target used by manual and automatic history compression.</string>
@@ -1116,6 +1116,7 @@
   <string name="chat_page_compress_model_unavailable">No model available for history compression</string>
   <string name="chat_page_compress_provider_not_found">Compression model provider not found</string>
   <string name="chat_page_compress_summary_failed">Failed to generate compressed summary</string>
+  <string name="chat_page_auto_compress_completed">History compression finished and will be used on the next request</string>
   <string name="chat_list_clear_selection">Clear selection</string>
   <string name="chat_list_select_all">Select all</string>
   <string name="chat_list_pinned">Pinned</string>

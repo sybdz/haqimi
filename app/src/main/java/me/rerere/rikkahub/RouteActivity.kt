@@ -50,6 +50,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.dokar.sonner.Toaster
+import com.dokar.sonner.ToastType
 import com.dokar.sonner.rememberToasterState
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.launch
@@ -116,6 +117,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.event.AppEvent
+import me.rerere.rikkahub.data.event.ToastStyle
 import me.rerere.rikkahub.data.db.MigrationState
 import me.rerere.rikkahub.service.ChatService
 import okhttp3.OkHttpClient
@@ -278,6 +280,10 @@ class RouteActivity : ComponentActivity() {
             eventBus.events.collect { event ->
                 when (event) {
                     is AppEvent.Speak -> tts.speak(event.text)
+                    is AppEvent.Toast -> toastState.show(
+                        message = event.message,
+                        type = event.style.toToastType()
+                    )
                 }
             }
         }
@@ -582,6 +588,16 @@ class RouteActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+private fun ToastStyle.toToastType(): ToastType {
+    return when (this) {
+        ToastStyle.Normal -> ToastType.Normal
+        ToastStyle.Success -> ToastType.Success
+        ToastStyle.Error -> ToastType.Error
+        ToastStyle.Warning -> ToastType.Warning
+        ToastStyle.Info -> ToastType.Info
     }
 }
 

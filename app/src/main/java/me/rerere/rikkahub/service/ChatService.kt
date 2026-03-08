@@ -10,6 +10,12 @@ import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -81,6 +87,9 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.event.AppEvent
+import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.event.ToastStyle
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -102,6 +111,7 @@ import me.rerere.rikkahub.utils.sendNotification
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -132,6 +142,9 @@ private data class CompressionReplacementResult(
     val checkpoints: List<ConversationCheckpoint>,
     val visibleKeepCount: Int,
 )
+
+internal class AutoCompressionDeferredException(conversationId: Uuid) :
+    IllegalStateException("Conversation is still generating: $conversationId")
 
 private val inputTransformers by lazy {
     listOf(
@@ -165,7 +178,10 @@ class ChatService(
     private val termuxCommandManager: TermuxCommandManager,
     val mcpManager: McpManager,
     private val filesManager: FilesManager,
+    private val appEventBus: AppEventBus,
 ) {
+    private val workManager = WorkManager.getInstance(context)
+
     // 统一会话管理
     private val sessions = ConcurrentHashMap<Uuid, ConversationSession>()
     private val _sessionsVersion = MutableStateFlow(0L)
@@ -269,6 +285,18 @@ class ChatService(
         }
     }
 
+    private suspend fun <T> withConversationReference(
+        conversationId: Uuid,
+        block: suspend () -> T
+    ): T {
+        addConversationReference(conversationId)
+        return try {
+            block()
+        } finally {
+            removeConversationReference(conversationId)
+        }
+    }
+
     // ---- 对话状态访问 ----
 
     fun getConversationFlow(conversationId: Uuid): StateFlow<Conversation> {
@@ -360,6 +388,18 @@ class ChatService(
                 } else if (answer) {
                     // 开始补全
                     handleMessageComplete(conversationId)
+                } else {
+                    scheduleAutoCompressionIfNeeded(
+                        conversationId = conversationId,
+                        conversation = getConversationFlow(conversationId).value
+                    )
+                }
+
+                if (directCommand.isDirect) {
+                    scheduleAutoCompressionIfNeeded(
+                        conversationId = conversationId,
+                        conversation = getConversationFlow(conversationId).value
+                    )
                 }
 
                 _generationDoneFlow.emit(conversationId)
@@ -467,76 +507,10 @@ class ChatService(
                 messageCount = conversation.currentMessages.size
             )
         }
-        val initialPreparation = createGenerationPreparation(
+        return createGenerationPreparation(
             conversation = conversation,
             messageRange = normalizedMessageRange,
         )
-        val settings = settingsStore.settingsFlow.value
-        val inputTokenBudget = settings.compressAutoTriggerInputTokens?.takeIf { it > 0 }
-            ?: return initialPreparation
-        val messagesToSend = initialPreparation.messages
-        if (messagesToSend.isEmpty()) {
-            return initialPreparation
-        }
-
-        val allowPromptTokenReuse = conversation.replacementHistory.isEmpty() &&
-            (normalizedMessageRange == null || normalizedMessageRange.first == 0)
-        if (estimateConversationInputTokens(messagesToSend, allowPromptTokenReuse) < inputTokenBudget) {
-            return initialPreparation
-        }
-
-        if (normalizedMessageRange != null && normalizedMessageRange.first > 0) {
-            return initialPreparation
-        }
-
-        val keepRecentMessages = settings.compressKeepRecentMessages.coerceAtLeast(1)
-        val targetTokens = settings.compressTargetTokens.takeIf { it > 0 } ?: DEFAULT_COMPRESS_TARGET_TOKENS
-        val visibleMessagesToSend = conversation.currentMessages.selectMessages(normalizedMessageRange)
-        val compressionPlan = planConversationCompression(
-            replacementHistoryMessages = conversation.replacementHistoryMessages,
-            visibleMessages = visibleMessagesToSend,
-            keepRecentMessages = keepRecentMessages,
-            targetTokens = targetTokens,
-            maxInputTokensAfterCompression = inputTokenBudget,
-        )
-        if (compressionPlan.messagesToCompress.isEmpty()) {
-            return initialPreparation
-        }
-
-        val compressionResult = if (normalizedMessageRange == null) {
-            compressConversation(
-                conversationId = conversationId,
-                conversation = conversation,
-                additionalPrompt = "",
-                targetTokens = targetTokens,
-                keepRecentMessages = keepRecentMessages,
-                maxInputTokensAfterCompression = inputTokenBudget,
-                revisionReason = CompressionRevisionReason.AUTO_TRIGGER,
-            ).map {
-                createGenerationPreparation(
-                    conversation = getConversationFlow(conversationId).value,
-                    messageRange = null,
-                )
-            }
-        } else {
-            compressConversationRange(
-                conversationId = conversationId,
-                conversation = conversation,
-                messageRange = normalizedMessageRange,
-                additionalPrompt = "",
-                targetTokens = targetTokens,
-                keepRecentMessages = keepRecentMessages,
-                maxInputTokensAfterCompression = inputTokenBudget,
-            )
-        }
-
-        return compressionResult.getOrElse {
-            addError(it, conversationId)
-            createGenerationPreparation(
-                conversation = getConversationFlow(conversationId).value,
-                messageRange = normalizedMessageRange,
-            )
-        }
     }
 
     private fun normalizeMessageRange(
@@ -1001,6 +975,7 @@ class ChatService(
         }.onSuccess {
             val finalConversation = getConversationFlow(conversationId).value
             saveConversation(conversationId, finalConversation)
+            scheduleAutoCompressionIfNeeded(conversationId, getConversationFlow(conversationId).value)
 
             launchWithConversationReference(conversationId) {
                 generateTitle(conversationId, finalConversation)
@@ -1172,6 +1147,9 @@ class ChatService(
         maxInputTokensAfterCompression: Int? = null,
         revisionReason: CompressionRevisionReason = CompressionRevisionReason.MANUAL,
     ): Result<Unit> {
+        if (revisionReason != CompressionRevisionReason.AUTO_TRIGGER) {
+            cancelAutoCompressionWork(conversationId)
+        }
         return compressWithReplacementHistory(
             replacementHistoryMessages = conversation.replacementHistoryMessages,
             visibleMessages = conversation.currentMessages,
@@ -1390,6 +1368,109 @@ class ChatService(
                     sourceMessageCount = entry.sourceMessageCount,
                 )
             )
+        }
+    }
+
+    private fun scheduleAutoCompressionIfNeeded(
+        conversationId: Uuid,
+        conversation: Conversation,
+    ) {
+        val settings = settingsStore.settingsFlow.value
+        val targetTokens = settings.compressTargetTokens.takeIf { it > 0 } ?: DEFAULT_COMPRESS_TARGET_TOKENS
+        val autoCompressionPlan = planAutoCompression(
+            conversation = conversation,
+            inputTokenBudget = settings.compressAutoTriggerInputTokens,
+            targetTokens = targetTokens,
+            keepRecentMessages = settings.compressKeepRecentMessages,
+        ) ?: return
+
+        enqueueAutoCompressionWork(conversationId)
+        Log.d(
+            TAG,
+            "scheduleAutoCompressionIfNeeded: queued $conversationId " +
+                "(estimated=${autoCompressionPlan.estimatedInputTokens}, budget=${autoCompressionPlan.inputTokenBudget})"
+        )
+    }
+
+    private fun enqueueAutoCompressionWork(conversationId: Uuid) {
+        val request = OneTimeWorkRequestBuilder<ConversationCompressionWorker>()
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10L, TimeUnit.SECONDS)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .setInputData(conversationCompressionInputData(conversationId))
+            .addTag(CONVERSATION_COMPRESSION_WORK_TAG)
+            .addTag(conversationCompressionTag(conversationId))
+            .build()
+
+        workManager.enqueueUniqueWork(
+            autoCompressionWorkName(conversationId),
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+    }
+
+    private fun cancelAutoCompressionWork(conversationId: Uuid) {
+        workManager.cancelUniqueWork(autoCompressionWorkName(conversationId))
+    }
+
+    private fun isConversationGenerating(conversationId: Uuid): Boolean {
+        return sessions[conversationId]?.isGenerating == true
+    }
+
+    suspend fun executeAutoCompressionWork(conversationId: Uuid) {
+        if (isConversationGenerating(conversationId)) {
+            throw AutoCompressionDeferredException(conversationId)
+        }
+
+        val settings = settingsStore.settingsFlow.first()
+        val targetTokens = settings.compressTargetTokens.takeIf { it > 0 } ?: DEFAULT_COMPRESS_TARGET_TOKENS
+        val initialConversation = conversationRepo.getConversationById(conversationId)
+            ?: sessions[conversationId]?.state?.value
+            ?: return
+        val initialPlan = planAutoCompression(
+            conversation = initialConversation,
+            inputTokenBudget = settings.compressAutoTriggerInputTokens,
+            targetTokens = targetTokens,
+            keepRecentMessages = settings.compressKeepRecentMessages,
+        ) ?: return
+
+        withConversationReference(conversationId) {
+            if (isConversationGenerating(conversationId)) {
+                throw AutoCompressionDeferredException(conversationId)
+            }
+
+            val latestConversation = conversationRepo.getConversationById(conversationId)
+                ?: getConversationFlow(conversationId).value
+            val latestPlan = planAutoCompression(
+                conversation = latestConversation,
+                inputTokenBudget = initialPlan.inputTokenBudget,
+                targetTokens = initialPlan.targetTokens,
+                keepRecentMessages = initialPlan.keepRecentMessages,
+            ) ?: return@withConversationReference
+
+            val compressionResult = compressConversation(
+                conversationId = conversationId,
+                conversation = latestConversation,
+                additionalPrompt = "",
+                targetTokens = latestPlan.targetTokens,
+                keepRecentMessages = latestPlan.keepRecentMessages,
+                maxInputTokensAfterCompression = latestPlan.inputTokenBudget,
+                revisionReason = CompressionRevisionReason.AUTO_TRIGGER,
+            )
+            compressionResult.onFailure { error ->
+                Log.w(TAG, "executeAutoCompressionWork: failed for $conversationId", error)
+            }
+            if (compressionResult.isSuccess) {
+                appEventBus.emit(
+                    AppEvent.Toast(
+                        message = context.getString(R.string.chat_page_auto_compress_completed),
+                        style = ToastStyle.Success,
+                    )
+                )
+            }
         }
     }
 

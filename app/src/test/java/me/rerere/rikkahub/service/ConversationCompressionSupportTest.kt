@@ -5,10 +5,15 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isCompressionCheckpoint
+import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.toMessageNode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.uuid.Uuid
 
 class ConversationCompressionSupportTest {
     @Test
@@ -292,5 +297,53 @@ class ConversationCompressionSupportTest {
         val estimatedTotal = estimateConversationInputTokensWithoutReuse(plan.visibleMessagesToKeep) +
             estimateCompressionCheckpointTokenReserve(500)
         assertTrue(estimatedTotal <= 2_200)
+    }
+
+    @Test
+    fun `planAutoCompression should return null when estimated tokens stay below budget`() {
+        val conversation = Conversation(
+            id = Uuid.random(),
+            assistantId = Uuid.random(),
+            messageNodes = listOf(
+                UIMessage.user("hello").toMessageNode(),
+                UIMessage.assistant("world").toMessageNode(),
+            ),
+        )
+
+        val plan = planAutoCompression(
+            conversation = conversation,
+            inputTokenBudget = 10_000,
+            targetTokens = 600,
+            keepRecentMessages = 2,
+        )
+
+        assertNull(plan)
+    }
+
+    @Test
+    fun `planAutoCompression should produce plan when budget is exceeded`() {
+        val longText = "Token heavy message. ".repeat(220)
+        val conversation = Conversation(
+            id = Uuid.random(),
+            assistantId = Uuid.random(),
+            messageNodes = listOf(
+                UIMessage.user("u1 $longText").toMessageNode(),
+                UIMessage.assistant("a1 $longText").toMessageNode(),
+                UIMessage.user("u2 $longText").toMessageNode(),
+                UIMessage.assistant("a2 $longText").toMessageNode(),
+            ),
+        )
+
+        val plan = planAutoCompression(
+            conversation = conversation,
+            inputTokenBudget = 1_200,
+            targetTokens = 500,
+            keepRecentMessages = 2,
+        )
+
+        assertNotNull(plan)
+        assertTrue(plan!!.estimatedInputTokens >= plan.inputTokenBudget)
+        assertTrue(plan.compressionPlan.messagesToCompress.isNotEmpty())
+        assertEquals(1, plan.compressionPlan.visibleMessagesToKeep.size)
     }
 }

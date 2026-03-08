@@ -12,6 +12,7 @@ import me.rerere.ai.ui.UISyntheticKind
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.transformers.readDocumentContent
+import me.rerere.rikkahub.data.model.Conversation
 import kotlin.math.max
 
 private const val COMPRESSION_MIN_CHUNK_INPUT_TOKENS = 4_000
@@ -97,6 +98,14 @@ internal data class ConversationCompressionPlan(
 internal data class CompressionCheckpointMetadata(
     val level: Int,
     val sourceMessageCount: Int,
+)
+
+internal data class AutoCompressionPlan(
+    val inputTokenBudget: Int,
+    val estimatedInputTokens: Int,
+    val targetTokens: Int,
+    val keepRecentMessages: Int,
+    val compressionPlan: ConversationCompressionPlan,
 )
 
 internal fun createCompressionCheckpointMessage(
@@ -290,6 +299,41 @@ internal fun estimateCompressionCheckpointTokenReserve(targetTokens: Int): Int {
     return normalizedTarget + max(
         COMPRESSION_CHECKPOINT_BUDGET_BUFFER_MIN_TOKENS,
         normalizedTarget / 4
+    )
+}
+
+internal fun planAutoCompression(
+    conversation: Conversation,
+    inputTokenBudget: Int?,
+    targetTokens: Int,
+    keepRecentMessages: Int,
+): AutoCompressionPlan? {
+    val normalizedBudget = inputTokenBudget?.takeIf { it > 0 } ?: return null
+    val generationMessages = conversation.buildGenerationMessages()
+    if (generationMessages.isEmpty()) return null
+
+    val estimatedInputTokens = estimateConversationInputTokens(
+        messages = generationMessages,
+        allowPromptTokenReuse = conversation.replacementHistory.isEmpty()
+    )
+    if (estimatedInputTokens < normalizedBudget) return null
+
+    val normalizedKeepRecentMessages = keepRecentMessages.coerceAtLeast(1)
+    val compressionPlan = planConversationCompression(
+        replacementHistoryMessages = conversation.replacementHistoryMessages,
+        visibleMessages = conversation.currentMessages,
+        keepRecentMessages = normalizedKeepRecentMessages,
+        targetTokens = targetTokens,
+        maxInputTokensAfterCompression = normalizedBudget,
+    )
+    if (compressionPlan.messagesToCompress.isEmpty()) return null
+
+    return AutoCompressionPlan(
+        inputTokenBudget = normalizedBudget,
+        estimatedInputTokens = estimatedInputTokens,
+        targetTokens = targetTokens,
+        keepRecentMessages = normalizedKeepRecentMessages,
+        compressionPlan = compressionPlan,
     )
 }
 
