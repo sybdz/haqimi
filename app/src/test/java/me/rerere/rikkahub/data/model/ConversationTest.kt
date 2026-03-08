@@ -38,6 +38,39 @@ class ConversationTest {
     }
 
     @Test
+    fun `withReplacementHistory should prepend checkpoints to arbitrary message lists`() {
+        val checkpoint = ConversationCheckpoint(
+            message = createCompressionCheckpointMessage(
+                summary = "Earlier context",
+                level = 2,
+                sourceMessageCount = 12
+            )
+        )
+        val conversation = Conversation.ofId(
+            id = kotlin.uuid.Uuid.random(),
+            messages = listOf(
+                UIMessage.user("u1").toMessageNode(),
+                UIMessage.assistant("a1").toMessageNode(),
+                UIMessage.user("u2").toMessageNode()
+            )
+        ).copy(
+            replacementHistory = listOf(checkpoint)
+        )
+
+        val exportedMessages = conversation.withReplacementHistory(
+            listOf(
+                conversation.currentMessages[1],
+                conversation.currentMessages[2],
+            )
+        )
+
+        assertEquals(3, exportedMessages.size)
+        assertEquals("Earlier context", exportedMessages[0].toText())
+        assertEquals("a1", exportedMessages[1].toText())
+        assertEquals("u2", exportedMessages[2].toText())
+    }
+
+    @Test
     fun `updateCurrentMessages should respect start index when writing visible nodes`() {
         val originalAssistant = UIMessage.assistant("a1")
         val conversation = Conversation.ofId(

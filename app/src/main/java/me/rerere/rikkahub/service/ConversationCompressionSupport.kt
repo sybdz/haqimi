@@ -2,6 +2,7 @@ package me.rerere.rikkahub.service
 
 import android.net.Uri
 import androidx.core.net.toUri
+import me.rerere.ai.core.MessageRole
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
@@ -26,6 +27,54 @@ private const val COMPRESSION_CHECKPOINT_LEVEL_METADATA_KEY = "rikkahub.compress
 private const val COMPRESSION_CHECKPOINT_SOURCE_MESSAGE_COUNT_METADATA_KEY =
     "rikkahub.compression_checkpoint_source_message_count"
 private const val COMPRESSION_CHECKPOINT_BUDGET_BUFFER_MIN_TOKENS = 96
+private val LEGACY_COMPRESSION_SUMMARY_PREFIXES = listOf(
+    "[summary",
+    "[summary of previous conversation",
+    "[conversation summary",
+    "[compressed context",
+    "summary:",
+    "summary of previous conversation",
+    "conversation summary:",
+    "compressed context:",
+    "[摘要",
+    "[总结",
+    "[總結",
+    "[对话摘要",
+    "[對話摘要",
+    "[会话摘要",
+    "[會話摘要",
+    "[要約",
+    "[요약",
+    "[резюме",
+    "摘要:",
+    "总结:",
+    "總結:",
+    "对话摘要:",
+    "對話摘要:",
+    "会话摘要:",
+    "會話摘要:",
+    "要約:",
+    "요약:",
+    "резюме:",
+    "сводка:"
+)
+private val LEGACY_COMPRESSION_SUMMARY_KEYWORDS = listOf(
+    "summary",
+    "compressed context",
+    "conversation summary",
+    "previous conversation",
+    "摘要",
+    "总结",
+    "總結",
+    "对话摘要",
+    "對話摘要",
+    "会话摘要",
+    "會話摘要",
+    "要約",
+    "요약",
+    "резюме",
+    "сводка"
+)
 
 internal data class CompressionMessageSplit(
     val messagesToCompress: List<UIMessage>,
@@ -55,39 +104,36 @@ internal fun createCompressionCheckpointMessage(
     level: Int,
     sourceMessageCount: Int,
 ): UIMessage {
-    val normalizedLevel = level.coerceAtLeast(1)
-    val normalizedSourceMessageCount = sourceMessageCount.coerceAtLeast(0)
-    return UIMessage(
-        role = me.rerere.ai.core.MessageRole.USER,
-        syntheticKind = UISyntheticKind.CompressionCheckpoint(
-            level = normalizedLevel,
-            sourceMessageCount = normalizedSourceMessageCount,
-        ),
-        parts = listOf(
-            UIMessagePart.Text(
-                text = summary,
-                metadata = buildJsonObject {
-                    put(COMPRESSION_CHECKPOINT_METADATA_KEY, JsonPrimitive(true))
-                    put(COMPRESSION_CHECKPOINT_LEVEL_METADATA_KEY, JsonPrimitive(normalizedLevel))
-                    put(
-                        COMPRESSION_CHECKPOINT_SOURCE_MESSAGE_COUNT_METADATA_KEY,
-                        JsonPrimitive(normalizedSourceMessageCount)
-                    )
-                }
-            )
-        )
-    )
+    return UIMessage.user(summary)
+        .withCompressionCheckpointMetadata(level = level, sourceMessageCount = sourceMessageCount)
 }
 
 internal fun normalizeCompressionCheckpointMessage(message: UIMessage): UIMessage {
-    if (message.syntheticKind != null) return message
     val metadata = message.compressionCheckpointMetadata() ?: return message
-    return message.copy(
-        syntheticKind = UISyntheticKind.CompressionCheckpoint(
+    return message.withCompressionCheckpointMetadata(
+        level = metadata.level,
+        sourceMessageCount = metadata.sourceMessageCount,
+    )
+}
+
+internal fun normalizeLegacyCompressionSummaryMessage(message: UIMessage): UIMessage {
+    return message.withCompressionCheckpointMetadata(level = 1, sourceMessageCount = 0)
+}
+
+internal fun UIMessage.toReplacementHistoryMessageOrNull(): UIMessage? {
+    val metadata = compressionCheckpointMetadata()
+    if (metadata != null) {
+        return withCompressionCheckpointMetadata(
             level = metadata.level,
             sourceMessageCount = metadata.sourceMessageCount,
         )
-    )
+    }
+
+    return if (isLegacyCompressionSummary()) {
+        normalizeLegacyCompressionSummaryMessage(this)
+    } else {
+        null
+    }
 }
 
 internal fun UIMessage.compressionCheckpointMetadata(): CompressionCheckpointMetadata? {
@@ -120,6 +166,29 @@ internal fun UIMessage.compressionCheckpointMetadata(): CompressionCheckpointMet
             ?.coerceAtLeast(0)
             ?: 0,
     )
+}
+
+internal fun UIMessage.isLegacyCompressionSummary(): Boolean {
+    if (role != MessageRole.USER || syntheticKind != null) return false
+
+    val textPart = parts.singleOrNull() as? UIMessagePart.Text ?: return false
+    val normalizedFirstLine = textPart.text
+        .lineSequence()
+        .firstOrNull()
+        ?.trim()
+        ?.replace('【', '[')
+        ?.replace('】', ']')
+        ?.replace('：', ':')
+        ?.lowercase()
+        ?: return false
+
+    if (normalizedFirstLine.isBlank()) return false
+    if (LEGACY_COMPRESSION_SUMMARY_PREFIXES.any(normalizedFirstLine::startsWith)) {
+        return true
+    }
+
+    return normalizedFirstLine.startsWith("[") &&
+        LEGACY_COMPRESSION_SUMMARY_KEYWORDS.any { keyword -> keyword in normalizedFirstLine }
 }
 
 internal fun splitMessagesForCompression(
@@ -318,6 +387,17 @@ internal fun combineCompressedChunkSummaries(
     }
 }
 
+internal fun shouldContinueCompressionAfterSingleEntryPass(
+    previousEntries: List<CompressionTranscriptEntry>,
+    compressedEntries: List<CompressionTranscriptEntry>,
+    targetTokens: Int,
+): Boolean {
+    if (compressedEntries.size < previousEntries.size) return true
+    if (hasCompressionMergeOpportunity(compressedEntries, targetTokens)) return true
+    return estimateCompressionTranscriptTokens(compressedEntries) <
+        estimateCompressionTranscriptTokens(previousEntries)
+}
+
 private fun <T> chunkCompressionItems(
     entries: List<T>,
     targetTokens: Int,
@@ -353,6 +433,63 @@ private fun <T> chunkCompressionItems(
     }
 
     return chunks
+}
+
+private fun UIMessage.withCompressionCheckpointMetadata(
+    level: Int,
+    sourceMessageCount: Int,
+): UIMessage {
+    val normalizedLevel = level.coerceAtLeast(1)
+    val normalizedSourceMessageCount = sourceMessageCount.coerceAtLeast(0)
+    val updatedParts = parts.updateFirstTextPartMetadata(
+        level = normalizedLevel,
+        sourceMessageCount = normalizedSourceMessageCount,
+    )
+    return copy(
+        syntheticKind = UISyntheticKind.CompressionCheckpoint(
+            level = normalizedLevel,
+            sourceMessageCount = normalizedSourceMessageCount,
+        ),
+        parts = updatedParts,
+    )
+}
+
+private fun List<UIMessagePart>.updateFirstTextPartMetadata(
+    level: Int,
+    sourceMessageCount: Int,
+): List<UIMessagePart> {
+    val firstTextIndex = indexOfFirst { it is UIMessagePart.Text }
+    if (firstTextIndex < 0) return this
+
+    return mapIndexed { index, part ->
+        if (index != firstTextIndex) {
+            part
+        } else {
+            val textPart = part as UIMessagePart.Text
+            textPart.copy(
+                metadata = buildJsonObject {
+                    textPart.metadata?.forEach { (key, value) -> put(key, value) }
+                    put(COMPRESSION_CHECKPOINT_METADATA_KEY, JsonPrimitive(true))
+                    put(COMPRESSION_CHECKPOINT_LEVEL_METADATA_KEY, JsonPrimitive(level))
+                    put(
+                        COMPRESSION_CHECKPOINT_SOURCE_MESSAGE_COUNT_METADATA_KEY,
+                        JsonPrimitive(sourceMessageCount)
+                    )
+                }
+            )
+        }
+    }
+}
+
+private fun hasCompressionMergeOpportunity(
+    entries: List<CompressionTranscriptEntry>,
+    targetTokens: Int,
+): Boolean {
+    return chunkCompressionTranscriptEntries(entries, targetTokens).any { it.size > 1 }
+}
+
+private fun estimateCompressionTranscriptTokens(entries: List<CompressionTranscriptEntry>): Int {
+    return entries.sumOf { entry -> estimateTextTokens(entry.transcript) }
 }
 
 @Suppress("DEPRECATION")

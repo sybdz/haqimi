@@ -6,6 +6,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isCompressionCheckpoint
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -135,6 +136,66 @@ class ConversationCompressionSupportTest {
         )
 
         assertEquals(10, secondRound.single().sourceMessageCount)
+    }
+
+    @Test
+    fun `shouldContinueCompressionAfterSingleEntryPass should keep going when summaries can merge next round`() {
+        val previousEntries = List(3) { index ->
+            CompressionTranscriptEntry(
+                transcript = "Large compression block $index. ".repeat(1_200),
+                sourceMessageCount = index + 1
+            )
+        }
+        val compressedEntries = previousEntries.map { entry ->
+            entry.copy(transcript = "Condensed summary for ${entry.sourceMessageCount}")
+        }
+
+        assertTrue(
+            shouldContinueCompressionAfterSingleEntryPass(
+                previousEntries = previousEntries,
+                compressedEntries = compressedEntries,
+                targetTokens = 500,
+            )
+        )
+    }
+
+    @Test
+    fun `shouldContinueCompressionAfterSingleEntryPass should keep going while each entry still shrinks`() {
+        val previousEntries = List(2) { index ->
+            CompressionTranscriptEntry(
+                transcript = "Large compression block $index. ".repeat(1_200),
+                sourceMessageCount = index + 1
+            )
+        }
+        val compressedEntries = previousEntries.map { entry ->
+            entry.copy(transcript = "Still long but smaller ${entry.sourceMessageCount}. ".repeat(700))
+        }
+
+        assertTrue(
+            shouldContinueCompressionAfterSingleEntryPass(
+                previousEntries = previousEntries,
+                compressedEntries = compressedEntries,
+                targetTokens = 500,
+            )
+        )
+    }
+
+    @Test
+    fun `shouldContinueCompressionAfterSingleEntryPass should stop when entries neither shrink nor merge`() {
+        val previousEntries = List(2) { index ->
+            CompressionTranscriptEntry(
+                transcript = "Large compression block $index. ".repeat(1_200),
+                sourceMessageCount = index + 1
+            )
+        }
+
+        assertFalse(
+            shouldContinueCompressionAfterSingleEntryPass(
+                previousEntries = previousEntries,
+                compressedEntries = previousEntries,
+                targetTokens = 500,
+            )
+        )
     }
 
     @Test

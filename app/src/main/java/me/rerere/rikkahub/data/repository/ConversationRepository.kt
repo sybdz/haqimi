@@ -23,8 +23,8 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.ConversationCheckpoint
 import me.rerere.rikkahub.data.model.ConversationCompressionRevision
 import me.rerere.rikkahub.data.model.MessageNode
-import me.rerere.ai.ui.isCompressionCheckpoint
 import me.rerere.rikkahub.service.normalizeCompressionCheckpointMessage
+import me.rerere.rikkahub.service.toReplacementHistoryMessageOrNull
 import me.rerere.rikkahub.utils.JsonInstant
 import java.time.Instant
 import kotlin.uuid.Uuid
@@ -428,17 +428,18 @@ data class ConversationPageResult(
 )
 
 internal fun extractLeadingCompressionCheckpoints(nodes: List<MessageNode>): ExtractedReplacementHistory {
-    val checkpointNodes = nodes.takeWhile { node ->
-        node.currentMessage.isCompressionCheckpoint()
+    val checkpoints = mutableListOf<ConversationCheckpoint>()
+    for (node in nodes) {
+        val checkpointMessage = node.currentMessage.toReplacementHistoryMessageOrNull() ?: break
+        checkpoints += ConversationCheckpoint(
+            id = node.id,
+            message = checkpointMessage,
+        )
     }
+
     return ExtractedReplacementHistory(
-        checkpoints = checkpointNodes.map { node ->
-            ConversationCheckpoint(
-                id = node.id,
-                message = node.currentMessage
-            )
-        },
-        visibleNodes = nodes.drop(checkpointNodes.size),
+        checkpoints = checkpoints,
+        visibleNodes = nodes.drop(checkpoints.size),
     )
 }
 

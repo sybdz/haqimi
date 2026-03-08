@@ -44,7 +44,7 @@ data class Conversation(
         get() = compressionRevisions.size
 
     val fullContextMessages: List<UIMessage>
-        get() = replacementHistoryMessages + currentMessages
+        get() = withReplacementHistory(currentMessages)
 
     /**
      *  当前选中的 message
@@ -54,8 +54,12 @@ data class Conversation(
             return messageNodes.map { node -> node.messages[node.selectIndex] }
         }
 
+    fun withReplacementHistory(messages: List<UIMessage>): List<UIMessage> {
+        return replacementHistoryMessages + messages
+    }
+
     fun buildGenerationMessages(messageRange: IntRange? = null): List<UIMessage> {
-        return replacementHistoryMessages + currentMessages.selectMessages(messageRange)
+        return withReplacementHistory(currentMessages.selectMessages(messageRange))
     }
 
     fun recordCompressionRevision(

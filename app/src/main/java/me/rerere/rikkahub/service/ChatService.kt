@@ -1343,15 +1343,19 @@ class ChatService(
                 chunkedEntries = chunkedEntries,
                 summaries = compressedSummaries,
             )
+            val singleEntryPass = chunkedEntries.all { it.size == 1 }
 
             didCallCompressor = true
-            if (compressedEntries.size >= compressionEntries.size && chunkedEntries.all { it.size == 1 }) {
-                compressionEntries = compressedEntries
-                break
-            }
-
             compressionEntries = compressedEntries
             compressionLevel++
+            if (singleEntryPass && !shouldContinueCompressionAfterSingleEntryPass(
+                    previousEntries = chunkedEntries.flatten(),
+                    compressedEntries = compressedEntries,
+                    targetTokens = targetTokens,
+                )
+            ) {
+                break
+            }
         }
 
         if (compressionEntries.isEmpty()) {

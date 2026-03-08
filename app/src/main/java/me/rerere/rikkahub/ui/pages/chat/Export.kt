@@ -251,7 +251,7 @@ private fun exportToMarkdown(
     messages: List<UIMessage>
 ) {
     val filename = "chat-export-${LocalDateTime.now().toLocalString()}.md"
-    val exportedMessages = conversation.replacementHistoryMessages + messages
+    val exportedMessages = conversation.withReplacementHistory(messages)
 
     val sb = buildAnnotatedString {
         append("# ${conversation.title}\n\n")
@@ -479,6 +479,9 @@ private fun ExportedChatImage(
     messages: List<UIMessage>,
     options: ImageExportOptions = ImageExportOptions()
 ) {
+    val exportedMessages = remember(conversation.replacementHistory, messages) {
+        conversation.withReplacementHistory(messages)
+    }
     val navBackStack = remember { mutableStateListOf<NavKey>() }
     val navigator = Navigator(navBackStack)
     val highlighter = koinInject<Highlighter>()
@@ -526,11 +529,11 @@ private fun ExportedChatImage(
                     }
 
                     // Messages
-                    messages.forEach { message ->
+                    exportedMessages.forEachIndexed { index, message ->
                         ExportedChatMessage(
                             message = message,
                             options = options,
-                            prevMessage = messages.getOrNull(messages.indexOf(message) - 1)
+                            prevMessage = exportedMessages.getOrNull(index - 1)
                         )
                     }
 

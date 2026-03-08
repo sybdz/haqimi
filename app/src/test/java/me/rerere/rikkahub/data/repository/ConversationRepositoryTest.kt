@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.repository
 
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.isCompressionCheckpoint
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.service.createCompressionCheckpointMessage
@@ -68,5 +69,37 @@ class ConversationRepositoryTest {
 
         assertTrue(extracted.checkpoints.isEmpty())
         assertEquals(listOf(visibleNode.id, trailingCheckpoint.id), extracted.visibleNodes.map { it.id })
+    }
+
+    @Test
+    fun `extractLeadingCompressionCheckpoints should migrate legacy summary nodes into replacement history`() {
+        val legacyCheckpointId = kotlin.uuid.Uuid.random()
+        val legacySummary = MessageNode(
+            id = legacyCheckpointId,
+            messages = listOf(
+                UIMessage.user(
+                    """
+                    [Summary of previous conversation]
+                    User is debugging a compression-history rollout and needs legacy exports preserved.
+                    """.trimIndent()
+                )
+            )
+        )
+        val visibleNode = UIMessage.assistant("visible").toMessageNode()
+
+        val extracted = extractLeadingCompressionCheckpoints(
+            listOf(
+                legacySummary,
+                visibleNode,
+            )
+        )
+
+        assertEquals(listOf(legacyCheckpointId), extracted.checkpoints.map { it.id })
+        assertTrue(extracted.checkpoints.single().message.isCompressionCheckpoint())
+        assertEquals(
+            legacySummary.currentMessage.toText(),
+            extracted.checkpoints.single().message.toText()
+        )
+        assertEquals(listOf(visibleNode.id), extracted.visibleNodes.map { it.id })
     }
 }
