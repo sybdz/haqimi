@@ -860,10 +860,7 @@ class SkillsRepository(
                     workdir = workdir,
                 )
             }.getOrNull()
-            val shouldRefreshBundledSkill = installedMetadata?.sourceType == SkillSourceType.BUNDLED &&
-                installedMetadata.sourceId == bundledSkill.directoryName &&
-                installedMetadata.hash != expectedMetadata.hash
-            if (!shouldRefreshBundledSkill) return@forEach
+            if (!shouldRefreshBundledSkillInstallation(bundledSkill, installedMetadata, expectedMetadata)) return@forEach
             runCatching {
                 installBundledSkill(
                     rootPath = rootPath,
@@ -1548,6 +1545,17 @@ internal suspend fun inspectSkillDirectory(
 internal fun buildSkillReadFailureReason(error: Throwable): SkillInvalidReason {
     val detail = error.message ?: error.javaClass.name
     return SkillInvalidReason.FailedToRead(detail)
+}
+
+internal fun shouldRefreshBundledSkillInstallation(
+    bundledSkill: BundledSkill,
+    installedMetadata: SkillSourceMetadata?,
+    expectedMetadata: SkillSourceMetadata,
+): Boolean {
+    if (installedMetadata == null) return true
+    if (installedMetadata.sourceType != SkillSourceType.BUNDLED) return false
+    if (installedMetadata.sourceId != bundledSkill.directoryName) return false
+    return installedMetadata.hash != expectedMetadata.hash
 }
 
 internal fun parseSkillMarkdownDocument(markdown: String): SkillMarkdownDocument {

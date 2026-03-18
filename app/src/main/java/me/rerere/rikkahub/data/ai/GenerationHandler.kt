@@ -41,10 +41,11 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
-import me.rerere.rikkahub.data.skills.buildActivatedSkillsPrompt
 import me.rerere.rikkahub.data.skills.SkillsRepository
+import me.rerere.rikkahub.data.skills.buildActivatedSkillsPrompt
 import me.rerere.rikkahub.data.skills.buildSkillsCatalogPrompt
 import me.rerere.rikkahub.data.skills.resolveExplicitSkillInvocations
+import me.rerere.rikkahub.data.skills.resolveSelectedSkillEntries
 import me.rerere.rikkahub.data.skills.shouldInjectSkillsCatalog
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -340,7 +341,10 @@ class GenerationHandler(
         val activatedSkillsPrompt = if (shouldInjectSkillsCatalog(assistant, model)) {
             val explicitSkillInvocations = resolveExplicitSkillInvocations(
                 messages = messages,
-                availableSkills = skillsCatalog.entries.filter { it.directoryName in assistant.selectedSkills },
+                availableSkills = resolveSelectedSkillEntries(
+                    selectedSkills = assistant.selectedSkills,
+                    availableSkills = skillsCatalog.entries,
+                ),
             )
             buildActivatedSkillsPrompt(
                 skillsRepository.loadSkillActivations(

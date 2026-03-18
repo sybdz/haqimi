@@ -9,14 +9,33 @@ import me.rerere.rikkahub.data.model.Assistant
 
 private val ExplicitSkillMentionRegex = Regex("""(?<![A-Za-z0-9._-])(?:/|@)([A-Za-z0-9._-]+)\b""")
 
-internal fun shouldInjectSkillsCatalog(
+internal fun isSkillsRuntimeAvailable(
     assistant: Assistant,
-    model: Model,
+    modelSupportsTools: Boolean,
 ): Boolean {
     return assistant.skillsEnabled &&
         assistant.selectedSkills.isNotEmpty() &&
         assistant.localTools.contains(LocalToolOption.TermuxExec) &&
-        model.abilities.contains(ModelAbility.TOOL)
+        modelSupportsTools
+}
+
+internal fun resolveSelectedSkillEntries(
+    selectedSkills: Collection<String>,
+    availableSkills: Collection<SkillCatalogEntry>,
+): List<SkillCatalogEntry> {
+    return availableSkills
+        .filter { it.directoryName in selectedSkills }
+        .sortedBy { it.directoryName }
+}
+
+internal fun shouldInjectSkillsCatalog(
+    assistant: Assistant,
+    model: Model,
+): Boolean {
+    return isSkillsRuntimeAvailable(
+        assistant = assistant,
+        modelSupportsTools = model.abilities.contains(ModelAbility.TOOL),
+    )
 }
 
 internal fun buildSkillsCatalogPrompt(
@@ -27,9 +46,10 @@ internal fun buildSkillsCatalogPrompt(
     if (!shouldInjectSkillsCatalog(assistant, model)) return null
     if (catalog.rootPath.isBlank()) return null
 
-    val selectedEntries = catalog.entries
-        .filter { it.directoryName in assistant.selectedSkills }
-        .sortedBy { it.directoryName }
+    val selectedEntries = resolveSelectedSkillEntries(
+        selectedSkills = assistant.selectedSkills,
+        availableSkills = catalog.entries,
+    ).filter { it.modelInvocable }
 
     if (selectedEntries.isEmpty()) return null
 

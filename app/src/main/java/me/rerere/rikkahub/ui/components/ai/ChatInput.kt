@@ -132,6 +132,8 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.data.skills.SkillCatalogEntry
+import me.rerere.rikkahub.data.skills.isSkillsRuntimeAvailable
+import me.rerere.rikkahub.data.skills.resolveSelectedSkillEntries
 import me.rerere.rikkahub.data.skills.SkillsRepository
 import me.rerere.rikkahub.ui.components.ui.InjectionSelector
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
@@ -176,6 +178,8 @@ fun ChatInput(
     val filesManager: FilesManager = koinInject()
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
+    val effectiveChatModel = assistant.chatModelId?.let { settings.findModelById(it) }
+        ?: settings.getCurrentChatModel()
     val hazeTintColor = MaterialTheme.colorScheme.surfaceContainerLow
 
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -242,6 +246,7 @@ fun ChatInput(
                     // Text Input Row
                     TextInputRow(
                         state = state,
+                        modelSupportsTools = effectiveChatModel?.abilities?.contains(ModelAbility.TOOL) == true,
                         termuxCommandModeEnabled = termuxCommandModeEnabled,
                         onSendMessage = { sendMessage() }
                     )
@@ -276,8 +281,6 @@ fun ChatInput(
                             // Search
                             val enableSearchMsg = stringResource(R.string.web_search_enabled)
                             val disableSearchMsg = stringResource(R.string.web_search_disabled)
-                            val effectiveChatModel = assistant.chatModelId?.let { settings.findModelById(it) }
-                                ?: settings.getCurrentChatModel()
                             SearchPickerButton(
                                 enableSearch = enableSearch,
                                 settings = settings,
@@ -442,6 +445,7 @@ fun ChatInput(
 @Composable
 private fun TextInputRow(
     state: ChatInputState,
+    modelSupportsTools: Boolean,
     termuxCommandModeEnabled: Boolean,
     onSendMessage: () -> Unit,
 ) {
@@ -457,13 +461,17 @@ private fun TextInputRow(
         assistant.skillsEnabled,
         assistant.selectedSkills,
         assistant.localTools,
+        modelSupportsTools,
         skillsState.entries,
     ) {
-        if (!assistant.skillsEnabled) {
+        if (!isSkillsRuntimeAvailable(assistant = assistant, modelSupportsTools = modelSupportsTools)) {
             emptyList()
         } else {
-            skillsState.entries
-                .filter { it.directoryName in assistant.selectedSkills && it.userInvocable }
+            resolveSelectedSkillEntries(
+                selectedSkills = assistant.selectedSkills,
+                availableSkills = skillsState.entries,
+            )
+                .filter { it.userInvocable }
                 .sortedBy { it.directoryName }
         }
     }

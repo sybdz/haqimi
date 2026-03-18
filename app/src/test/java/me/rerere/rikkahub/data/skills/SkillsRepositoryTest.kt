@@ -218,6 +218,48 @@ class SkillsRepositoryTest {
     }
 
     @Test
+    fun `shouldRefreshBundledSkillInstallation should backfill legacy bundled metadata`() {
+        val bundledSkill = BundledSkill(
+            directoryName = "skill-creator",
+            assetPath = "builtin_skills/skill-creator",
+        )
+        val expectedMetadata = SkillSourceMetadata(
+            sourceType = SkillSourceType.BUNDLED,
+            sourceId = "skill-creator",
+            hash = "new-hash",
+        )
+
+        assertTrue(
+            shouldRefreshBundledSkillInstallation(
+                bundledSkill = bundledSkill,
+                installedMetadata = null,
+                expectedMetadata = expectedMetadata,
+            )
+        )
+        assertTrue(
+            shouldRefreshBundledSkillInstallation(
+                bundledSkill = bundledSkill,
+                installedMetadata = expectedMetadata.copy(hash = "old-hash"),
+                expectedMetadata = expectedMetadata,
+            )
+        )
+        assertFalse(
+            shouldRefreshBundledSkillInstallation(
+                bundledSkill = bundledSkill,
+                installedMetadata = expectedMetadata,
+                expectedMetadata = expectedMetadata,
+            )
+        )
+        assertFalse(
+            shouldRefreshBundledSkillInstallation(
+                bundledSkill = bundledSkill,
+                installedMetadata = expectedMetadata.copy(sourceType = SkillSourceType.LOCAL),
+                expectedMetadata = expectedMetadata,
+            )
+        )
+    }
+
+    @Test
     fun `sanitizeSkillDirectoryName should normalize unsupported characters`() {
         assertEquals("my-skill-v2", sanitizeSkillDirectoryName(" My Skill V2! "))
         assertEquals("skill-import", sanitizeSkillDirectoryName("技能包", fallback = "skill-import"))

@@ -127,6 +127,46 @@ class SkillsPromptTest {
     }
 
     @Test
+    fun `buildSkillsCatalogPrompt should omit skills with disabled model invocation`() {
+        val assistant = Assistant(
+            skillsEnabled = true,
+            selectedSkills = setOf("auto-skill", "manual-only"),
+            localTools = listOf(LocalToolOption.TermuxExec),
+        )
+        val model = Model(abilities = listOf(ModelAbility.TOOL))
+        val catalog = SkillsCatalogState(
+            rootPath = "/data/data/com.termux/files/home/skills",
+            entries = listOf(
+                SkillCatalogEntry(
+                    directoryName = "auto-skill",
+                    path = "/skills/auto-skill",
+                    name = "Auto Skill",
+                    description = "Can be auto-invoked.",
+                    modelInvocable = true,
+                ),
+                SkillCatalogEntry(
+                    directoryName = "manual-only",
+                    path = "/skills/manual-only",
+                    name = "Manual Only",
+                    description = "Requires an explicit invocation.",
+                    userInvocable = true,
+                    modelInvocable = false,
+                ),
+            ),
+        )
+
+        val prompt = buildSkillsCatalogPrompt(
+            assistant = assistant,
+            model = model,
+            catalog = catalog,
+        )
+
+        assertNotNull(prompt)
+        assertTrue(prompt!!.contains("auto-skill"))
+        assertFalse(prompt.contains("manual-only"))
+    }
+
+    @Test
     fun `buildSkillsCatalogPrompt should be disabled when model cannot use tools`() {
         val assistant = Assistant(
             skillsEnabled = true,
@@ -148,6 +188,29 @@ class SkillsPromptTest {
 
         assertNull(buildSkillsCatalogPrompt(assistant = assistant, model = model, catalog = catalog))
         assertFalse(shouldInjectSkillsCatalog(assistant = assistant, model = model))
+    }
+
+    @Test
+    fun `isSkillsRuntimeAvailable should require termux and a tool capable model`() {
+        val assistant = Assistant(
+            skillsEnabled = true,
+            selectedSkills = setOf("find-hugeicons"),
+            localTools = listOf(LocalToolOption.TimeInfo),
+        )
+
+        assertFalse(isSkillsRuntimeAvailable(assistant = assistant, modelSupportsTools = true))
+        assertFalse(
+            isSkillsRuntimeAvailable(
+                assistant = assistant.copy(localTools = listOf(LocalToolOption.TermuxExec)),
+                modelSupportsTools = false,
+            )
+        )
+        assertTrue(
+            isSkillsRuntimeAvailable(
+                assistant = assistant.copy(localTools = listOf(LocalToolOption.TermuxExec)),
+                modelSupportsTools = true,
+            )
+        )
     }
 
     @Test
@@ -174,6 +237,25 @@ class SkillsPromptTest {
         )
 
         assertEquals(listOf("find-hugeicons"), resolved.map { it.directoryName })
+    }
+
+    @Test
+    fun `resolveExplicitSkillInvocations should keep manual only skills explicit`() {
+        val resolved = resolveExplicitSkillInvocations(
+            messages = listOf(UIMessage.user("Run /manual-only now")),
+            availableSkills = listOf(
+                SkillCatalogEntry(
+                    directoryName = "manual-only",
+                    path = "/skills/manual-only",
+                    name = "manual-only",
+                    description = "Manual only",
+                    userInvocable = true,
+                    modelInvocable = false,
+                )
+            ),
+        )
+
+        assertEquals(listOf("manual-only"), resolved.map { it.directoryName })
     }
 
     @Test
