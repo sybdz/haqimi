@@ -132,9 +132,9 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.data.skills.SkillCatalogEntry
-import me.rerere.rikkahub.data.skills.isSkillsRuntimeAvailable
 import me.rerere.rikkahub.data.skills.resolveSelectedSkillEntries
 import me.rerere.rikkahub.data.skills.SkillsRepository
+import me.rerere.rikkahub.data.skills.shouldLoadExplicitSkillActivations
 import me.rerere.rikkahub.ui.components.ui.InjectionSelector
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
@@ -460,11 +460,9 @@ private fun TextInputRow(
     val invocableSkills = remember(
         assistant.skillsEnabled,
         assistant.selectedSkills,
-        assistant.localTools,
-        modelSupportsTools,
         skillsState.entries,
     ) {
-        if (!isSkillsRuntimeAvailable(assistant = assistant, modelSupportsTools = modelSupportsTools)) {
+        if (!shouldLoadExplicitSkillActivations(assistant = assistant)) {
             emptyList()
         } else {
             resolveSelectedSkillEntries(
@@ -505,7 +503,7 @@ private fun TextInputRow(
             SkillInvokeRow(
                 skills = invocableSkills,
                 onSkillSelected = { skill ->
-                    state.appendText("/${skill.directoryName} ")
+                    state.appendText("@${skill.directoryName} ")
                 }
             )
         }

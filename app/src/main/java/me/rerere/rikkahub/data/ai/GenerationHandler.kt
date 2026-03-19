@@ -46,6 +46,7 @@ import me.rerere.rikkahub.data.skills.buildActivatedSkillsPrompt
 import me.rerere.rikkahub.data.skills.buildSkillsCatalogPrompt
 import me.rerere.rikkahub.data.skills.resolveExplicitSkillInvocations
 import me.rerere.rikkahub.data.skills.resolveSelectedSkillEntries
+import me.rerere.rikkahub.data.skills.shouldLoadExplicitSkillActivations
 import me.rerere.rikkahub.data.skills.shouldInjectSkillsCatalog
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -97,7 +98,7 @@ class GenerationHandler(
 
             val toolsInternal = buildList {
                 Log.i(TAG, "generateInternal: build tools($assistant)")
-                if (assistant?.enableMemory == true) {
+                if (assistant.enableMemory) {
                     val memoryAssistantId = if (assistant.useGlobalMemory) {
                         MemoryRepository.GLOBAL_MEMORY_ID
                     } else {
@@ -337,8 +338,12 @@ class GenerationHandler(
         memories: List<AssistantMemory>,
         stream: Boolean
     ) {
-        val skillsCatalog = skillsRepository.state.value
-        val activatedSkillsPrompt = if (shouldInjectSkillsCatalog(assistant, model)) {
+        val shouldRefreshSkills = assistant.skillsEnabled && assistant.selectedSkills.isNotEmpty()
+        val skillsCatalog = skillsRepository.getCatalogSnapshot(
+            forceRefresh = shouldRefreshSkills,
+            workdir = settings.termuxWorkdir,
+        )
+        val activatedSkillsPrompt = if (shouldLoadExplicitSkillActivations(assistant)) {
             val explicitSkillInvocations = resolveExplicitSkillInvocations(
                 messages = messages,
                 availableSkills = resolveSelectedSkillEntries(

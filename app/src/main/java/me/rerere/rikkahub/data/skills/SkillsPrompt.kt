@@ -8,7 +8,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.model.Assistant
 
 private val ExplicitSkillMentionRegex = Regex(
-    """(^|[\s(\[{<"'`])(?:/|@)([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)(?!/[A-Za-z0-9._-])(?!\.[A-Za-z0-9])(?=$|[\s)\]}>."'`,!?;:])"""
+    """(^|[\s(\[{<"'`])([/@])([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)(?!/[A-Za-z0-9._-])(?!\.[A-Za-z0-9])(?=$|[\s)\]}>."'`,!?;:])"""
 )
 
 internal fun isSkillsRuntimeAvailable(
@@ -38,6 +38,12 @@ internal fun shouldInjectSkillsCatalog(
         assistant = assistant,
         modelSupportsTools = model.abilities.contains(ModelAbility.TOOL),
     )
+}
+
+internal fun shouldLoadExplicitSkillActivations(
+    assistant: Assistant,
+): Boolean {
+    return assistant.skillsEnabled && assistant.selectedSkills.isNotEmpty()
 }
 
 internal fun buildSkillsCatalogPrompt(
@@ -91,7 +97,15 @@ internal fun resolveExplicitSkillInvocations(
     val entriesByDirectory = availableSkills.associateBy { it.directoryName }
     return ExplicitSkillMentionRegex.findAll(latestUserText)
         .mapNotNull { match ->
-            entriesByDirectory[match.groupValues[2]]
+            val invocation = match.groupValues[2]
+            val directoryName = match.groupValues[3]
+            val entry = entriesByDirectory[directoryName] ?: return@mapNotNull null
+            // Slash syntax conflicts with single-segment absolute paths like `/tmp`.
+            // Plain alphanumeric skill names remain explicitly invocable with `@skill`.
+            if (invocation == "/" && directoryName.all { it.isLetterOrDigit() }) {
+                return@mapNotNull null
+            }
+            entry
         }
         .filter { it.userInvocable }
         .distinctBy { it.directoryName }
@@ -116,12 +130,14 @@ internal fun buildActivatedSkillsPrompt(
             activation.entry.compatibility?.let { appendLine("compatibility: $it") }
             appendLine("path: ${activation.entry.path}")
             appendLine("<skill_content>")
-            appendLine(activation.markdown.trim())
+            appendLine("<![CDATA[")
+            appendLine(activation.markdown.trim().escapeForXmlCdata())
+            appendLine("]]>")
             appendLine("</skill_content>")
             if (activation.resourceFiles.isNotEmpty()) {
                 appendLine("<skill_resources>")
                 activation.resourceFiles.forEach { file ->
-                    appendLine("- $file")
+                    appendLine("<file><![CDATA[${file.escapeForXmlCdata()}]]></file>")
                 }
                 appendLine("</skill_resources>")
             }
@@ -129,3 +145,5 @@ internal fun buildActivatedSkillsPrompt(
         }
     }.trim()
 }
+
+private fun String.escapeForXmlCdata(): String = replace("]]>", "]]]]><![CDATA[>")

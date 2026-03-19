@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.skills
 import android.content.Context
 import android.util.Log
 import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.security.MessageDigest
 import java.util.Base64
@@ -29,6 +30,7 @@ import me.rerere.rikkahub.data.ai.tools.termux.TermuxCommandManager
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxRunCommandRequest
 import me.rerere.rikkahub.data.ai.tools.termux.isSuccessful
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Assistant
 import org.snakeyaml.engine.v2.api.Load
 import org.snakeyaml.engine.v2.api.LoadSettings
 
@@ -297,6 +299,20 @@ class SkillsRepository(
         }
     }
 
+    suspend fun getCatalogSnapshot(
+        forceRefresh: Boolean = false,
+        workdir: String = settingsStore.settingsFlow.value.termuxWorkdir,
+    ): SkillsCatalogState {
+        if (forceRefresh || state.value.refreshedAt == 0L || state.value.workdir != workdir) {
+            runCatching {
+                refresh(workdir)
+            }.onFailure { error ->
+                Log.w(TAG, "skills snapshot refresh failed for $workdir", error)
+            }
+        }
+        return state.value
+    }
+
     suspend fun createSkill(
         directoryName: String,
         name: String,
@@ -385,30 +401,33 @@ class SkillsRepository(
         body: String,
         extras: SkillFrontmatterExtras = SkillFrontmatterExtras(),
     ): SkillCreationResult {
-        require(originalDirectoryName.isNotBlank()) { "Original skill directory cannot be empty" }
+        val safeOriginalDirectoryName = requireTopLevelSkillDirectoryName(
+            originalDirectoryName,
+            argumentName = "Original skill directory",
+        )
         require(name.isNotBlank()) { "Skill name cannot be empty" }
         require(description.isNotBlank()) { "Skill description cannot be empty" }
         require(extras.hasActivationPath()) { "Skill must remain invocable by the user or the model" }
 
-        return runCatalogMutation { workdir, rootPath ->
+        val result = runCatalogMutation { workdir, rootPath ->
             ensureSkillsRootDirectory(rootPath = rootPath, workdir = workdir)
             val existingDirectoryNames = listSkillDirectories(rootPath, workdir)
                 .mapTo(linkedSetOf()) { it.directoryName }
 
             val finalDirectoryName = sanitizeSkillDirectoryName(
                 input = directoryName.ifBlank { name },
-                fallback = originalDirectoryName,
+                fallback = safeOriginalDirectoryName,
             )
-            val conflictingDirectories = existingDirectoryNames - originalDirectoryName
+            val conflictingDirectories = existingDirectoryNames - safeOriginalDirectoryName
             require(finalDirectoryName !in conflictingDirectories) {
                 "Skill directory already exists: $finalDirectoryName"
             }
 
-            if (finalDirectoryName != originalDirectoryName) {
+            if (finalDirectoryName != safeOriginalDirectoryName) {
                 runSkillScript(
                     script = buildMoveSkillDirectoryScript(
                         rootPath = rootPath,
-                        fromDirectoryName = originalDirectoryName,
+                        fromDirectoryName = safeOriginalDirectoryName,
                         toDirectoryName = finalDirectoryName,
                     ),
                     workdir = workdir,
@@ -443,7 +462,7 @@ class SkillsRepository(
                 directoryName = finalDirectoryName,
                 metadata = resolveUpdatedSkillSourceMetadata(
                     existingMetadata = sourceMetadata,
-                    originalDirectoryName = originalDirectoryName,
+                    originalDirectoryName = safeOriginalDirectoryName,
                     finalDirectoryName = finalDirectoryName,
                 ),
             )
@@ -453,6 +472,11 @@ class SkillsRepository(
                 path = "$rootPath/$finalDirectoryName",
             )
         }
+        renameSelectedSkillDirectoryAcrossAssistants(
+            fromDirectoryName = safeOriginalDirectoryName,
+            toDirectoryName = result.directoryName,
+        )
+        return result
     }
 
     suspend fun importSkillZip(
@@ -472,34 +496,89 @@ class SkillsRepository(
                 archiveName = archiveName,
             )
             val importPlan = previewData.plan
+            val stageToken = UUID.randomUUID().toString()
+            val stageRootPath = "$rootPath/.rikkahub_tmp/import-$stageToken"
+            val movedDirectories = arrayListOf<String>()
 
-            importPlan.directories
-                .sortedWith(compareBy<String> { it.count { char -> char == '/' } }.thenBy { it })
-                .forEach { relativeDirectory ->
-                    createSkillDirectory(
-                        rootPath = rootPath,
+            runCatching {
+                createSkillDirectory(
+                    rootPath = rootPath,
+                    workdir = workdir,
+                    relativeDirectory = ".rikkahub_tmp/import-$stageToken",
+                )
+                importPlan.directories
+                    .sortedWith(compareBy<String> { it.count { char -> char == '/' } }.thenBy { it })
+                    .forEach { relativeDirectory ->
+                        createSkillDirectory(
+                            rootPath = stageRootPath,
+                            workdir = workdir,
+                            relativeDirectory = relativeDirectory,
+                        )
+                    }
+
+                importPlan.files.forEach { file ->
+                    writeSkillFile(
+                        rootPath = stageRootPath,
                         workdir = workdir,
-                        relativeDirectory = relativeDirectory,
+                        relativePath = file.path,
+                        bytes = file.bytes,
+                    )
+                }
+                importPlan.topLevelDirectories.forEach { directoryName ->
+                    writeSkillSourceMetadata(
+                        rootPath = stageRootPath,
+                        workdir = workdir,
+                        directoryName = directoryName,
+                        metadata = SkillSourceMetadata(
+                            sourceType = SkillSourceType.IMPORTED,
+                            sourceId = archiveName?.substringBeforeLast('.', archiveName)?.ifBlank { directoryName } ?: directoryName,
+                        ),
                     )
                 }
 
-            importPlan.files.forEach { file ->
-                writeSkillFile(
-                    rootPath = rootPath,
-                    workdir = workdir,
-                    relativePath = file.path,
-                    bytes = file.bytes,
-                )
+                importPlan.topLevelDirectories.forEach { directoryName ->
+                    runSkillScript(
+                        script = buildMoveStagedSkillDirectoryScript(
+                            stageRootPath = stageRootPath,
+                            rootPath = rootPath,
+                            directoryName = directoryName,
+                        ),
+                        workdir = workdir,
+                        label = "RikkaHub install imported skill",
+                        timeoutMs = SKILL_WRITE_TIMEOUT_MS,
+                    )
+                    movedDirectories += directoryName
+                }
+            }.getOrElse { error ->
+                movedDirectories.forEach { directoryName ->
+                    runCatching {
+                        runSkillScript(
+                            script = buildDeleteSkillScript(
+                                rootPath = rootPath,
+                                directoryName = directoryName,
+                            ),
+                            workdir = workdir,
+                            label = "RikkaHub rollback imported skill",
+                            timeoutMs = SKILL_WRITE_TIMEOUT_MS,
+                        )
+                    }
+                }
+                runCatching {
+                    runSkillScript(
+                        script = buildDeleteDirectoryScript(stageRootPath),
+                        workdir = workdir,
+                        label = "RikkaHub cleanup staged import",
+                        timeoutMs = SKILL_WRITE_TIMEOUT_MS,
+                    )
+                }
+                throw error
             }
-            importPlan.topLevelDirectories.forEach { directoryName ->
-                writeSkillSourceMetadata(
-                    rootPath = rootPath,
+            runCatching {
+                runSkillScript(
+                    script = buildDeleteDirectoryScript(stageRootPath),
                     workdir = workdir,
-                    directoryName = directoryName,
-                    metadata = SkillSourceMetadata(
-                        sourceType = SkillSourceType.IMPORTED,
-                        sourceId = archiveName?.substringBeforeLast('.', archiveName)?.ifBlank { directoryName } ?: directoryName,
-                    ),
+                    label = "RikkaHub cleanup staged import",
+                    timeoutMs = SKILL_WRITE_TIMEOUT_MS,
                 )
             }
 
@@ -534,26 +613,30 @@ class SkillsRepository(
     }
 
     suspend fun deleteSkill(directoryName: String) {
-        require(directoryName.isNotBlank()) { "Skill directory cannot be empty" }
+        val safeDirectoryName = requireTopLevelSkillDirectoryName(
+            directoryName,
+            argumentName = "Skill directory",
+        )
 
         runCatalogMutation { workdir, rootPath ->
             val metadata = readSkillSourceMetadata(
-                directoryPath = "$rootPath/$directoryName",
+                directoryPath = "$rootPath/$safeDirectoryName",
                 workdir = workdir,
             )
-            require(metadata?.sourceType != SkillSourceType.BUNDLED) {
-                "Built-in skills cannot be deleted: $directoryName"
+            require(!isCanonicalBundledMetadata(metadata, safeDirectoryName)) {
+                "Built-in skills cannot be deleted: $safeDirectoryName"
             }
             runSkillScript(
                 script = buildDeleteSkillScript(
                     rootPath = rootPath,
-                    directoryName = directoryName,
+                    directoryName = safeDirectoryName,
                 ),
                 workdir = workdir,
                 label = "RikkaHub delete local skill",
                 timeoutMs = SKILL_WRITE_TIMEOUT_MS,
             )
         }
+        removeSelectedSkillDirectoryAcrossAssistants(safeDirectoryName)
     }
 
     suspend fun loadSkillActivations(directoryNames: Collection<String>): List<SkillActivationEntry> {
@@ -581,25 +664,30 @@ class SkillsRepository(
     }
 
     private suspend fun refreshLocked(workdir: String) {
+        if (settingsStore.settingsFlow.value.termuxWorkdir != workdir) {
+            return
+        }
         val rootPath = buildSkillsRootPath(workdir)
         _state.value = _state.value.toRefreshingCatalogState(
             workdir = workdir,
             rootPath = rootPath,
         )
-        _state.value = runCatching {
+        val refreshedState = runCatching {
             discover(workdir = workdir, rootPath = rootPath)
         }.getOrElse { error ->
             Log.w(TAG, "refresh failed for $rootPath", error)
-            SkillsCatalogState(
+            _state.value.copy(
                 workdir = workdir,
                 rootPath = rootPath,
-                entries = emptyList(),
-                invalidEntries = emptyList(),
                 isLoading = false,
                 error = error.message ?: error.javaClass.name,
                 refreshedAt = System.currentTimeMillis(),
             )
         }
+        if (settingsStore.settingsFlow.value.termuxWorkdir != workdir) {
+            return
+        }
+        _state.value = refreshedState
     }
 
     private suspend fun <T> runCatalogMutation(
@@ -630,16 +718,48 @@ class SkillsRepository(
                     result
                 }.getOrElse { error ->
                     Log.w(TAG, "skills mutation failed for $rootPath", error)
-                    _state.value = _state.value.copy(
-                        workdir = workdir,
-                        rootPath = rootPath,
-                        isLoading = false,
+                    val recoveredState = runCatching {
+                        discover(workdir = workdir, rootPath = rootPath)
+                    }.getOrElse {
+                        _state.value.copy(
+                            workdir = workdir,
+                            rootPath = rootPath,
+                            isLoading = false,
+                            refreshedAt = System.currentTimeMillis(),
+                        )
+                    }
+                    _state.value = recoveredState.copy(
                         error = error.message ?: error.javaClass.name,
                         refreshedAt = System.currentTimeMillis(),
                     )
                     throw error
                 }
             }
+        }
+    }
+
+    private suspend fun renameSelectedSkillDirectoryAcrossAssistants(
+        fromDirectoryName: String,
+        toDirectoryName: String,
+    ) {
+        if (fromDirectoryName == toDirectoryName) return
+        settingsStore.update { settings ->
+            settings.copy(
+                assistants = settings.assistants.replaceSelectedSkillDirectory(
+                    fromDirectoryName = fromDirectoryName,
+                    toDirectoryName = toDirectoryName,
+                ),
+            )
+        }
+    }
+
+    private suspend fun removeSelectedSkillDirectoryAcrossAssistants(
+        directoryName: String,
+    ) {
+        settingsStore.update { settings ->
+            settings.copy(
+                assistants = settings.assistants.removeSelectedSkillDirectory(directoryName),
+            )
         }
     }
 
@@ -778,6 +898,21 @@ class SkillsRepository(
         return parseSkillSourceMetadata(raw)
     }
 
+    private suspend fun computeInstalledSkillPackageHash(
+        directoryPath: String,
+        workdir: String,
+    ): String? {
+        val result = runSkillScript(
+            script = buildComputeSkillPackageHashScript(directoryPath),
+            workdir = workdir,
+            label = "RikkaHub hash local skill package",
+        )
+        return result.stdout
+            .lineSequence()
+            .map { it.trim() }
+            .firstOrNull { it.isNotBlank() }
+    }
+
     private suspend fun listSkillResourceFiles(
         directoryPath: String,
         workdir: String,
@@ -847,6 +982,7 @@ class SkillsRepository(
         var installedAny = false
         BUNDLED_SKILLS.forEach { bundledSkill ->
             val expectedMetadata = buildBundledSkillSourceMetadata(bundledSkill)
+            val expectedHash = expectedMetadata.hash
             if (bundledSkill.directoryName !in existingDirectoryNames) {
                 runCatching {
                     installBundledSkill(
@@ -864,13 +1000,20 @@ class SkillsRepository(
                 return@forEach
             }
 
+            val directoryPath = "$rootPath/${bundledSkill.directoryName}"
             val installedMetadata = runCatching {
                 readSkillSourceMetadata(
-                    directoryPath = "$rootPath/${bundledSkill.directoryName}",
+                    directoryPath = directoryPath,
                     workdir = workdir,
                 )
             }.getOrNull()
-            if (shouldBackfillBundledSkillMetadata(installedMetadata)) {
+            val installedHash = runCatching {
+                computeInstalledSkillPackageHash(
+                    directoryPath = directoryPath,
+                    workdir = workdir,
+                )
+            }.getOrNull()
+            if (shouldBackfillBundledSkillMetadata(installedMetadata, installedHash, expectedMetadata)) {
                 runCatching {
                     writeSkillSourceMetadata(
                         rootPath = rootPath,
@@ -884,7 +1027,43 @@ class SkillsRepository(
                 }
                 return@forEach
             }
-            if (!shouldRefreshBundledSkillInstallation(bundledSkill, installedMetadata, expectedMetadata)) return@forEach
+            if (shouldConvertBundledSkillInstallationToLocal(bundledSkill, installedMetadata, installedHash, expectedMetadata)) {
+                runCatching {
+                    writeSkillSourceMetadata(
+                        rootPath = rootPath,
+                        workdir = workdir,
+                        directoryName = bundledSkill.directoryName,
+                        metadata = SkillSourceMetadata(
+                            sourceType = SkillSourceType.LOCAL,
+                            sourceId = bundledSkill.directoryName,
+                        ),
+                    )
+                    installedAny = true
+                }.onFailure { error ->
+                    Log.w(TAG, "Failed to relabel bundled skill ${bundledSkill.directoryName} as local", error)
+                }
+                return@forEach
+            }
+            if (!shouldRefreshBundledSkillInstallation(bundledSkill, installedMetadata, installedHash, expectedMetadata)) {
+                if (
+                    isCanonicalBundledMetadata(installedMetadata, bundledSkill.directoryName) &&
+                    installedHash == expectedHash &&
+                    installedMetadata != expectedMetadata
+                ) {
+                    runCatching {
+                        writeSkillSourceMetadata(
+                            rootPath = rootPath,
+                            workdir = workdir,
+                            directoryName = bundledSkill.directoryName,
+                            metadata = expectedMetadata,
+                        )
+                        installedAny = true
+                    }.onFailure { error ->
+                        Log.w(TAG, "Failed to refresh bundled skill metadata ${bundledSkill.directoryName}", error)
+                    }
+                }
+                return@forEach
+            }
             runCatching {
                 installBundledSkill(
                     rootPath = rootPath,
@@ -916,31 +1095,105 @@ class SkillsRepository(
         require(files.any { it.path == SKILL_PACKAGE_FILE_NAME }) {
             "Bundled skill ${bundledSkill.directoryName} is missing $SKILL_PACKAGE_FILE_NAME"
         }
-        if (replaceExisting) {
+        val stageToken = UUID.randomUUID().toString()
+        val stageRootPath = "$rootPath/.rikkahub_tmp/bundled-${bundledSkill.directoryName}-$stageToken"
+        val backupDirectoryName = ".rikkahub_backup_${bundledSkill.directoryName}_$stageToken"
+        var backupWasCreated = false
+
+        runCatching {
+            createSkillDirectory(
+                rootPath = rootPath,
+                workdir = workdir,
+                relativeDirectory = ".rikkahub_tmp/bundled-${bundledSkill.directoryName}-$stageToken",
+            )
+            createSkillDirectory(
+                rootPath = stageRootPath,
+                workdir = workdir,
+                relativeDirectory = bundledSkill.directoryName,
+            )
+            files.sortedBy { it.path }.forEach { assetFile ->
+                writeSkillFile(
+                    rootPath = stageRootPath,
+                    workdir = workdir,
+                    relativePath = "${bundledSkill.directoryName}/${assetFile.path}",
+                    bytes = assetFile.bytes,
+                )
+            }
+            writeSkillSourceMetadata(
+                rootPath = stageRootPath,
+                workdir = workdir,
+                directoryName = bundledSkill.directoryName,
+                metadata = metadata,
+            )
+            if (replaceExisting) {
+                runSkillScript(
+                    script = buildMoveSkillDirectoryScript(
+                        rootPath = rootPath,
+                        fromDirectoryName = bundledSkill.directoryName,
+                        toDirectoryName = backupDirectoryName,
+                    ),
+                    workdir = workdir,
+                    label = "RikkaHub backup bundled skill",
+                    timeoutMs = SKILL_WRITE_TIMEOUT_MS,
+                )
+                backupWasCreated = true
+            }
             runSkillScript(
-                script = buildDeleteSkillScript(
+                script = buildMoveStagedSkillDirectoryScript(
+                    stageRootPath = stageRootPath,
                     rootPath = rootPath,
                     directoryName = bundledSkill.directoryName,
                 ),
                 workdir = workdir,
-                label = "RikkaHub replace bundled skill",
+                label = "RikkaHub install bundled skill",
+                timeoutMs = SKILL_WRITE_TIMEOUT_MS,
+            )
+        }.getOrElse { error ->
+            if (backupWasCreated) {
+                runCatching {
+                    runSkillScript(
+                        script = buildRestoreBackedUpSkillDirectoryScript(
+                            rootPath = rootPath,
+                            backupDirectoryName = backupDirectoryName,
+                            directoryName = bundledSkill.directoryName,
+                        ),
+                        workdir = workdir,
+                        label = "RikkaHub restore bundled skill backup",
+                        timeoutMs = SKILL_WRITE_TIMEOUT_MS,
+                    )
+                }
+            }
+            runCatching {
+                runSkillScript(
+                    script = buildDeleteDirectoryScript(stageRootPath),
+                    workdir = workdir,
+                    label = "RikkaHub cleanup staged bundled skill",
+                    timeoutMs = SKILL_WRITE_TIMEOUT_MS,
+                )
+            }
+            throw error
+        }
+        if (backupWasCreated) {
+            runCatching {
+                runSkillScript(
+                    script = buildDeleteSkillScript(
+                        rootPath = rootPath,
+                        directoryName = backupDirectoryName,
+                    ),
+                    workdir = workdir,
+                    label = "RikkaHub cleanup bundled skill backup",
+                    timeoutMs = SKILL_WRITE_TIMEOUT_MS,
+                )
+            }
+        }
+        runCatching {
+            runSkillScript(
+                script = buildDeleteDirectoryScript(stageRootPath),
+                workdir = workdir,
+                label = "RikkaHub cleanup staged bundled skill",
                 timeoutMs = SKILL_WRITE_TIMEOUT_MS,
             )
         }
-        files.sortedBy { it.path }.forEach { assetFile ->
-            writeSkillFile(
-                rootPath = rootPath,
-                workdir = workdir,
-                relativePath = "${bundledSkill.directoryName}/${assetFile.path}",
-                bytes = assetFile.bytes,
-            )
-        }
-        writeSkillSourceMetadata(
-            rootPath = rootPath,
-            workdir = workdir,
-            directoryName = bundledSkill.directoryName,
-            metadata = metadata,
-        )
     }
 
     private suspend fun createSkillDirectory(
@@ -1061,7 +1314,7 @@ class SkillsRepository(
             if [ ! -d "${'$'}ROOT" ]; then
               exit 0
             fi
-            find "${'$'}ROOT" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z | while IFS= read -r -d '' dir; do
+            find "${'$'}ROOT" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -print0 | sort -z | while IFS= read -r -d '' dir; do
               [ -n "${'$'}dir" ] || continue
               name="${'$'}(basename "${'$'}dir")"
               encoded_name="${'$'}(printf '%s' "${'$'}name" | base64 | tr -d '\n')"
@@ -1157,8 +1410,13 @@ class SkillsRepository(
             ROOT='$safeRoot'
             DIR_NAME='$safeDirectoryName'
             DIR="${'$'}ROOT/${'$'}DIR_NAME"
+            [ ! -L "${'$'}DIR" ] || exit 1
             mkdir -p "${'$'}DIR" "${'$'}DIR/scripts" "${'$'}DIR/assets" "${'$'}DIR/references"
-            cat > "${'$'}DIR/$SKILL_PACKAGE_FILE_NAME"
+            TMP_FILE="${'$'}DIR/.${SKILL_PACKAGE_FILE_NAME}.${'$'}$.tmp"
+            trap 'rm -f "${'$'}TMP_FILE"' EXIT
+            cat > "${'$'}TMP_FILE"
+            mv -f "${'$'}TMP_FILE" "${'$'}DIR/$SKILL_PACKAGE_FILE_NAME"
+            trap - EXIT
         """.trimIndent()
     }
 
@@ -1228,9 +1486,11 @@ class SkillsRepository(
             TMP_DIR="${'$'}ROOT/.rikkahub_tmp"
             TARGET="${'$'}ROOT/${'$'}REL"
             mkdir -p "${'$'}TMP_DIR" "$(dirname "${'$'}TARGET")"
-            TMP_FILE="${'$'}TMP_DIR/$(basename "${'$'}REL").${'$'}$.tmp"
+            TMP_FILE="${'$'}TMP_DIR/$(basename -- "${'$'}REL").${'$'}$.tmp"
+            trap 'rm -f "${'$'}TMP_FILE"' EXIT
             base64 -d > "${'$'}TMP_FILE"
             mv -f "${'$'}TMP_FILE" "${'$'}TARGET"
+            trap - EXIT
         """.trimIndent()
     }
 
@@ -1308,6 +1568,78 @@ class SkillsRepository(
         """.trimIndent()
     }
 
+    private fun buildMoveStagedSkillDirectoryScript(
+        stageRootPath: String,
+        rootPath: String,
+        directoryName: String,
+    ): String {
+        val safeStageRoot = stageRootPath.escapeForSingleQuotedShell()
+        val safeRoot = rootPath.escapeForSingleQuotedShell()
+        val safeDirectoryName = directoryName.escapeForSingleQuotedShell()
+        return """
+            set -eu
+            STAGE_ROOT='$safeStageRoot'
+            ROOT='$safeRoot'
+            DIR_NAME='$safeDirectoryName'
+            SOURCE="${'$'}STAGE_ROOT/${'$'}DIR_NAME"
+            TARGET="${'$'}ROOT/${'$'}DIR_NAME"
+            [ -d "${'$'}SOURCE" ] || exit 1
+            [ ! -e "${'$'}TARGET" ] || exit 1
+            mv "${'$'}SOURCE" "${'$'}TARGET"
+        """.trimIndent()
+    }
+
+    private fun buildRestoreBackedUpSkillDirectoryScript(
+        rootPath: String,
+        backupDirectoryName: String,
+        directoryName: String,
+    ): String {
+        val safeRoot = rootPath.escapeForSingleQuotedShell()
+        val safeBackupDirectoryName = backupDirectoryName.escapeForSingleQuotedShell()
+        val safeDirectoryName = directoryName.escapeForSingleQuotedShell()
+        return """
+            set -eu
+            ROOT='$safeRoot'
+            BACKUP_DIR='$safeBackupDirectoryName'
+            DIR_NAME='$safeDirectoryName'
+            SOURCE="${'$'}ROOT/${'$'}BACKUP_DIR"
+            TARGET="${'$'}ROOT/${'$'}DIR_NAME"
+            [ -d "${'$'}SOURCE" ] || exit 0
+            [ ! -e "${'$'}TARGET" ] || exit 1
+            mv "${'$'}SOURCE" "${'$'}TARGET"
+        """.trimIndent()
+    }
+
+    private fun buildDeleteDirectoryScript(
+        directoryPath: String,
+    ): String {
+        val safeDirectoryPath = directoryPath.escapeForSingleQuotedShell()
+        return """
+            set -eu
+            TARGET='$safeDirectoryPath'
+            [ -d "${'$'}TARGET" ] || exit 0
+            rm -rf "${'$'}TARGET"
+        """.trimIndent()
+    }
+
+    private fun buildComputeSkillPackageHashScript(
+        directoryPath: String,
+    ): String {
+        val safeDirectoryPath = directoryPath.escapeForSingleQuotedShell()
+        return """
+            set -eu
+            DIR='$safeDirectoryPath'
+            [ -d "${'$'}DIR" ] || exit 1
+            find "${'$'}DIR" -type f ! -name "$SKILL_SOURCE_METADATA_FILE_NAME" -print0 | sort -z | while IFS= read -r -d '' file; do
+              rel="${'$'}{file#"${'$'}DIR"/}"
+              printf '%s' "${'$'}rel"
+              printf '\0'
+              cat "${'$'}file"
+              printf '\0'
+            done | sha256sum | awk '{print $1}'
+        """.trimIndent()
+    }
+
     companion object {
         fun buildSkillsRootPath(workdir: String): String {
             val normalized = workdir.trimEnd('/').ifBlank { "/data/data/com.termux/files/home" }
@@ -1371,14 +1703,16 @@ internal fun parseSkillFrontmatter(markdown: String): SkillFrontmatterParseResul
         SkillFrontmatter(
             name = name,
             description = description,
-            extras = SkillFrontmatterExtras(
-                license = values.stringLikeValue("license"),
-                compatibility = values.stringLikeValue("compatibility"),
-                allowedTools = values.stringLikeValue("allowed-tools"),
-                argumentHint = values.stringLikeValue("argument-hint"),
-                userInvocable = values.booleanValue("user-invocable") ?: true,
-                disableModelInvocation = values.booleanValue("disable-model-invocation") ?: false,
-                metadata = metadata,
+            extras = normalizeSkillFrontmatterExtras(
+                SkillFrontmatterExtras(
+                    license = values.stringLikeValue("license"),
+                    compatibility = values.stringLikeValue("compatibility"),
+                    allowedTools = values.stringLikeValue("allowed-tools"),
+                    argumentHint = values.stringLikeValue("argument-hint"),
+                    userInvocable = values.booleanValue("user-invocable") ?: true,
+                    disableModelInvocation = values.booleanValue("disable-model-invocation") ?: false,
+                    metadata = metadata,
+                )
             ),
         )
     )
@@ -1395,6 +1729,73 @@ internal fun sanitizeSkillDirectoryName(
         .replace(Regex("-{2,}"), "-")
         .trim('-', '.', '_')
     return normalized.ifBlank { fallback }
+}
+
+internal fun requireTopLevelSkillDirectoryName(
+    directoryName: String,
+    argumentName: String = "Skill directory",
+): String {
+    require(directoryName.isNotBlank()) { "$argumentName cannot be empty" }
+    require(!directoryName.contains('/')) { "$argumentName must not contain path separators" }
+    require(!directoryName.contains('\\')) { "$argumentName must not contain path separators" }
+    require(directoryName != "." && directoryName != "..") { "$argumentName must not escape the skills root" }
+    require(directoryName.none { it.code < 0x20 || it == '\u007f' }) { "$argumentName contains invalid characters" }
+    return directoryName
+}
+
+internal fun isCanonicalBundledMetadata(
+    metadata: SkillSourceMetadata?,
+    directoryName: String,
+): Boolean {
+    return metadata?.sourceType == SkillSourceType.BUNDLED && metadata.sourceId == directoryName
+}
+
+internal fun normalizeCatalogSkillSourceMetadata(
+    directoryName: String,
+    metadata: SkillSourceMetadata?,
+): SkillSourceMetadata? {
+    if (metadata == null) return null
+    if (metadata.sourceType != SkillSourceType.BUNDLED) return metadata
+    if (metadata.sourceId == directoryName) return metadata
+    return SkillSourceMetadata(
+        sourceType = SkillSourceType.LOCAL,
+        sourceId = directoryName,
+        sourceUrl = metadata.sourceUrl,
+        version = metadata.version,
+        installedAt = metadata.installedAt,
+    )
+}
+
+internal fun List<Assistant>.replaceSelectedSkillDirectory(
+    fromDirectoryName: String,
+    toDirectoryName: String,
+): List<Assistant> {
+    return map { assistant ->
+        if (fromDirectoryName !in assistant.selectedSkills) {
+            assistant
+        } else {
+            assistant.copy(
+                selectedSkills = assistant.selectedSkills
+                    .toMutableSet()
+                    .apply {
+                        remove(fromDirectoryName)
+                        add(toDirectoryName)
+                    },
+            )
+        }
+    }
+}
+
+internal fun List<Assistant>.removeSelectedSkillDirectory(
+    directoryName: String,
+): List<Assistant> {
+    return map { assistant ->
+        if (directoryName !in assistant.selectedSkills) {
+            assistant
+        } else {
+            assistant.copy(selectedSkills = assistant.selectedSkills - directoryName)
+        }
+    }
 }
 
 private fun String.escapeForSingleQuotedShell(): String = replace("'", "'\"'\"'")
@@ -1493,8 +1894,11 @@ internal suspend fun inspectSkillDirectory(
         )
     }
 
-    val sourceMetadata = directory.sourceMetadataPreview
-        ?.let(::parseSkillSourceMetadata)
+    val sourceMetadata = normalizeCatalogSkillSourceMetadata(
+        directoryName = directory.directoryName,
+        metadata = directory.sourceMetadataPreview
+            ?.let(::parseSkillSourceMetadata),
+    )
     val previewResult = directory.skillMarkdownPreview?.let(::parseSkillFrontmatter)
     val parsed = when {
         previewResult is SkillFrontmatterParseResult.Success -> previewResult
@@ -1549,7 +1953,7 @@ internal suspend fun inspectSkillDirectory(
                     argumentHint = parsed.frontmatter.argumentHint,
                     userInvocable = parsed.frontmatter.userInvocable,
                     modelInvocable = parsed.frontmatter.modelInvocable,
-                    isBundled = sourceMetadata?.sourceType == SkillSourceType.BUNDLED,
+                    isBundled = isCanonicalBundledMetadata(sourceMetadata, directory.directoryName),
                 )
             )
         }
@@ -1582,7 +1986,7 @@ internal fun resolveUpdatedSkillSourceMetadata(
             sourceId = finalDirectoryName,
         )
     }
-    if (existingMetadata.sourceType == SkillSourceType.BUNDLED && originalDirectoryName != finalDirectoryName) {
+    if (existingMetadata.sourceType == SkillSourceType.BUNDLED) {
         return SkillSourceMetadata(
             sourceType = SkillSourceType.LOCAL,
             sourceId = finalDirectoryName,
@@ -1591,19 +1995,37 @@ internal fun resolveUpdatedSkillSourceMetadata(
     return existingMetadata.copy(sourceId = existingMetadata.sourceId ?: finalDirectoryName)
 }
 
-internal fun shouldBackfillBundledSkillMetadata(installedMetadata: SkillSourceMetadata?): Boolean {
-    return installedMetadata == null
+internal fun shouldBackfillBundledSkillMetadata(
+    installedMetadata: SkillSourceMetadata?,
+    installedHash: String?,
+    expectedMetadata: SkillSourceMetadata,
+): Boolean {
+    return installedMetadata == null && installedHash != null && installedHash == expectedMetadata.hash
 }
 
 internal fun shouldRefreshBundledSkillInstallation(
     bundledSkill: BundledSkill,
     installedMetadata: SkillSourceMetadata?,
+    installedHash: String?,
     expectedMetadata: SkillSourceMetadata,
 ): Boolean {
     if (installedMetadata == null) return false
-    if (installedMetadata.sourceType != SkillSourceType.BUNDLED) return false
-    if (installedMetadata.sourceId != bundledSkill.directoryName) return false
-    return installedMetadata.hash != expectedMetadata.hash
+    if (!isCanonicalBundledMetadata(installedMetadata, bundledSkill.directoryName)) return false
+    if (installedHash == null || installedMetadata.hash == null) return false
+    return installedHash == installedMetadata.hash && installedHash != expectedMetadata.hash
+}
+
+internal fun shouldConvertBundledSkillInstallationToLocal(
+    bundledSkill: BundledSkill,
+    installedMetadata: SkillSourceMetadata?,
+    installedHash: String?,
+    expectedMetadata: SkillSourceMetadata,
+): Boolean {
+    if (installedMetadata == null) return false
+    if (!isCanonicalBundledMetadata(installedMetadata, bundledSkill.directoryName)) return false
+    if (installedHash == null || installedMetadata.hash == null) return false
+    if (installedHash == expectedMetadata.hash) return false
+    return installedHash != installedMetadata.hash
 }
 
 internal fun parseSkillMarkdownDocument(markdown: String): SkillMarkdownDocument {
@@ -1711,14 +2133,12 @@ internal fun parseSkillArchive(inputStream: InputStream): ParsedSkillArchive {
                 require(fileCount <= SKILL_ARCHIVE_MAX_FILES) {
                     "Zip archive contains too many files"
                 }
-                val bytes = zipInputStream.readBytes()
-                require(bytes.size <= SKILL_ARCHIVE_SINGLE_FILE_BYTES_LIMIT) {
-                    "Zip entry is too large: $normalizedPath"
-                }
+                val bytes = readZipEntryBytes(
+                    zipInputStream = zipInputStream,
+                    normalizedPath = normalizedPath,
+                    totalBytesConsumed = totalBytes,
+                )
                 totalBytes += bytes.size
-                require(totalBytes <= SKILL_ARCHIVE_MAX_TOTAL_BYTES) {
-                    "Zip archive is too large"
-                }
                 files += SkillArchiveFile(
                     path = normalizedPath,
                     bytes = bytes,
@@ -1739,6 +2159,31 @@ internal fun parseSkillArchive(inputStream: InputStream): ParsedSkillArchive {
             files = files,
         )
     )
+}
+
+private fun readZipEntryBytes(
+    zipInputStream: ZipInputStream,
+    normalizedPath: String,
+    totalBytesConsumed: Int,
+): ByteArray {
+    val output = ByteArrayOutputStream()
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    var entryBytes = 0
+    var totalBytes = totalBytesConsumed
+    while (true) {
+        val read = zipInputStream.read(buffer)
+        if (read <= 0) break
+        entryBytes += read
+        totalBytes += read
+        require(entryBytes <= SKILL_ARCHIVE_SINGLE_FILE_BYTES_LIMIT) {
+            "Zip entry is too large: $normalizedPath"
+        }
+        require(totalBytes <= SKILL_ARCHIVE_MAX_TOTAL_BYTES) {
+            "Zip archive is too large"
+        }
+        output.write(buffer, 0, read)
+    }
+    return output.toByteArray()
 }
 
 internal fun buildSkillImportPlan(
@@ -1776,7 +2221,7 @@ internal fun buildSkillImportPlan(
         topLevelDirectories = listOf(resolvedRootDirectory)
     } else {
         val desiredTopLevelDirectories = archive.topLevelDirectories()
-        val mapping = resolveUniqueDirectoryNames(
+        val mapping = resolveUniqueNormalizedDirectoryNames(
             desired = desiredTopLevelDirectories,
             existing = existingDirectoryNames,
         )
@@ -1788,6 +2233,8 @@ internal fun buildSkillImportPlan(
         }
         topLevelDirectories = desiredTopLevelDirectories.map { mapping.getValue(it) }
     }
+
+    validateUniqueSkillImportPaths(remappedFiles.map { it.path })
 
     val allDirectories = linkedSetOf<String>()
     allDirectories += topLevelDirectories
@@ -1877,6 +2324,50 @@ internal fun resolveUniqueDirectoryNames(
     }
 
     return resolved
+}
+
+internal fun resolveUniqueNormalizedDirectoryNames(
+    desired: List<String>,
+    existing: Set<String>,
+): Map<String, String> {
+    val reserved = existing.toMutableSet()
+    val resolved = linkedMapOf<String, String>()
+
+    desired.distinct().forEach { original ->
+        val baseName = sanitizeSkillDirectoryName(
+            input = original,
+            fallback = DEFAULT_IMPORTED_SKILL_DIRECTORY,
+        )
+        var candidate = baseName
+        var suffix = 2
+        while (candidate in reserved) {
+            candidate = "$baseName-$suffix"
+            suffix += 1
+        }
+        reserved += candidate
+        resolved[original] = candidate
+    }
+
+    return resolved
+}
+
+internal fun validateUniqueSkillImportPaths(
+    paths: List<String>,
+) {
+    val exactCollisions = paths.groupBy { it }.filterValues { it.size > 1 }.keys
+    require(exactCollisions.isEmpty()) {
+        "Zip archive contains duplicate paths: ${exactCollisions.first()}"
+    }
+
+    val caseInsensitiveCollisions = paths
+        .groupBy { it.lowercase() }
+        .filterValues { it.mapTo(linkedSetOf()) { path -> path }.size > 1 }
+        .values
+        .firstOrNull()
+    val conflictingPaths = caseInsensitiveCollisions?.joinToString(", ")
+    require(caseInsensitiveCollisions == null) {
+        "Zip archive contains conflicting paths: $conflictingPaths"
+    }
 }
 
 internal fun collapseSkillArchiveContainerLayers(archive: ParsedSkillArchive): ParsedSkillArchive {

@@ -9,6 +9,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxRunCommandRequest
+import me.rerere.rikkahub.data.model.Assistant
 
 class SkillsRepositoryTest {
     @Test
@@ -218,7 +219,7 @@ class SkillsRepositoryTest {
     }
 
     @Test
-    fun `bundled skill metadata should backfill before any reinstall check`() {
+    fun `bundled skill metadata should only backfill when installed contents still match bundled package`() {
         val bundledSkill = BundledSkill(
             directoryName = "skill-creator",
             assetPath = "builtin_skills/skill-creator",
@@ -230,12 +231,24 @@ class SkillsRepositoryTest {
         )
 
         assertTrue(
-            shouldBackfillBundledSkillMetadata(installedMetadata = null)
+            shouldBackfillBundledSkillMetadata(
+                installedMetadata = null,
+                installedHash = "new-hash",
+                expectedMetadata = expectedMetadata,
+            )
+        )
+        assertFalse(
+            shouldBackfillBundledSkillMetadata(
+                installedMetadata = null,
+                installedHash = "modified-hash",
+                expectedMetadata = expectedMetadata,
+            )
         )
         assertFalse(
             shouldRefreshBundledSkillInstallation(
                 bundledSkill = bundledSkill,
                 installedMetadata = null,
+                installedHash = "new-hash",
                 expectedMetadata = expectedMetadata,
             )
         )
@@ -243,6 +256,7 @@ class SkillsRepositoryTest {
             shouldRefreshBundledSkillInstallation(
                 bundledSkill = bundledSkill,
                 installedMetadata = expectedMetadata.copy(hash = "old-hash"),
+                installedHash = "old-hash",
                 expectedMetadata = expectedMetadata,
             )
         )
@@ -250,6 +264,7 @@ class SkillsRepositoryTest {
             shouldRefreshBundledSkillInstallation(
                 bundledSkill = bundledSkill,
                 installedMetadata = expectedMetadata,
+                installedHash = "new-hash",
                 expectedMetadata = expectedMetadata,
             )
         )
@@ -257,13 +272,22 @@ class SkillsRepositoryTest {
             shouldRefreshBundledSkillInstallation(
                 bundledSkill = bundledSkill,
                 installedMetadata = expectedMetadata.copy(sourceType = SkillSourceType.LOCAL),
+                installedHash = "old-hash",
+                expectedMetadata = expectedMetadata,
+            )
+        )
+        assertTrue(
+            shouldConvertBundledSkillInstallationToLocal(
+                bundledSkill = bundledSkill,
+                installedMetadata = expectedMetadata.copy(hash = "old-hash"),
+                installedHash = "user-modified",
                 expectedMetadata = expectedMetadata,
             )
         )
     }
 
     @Test
-    fun `resolveUpdatedSkillSourceMetadata should reset bundled provenance after rename`() {
+    fun `resolveUpdatedSkillSourceMetadata should reset bundled provenance after any edit`() {
         val resolved = resolveUpdatedSkillSourceMetadata(
             existingMetadata = SkillSourceMetadata(
                 sourceType = SkillSourceType.BUNDLED,
@@ -271,12 +295,29 @@ class SkillsRepositoryTest {
                 hash = "abc",
             ),
             originalDirectoryName = "skill-creator",
-            finalDirectoryName = "skill-creator-custom",
+            finalDirectoryName = "skill-creator",
         )
 
         assertEquals(SkillSourceType.LOCAL, resolved.sourceType)
-        assertEquals("skill-creator-custom", resolved.sourceId)
+        assertEquals("skill-creator", resolved.sourceId)
         assertNull(resolved.hash)
+    }
+
+    @Test
+    fun `normalizeCatalogSkillSourceMetadata should downgrade stale bundled metadata to local`() {
+        val normalized = normalizeCatalogSkillSourceMetadata(
+            directoryName = "skill-copy",
+            metadata = SkillSourceMetadata(
+                sourceType = SkillSourceType.BUNDLED,
+                sourceId = "skill-creator",
+                version = "1.0.0",
+                hash = "abc",
+            ),
+        )
+
+        assertEquals(SkillSourceType.LOCAL, normalized!!.sourceType)
+        assertEquals("skill-copy", normalized.sourceId)
+        assertNull(normalized.hash)
     }
 
     @Test
@@ -536,5 +577,114 @@ class SkillsRepositoryTest {
         }
 
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `normalizeSkillArchiveEntryPath should reject absolute and deeply nested paths`() {
+        assertTrue(runCatching { normalizeSkillArchiveEntryPath("/demo/SKILL.md") }.isFailure)
+        assertTrue(runCatching { normalizeSkillArchiveEntryPath("C:/demo/SKILL.md") }.isFailure)
+        assertTrue(
+            runCatching {
+                normalizeSkillArchiveEntryPath("a/b/c/d/e/f/g/h/i/SKILL.md")
+            }.isFailure
+        )
+    }
+
+    @Test
+    fun `buildSkillImportPlan should sanitize imported top level directory names`() {
+        val archive = ParsedSkillArchive(
+            directories = linkedSetOf("My Skill", "My Skill/scripts"),
+            files = listOf(
+                SkillArchiveFile(
+                    path = "My Skill/SKILL.md",
+                    bytes = buildSkillMarkdown(
+                        name = "My Skill",
+                        description = "Imported",
+                        body = "",
+                    ).toByteArray(),
+                ),
+                SkillArchiveFile(
+                    path = "My Skill/scripts/run.sh",
+                    bytes = "echo ok".toByteArray(),
+                ),
+            ),
+        )
+
+        val plan = buildSkillImportPlan(archive = archive, suggestedDirectoryName = null)
+
+        assertEquals(listOf("my-skill"), plan.topLevelDirectories)
+        assertTrue(plan.files.any { it.path == "my-skill/SKILL.md" })
+        assertTrue(plan.files.any { it.path == "my-skill/scripts/run.sh" })
+    }
+
+    @Test
+    fun `buildSkillImportPlan should reject duplicate paths after remapping`() {
+        val archive = ParsedSkillArchive(
+            directories = linkedSetOf("demo"),
+            files = listOf(
+                SkillArchiveFile("demo/SKILL.md", buildSkillMarkdown("Demo", "Imported", "").toByteArray()),
+                SkillArchiveFile("demo/SKILL.md", buildSkillMarkdown("Demo", "Shadow", "").toByteArray()),
+            ),
+        )
+
+        val result = runCatching {
+            buildSkillImportPlan(archive = archive, suggestedDirectoryName = null)
+        }
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `buildSkillImportPlan should reject archives without top level skill file`() {
+        val archive = ParsedSkillArchive(
+            directories = linkedSetOf("demo/resources"),
+            files = listOf(
+                SkillArchiveFile("demo/resources/readme.md", "hello".toByteArray()),
+            ),
+        )
+
+        val result = runCatching {
+            buildSkillImportPlan(archive = archive, suggestedDirectoryName = null)
+        }
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `requireTopLevelSkillDirectoryName should reject traversal and separators`() {
+        assertTrue(runCatching { requireTopLevelSkillDirectoryName("../demo") }.isFailure)
+        assertTrue(runCatching { requireTopLevelSkillDirectoryName("demo/test") }.isFailure)
+        assertEquals("demo-skill", requireTopLevelSkillDirectoryName("demo-skill"))
+    }
+
+    @Test
+    fun `assistant skill references should be renamed across all assistants`() {
+        val assistants = listOf(
+            Assistant(name = "A", selectedSkills = setOf("old-skill", "other")),
+            Assistant(name = "B", selectedSkills = setOf("old-skill")),
+            Assistant(name = "C", selectedSkills = emptySet()),
+        )
+
+        val renamed = assistants.replaceSelectedSkillDirectory(
+            fromDirectoryName = "old-skill",
+            toDirectoryName = "new-skill",
+        )
+
+        assertEquals(setOf("new-skill", "other"), renamed[0].selectedSkills)
+        assertEquals(setOf("new-skill"), renamed[1].selectedSkills)
+        assertTrue(renamed[2].selectedSkills.isEmpty())
+    }
+
+    @Test
+    fun `assistant skill references should be removed across all assistants`() {
+        val assistants = listOf(
+            Assistant(name = "A", selectedSkills = setOf("old-skill", "other")),
+            Assistant(name = "B", selectedSkills = setOf("old-skill")),
+        )
+
+        val updated = assistants.removeSelectedSkillDirectory("old-skill")
+
+        assertEquals(setOf("other"), updated[0].selectedSkills)
+        assertTrue(updated[1].selectedSkills.isEmpty())
     }
 }

@@ -33,7 +33,7 @@ class SkillsPromptTest {
     }
 
     @Test
-    fun `parseSkillFrontmatter should extract optional activation metadata`() {
+    fun `parseSkillFrontmatter should normalize optional activation metadata`() {
         val markdown = """
             ---
             name: webapp-testing
@@ -55,7 +55,7 @@ class SkillsPromptTest {
         assertEquals("Bash, Read", result.frontmatter.allowedTools)
         assertEquals("<path-to-project>", result.frontmatter.argumentHint)
         assertFalse(result.frontmatter.userInvocable)
-        assertFalse(result.frontmatter.modelInvocable)
+        assertTrue(result.frontmatter.modelInvocable)
         assertEquals("anthropic", result.frontmatter.author)
         assertEquals("1.0.0", result.frontmatter.version)
     }
@@ -214,6 +214,17 @@ class SkillsPromptTest {
     }
 
     @Test
+    fun `shouldLoadExplicitSkillActivations should not require tool runtime`() {
+        val assistant = Assistant(
+            skillsEnabled = true,
+            selectedSkills = setOf("manual-only"),
+            localTools = listOf(LocalToolOption.TimeInfo),
+        )
+
+        assertTrue(shouldLoadExplicitSkillActivations(assistant))
+    }
+
+    @Test
     fun `resolveExplicitSkillInvocations should detect slash and mention syntax`() {
         val skills = listOf(
             SkillCatalogEntry(
@@ -286,7 +297,45 @@ class SkillsPromptTest {
     }
 
     @Test
-    fun `buildActivatedSkillsPrompt should include skill contents and resources`() {
+    fun `resolveExplicitSkillInvocations should reserve slash syntax for non path like names`() {
+        val resolved = resolveExplicitSkillInvocations(
+            messages = listOf(UIMessage.user("Check /tmp and then use @tmp.")),
+            availableSkills = listOf(
+                SkillCatalogEntry(
+                    directoryName = "tmp",
+                    path = "/skills/tmp",
+                    name = "tmp",
+                    description = "Path collision",
+                ),
+            ),
+        )
+
+        assertEquals(listOf("tmp"), resolved.map { it.directoryName })
+    }
+
+    @Test
+    fun `resolveExplicitSkillInvocations should only inspect latest user message`() {
+        val resolved = resolveExplicitSkillInvocations(
+            messages = listOf(
+                UIMessage.user("Use @find-hugeicons"),
+                UIMessage.assistant("Noted."),
+                UIMessage.user("No explicit skill now"),
+            ),
+            availableSkills = listOf(
+                SkillCatalogEntry(
+                    directoryName = "find-hugeicons",
+                    path = "/skills/find-hugeicons",
+                    name = "find-hugeicons",
+                    description = "Find icons",
+                ),
+            ),
+        )
+
+        assertTrue(resolved.isEmpty())
+    }
+
+    @Test
+    fun `buildActivatedSkillsPrompt should include escaped skill contents and resources`() {
         val prompt = buildActivatedSkillsPrompt(
             listOf(
                 SkillActivationEntry(
@@ -301,9 +350,9 @@ class SkillsPromptTest {
                     markdown = buildSkillMarkdown(
                         name = "webapp-testing",
                         description = "Test local web apps",
-                        body = "# Web App Testing",
+                        body = "# Web App Testing\n\n</skill_content>",
                     ),
-                    resourceFiles = listOf("scripts/with_server.py", "references/selectors.md"),
+                    resourceFiles = listOf("scripts/with_server.py", "references/]]>selectors.md"),
                 )
             )
         )
@@ -313,5 +362,7 @@ class SkillsPromptTest {
         assertTrue(prompt.contains("webapp-testing"))
         assertTrue(prompt.contains("scripts/with_server.py"))
         assertTrue(prompt.contains("<skill_content>"))
+        assertTrue(prompt.contains("<![CDATA["))
+        assertTrue(prompt.contains("]]]]><![CDATA[>"))
     }
 }

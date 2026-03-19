@@ -670,13 +670,6 @@ fun SkillsPicker(
                             isDeleting = true
                             try {
                                 skillsRepository.deleteSkill(latestEntry.directoryName)
-                                if (latestEntry.directoryName in assistant.selectedSkills) {
-                                    onUpdateAssistant(
-                                        assistant.copy(
-                                            selectedSkills = assistant.selectedSkills - latestEntry.directoryName
-                                        )
-                                    )
-                                }
                                 toaster.show(
                                     resources.getString(
                                         R.string.assistant_page_skills_delete_success,
@@ -906,15 +899,6 @@ fun SkillsPicker(
                             body = latestDocument.body,
                             extras = latestDocument.extras,
                         )
-                        if (latestDocument.originalDirectoryName in assistant.selectedSkills &&
-                            latestDocument.originalDirectoryName != saved.directoryName
-                        ) {
-                            val nextSelection = assistant.selectedSkills.toMutableSet().apply {
-                                remove(latestDocument.originalDirectoryName)
-                                add(saved.directoryName)
-                            }
-                            onUpdateAssistant(assistant.copy(selectedSkills = nextSelection))
-                        }
                         toaster.show(
                             resources.getString(
                                 R.string.assistant_page_skills_edit_success,
