@@ -145,6 +145,122 @@ class MessageTest {
     }
 
     @Test
+    fun `limitToolCallRounds should keep only the latest executed tool rounds`() {
+        val messages = listOf(
+            UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("User 1"))),
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Text("Before tool 1"),
+                    UIMessagePart.Tool(
+                        toolCallId = "call1",
+                        toolName = "search",
+                        input = "{}",
+                        output = listOf(UIMessagePart.Text("result 1"))
+                    ),
+                    UIMessagePart.Text("After tool 1")
+                )
+            ),
+            UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("User 2"))),
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Text("Before tool 2"),
+                    UIMessagePart.Tool(
+                        toolCallId = "call2",
+                        toolName = "search",
+                        input = "{}",
+                        output = listOf(UIMessagePart.Text("result 2"))
+                    ),
+                    UIMessagePart.Text("After tool 2")
+                )
+            ),
+            UIMessage(role = MessageRole.ASSISTANT, parts = listOf(UIMessagePart.Text("Final answer")))
+        )
+
+        val result = messages.limitToolCallRounds(1)
+
+        assertEquals(5, result.size)
+        assertEquals(listOf(UIMessagePart.Text("Before tool 1"), UIMessagePart.Text("After tool 1")), result[1].parts)
+        assertTrue(result[3].parts.any { it is UIMessagePart.Tool && it.toolCallId == "call2" })
+        assertEquals(messages.last(), result.last())
+    }
+
+    @Test
+    fun `limitToolCallRounds should keep non-tool content between multiple rounds in one message`() {
+        val message = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Text("Round 1 intro"),
+                UIMessagePart.Tool(
+                    toolCallId = "call1",
+                    toolName = "search",
+                    input = "{}",
+                    output = listOf(UIMessagePart.Text("result 1"))
+                ),
+                UIMessagePart.Text("Between rounds"),
+                UIMessagePart.Tool(
+                    toolCallId = "call2",
+                    toolName = "search",
+                    input = "{}",
+                    output = listOf(UIMessagePart.Text("result 2"))
+                ),
+                UIMessagePart.Text("Round 2 outro")
+            )
+        )
+
+        val result = listOf(message).limitToolCallRounds(1)
+
+        assertEquals(1, result.size)
+        assertEquals(
+            listOf(
+                UIMessagePart.Text("Round 1 intro"),
+                UIMessagePart.Text("Between rounds"),
+                UIMessagePart.Tool(
+                    toolCallId = "call2",
+                    toolName = "search",
+                    input = "{}",
+                    output = listOf(UIMessagePart.Text("result 2"))
+                ),
+                UIMessagePart.Text("Round 2 outro")
+            ),
+            result.single().parts
+        )
+    }
+
+    @Test
+    fun `limitToolCallRounds should remove all executed tool rounds when limited to zero`() {
+        val result = listOf(
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Text("Keep me"),
+                    UIMessagePart.Tool(
+                        toolCallId = "call1",
+                        toolName = "search",
+                        input = "{}",
+                        output = listOf(UIMessagePart.Text("result 1"))
+                    )
+                )
+            ),
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Tool(
+                        toolCallId = "call2",
+                        toolName = "search",
+                        input = "{}",
+                        output = listOf(UIMessagePart.Text("result 2"))
+                    )
+                )
+            )
+        ).limitToolCallRounds(0)
+
+        assertEquals(1, result.size)
+        assertEquals(listOf(UIMessagePart.Text("Keep me")), result.single().parts)
+    }
+
+    @Test
     fun `toText should unwrap legacy user shell wrapper for user role`() {
         val message = UIMessage(
             role = MessageRole.USER,

@@ -343,6 +343,83 @@ fun List<UIMessage>.limitContext(size: Int): List<UIMessage> {
     return this.subList(adjustedStartIndex, this.size)
 }
 
+fun List<UIMessage>.limitToolCallRounds(maxRounds: Int?): List<UIMessage> {
+    if (maxRounds == null || maxRounds < 0 || this.isEmpty()) return this
+
+    val totalRounds = sumOf { message ->
+        groupPartsByExecutedToolBoundary(message.parts).count { it is ExecutedToolRoundGroup.Tools }
+    }
+    if (totalRounds <= maxRounds) return this
+
+    var roundsToSkip = totalRounds - maxRounds
+    return buildList(this.size) {
+        this@limitToolCallRounds.forEach { message ->
+            if (roundsToSkip <= 0) {
+                add(message)
+                return@forEach
+            }
+
+            val filteredParts = buildList(message.parts.size) {
+                groupPartsByExecutedToolBoundary(message.parts).forEach { group ->
+                    when (group) {
+                        is ExecutedToolRoundGroup.Content -> addAll(group.parts)
+                        is ExecutedToolRoundGroup.Tools -> {
+                            if (roundsToSkip > 0) {
+                                roundsToSkip--
+                            } else {
+                                addAll(group.tools)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (filteredParts.isNotEmpty()) {
+                add(message.copy(parts = filteredParts))
+            }
+        }
+    }
+}
+
+private sealed class ExecutedToolRoundGroup {
+    data class Content(val parts: List<UIMessagePart>) : ExecutedToolRoundGroup()
+    data class Tools(val tools: List<UIMessagePart.Tool>) : ExecutedToolRoundGroup()
+}
+
+private fun groupPartsByExecutedToolBoundary(parts: List<UIMessagePart>): List<ExecutedToolRoundGroup> {
+    val groups = mutableListOf<ExecutedToolRoundGroup>()
+    val currentContent = mutableListOf<UIMessagePart>()
+    val currentTools = mutableListOf<UIMessagePart.Tool>()
+
+    fun flushContent() {
+        if (currentContent.isNotEmpty()) {
+            groups.add(ExecutedToolRoundGroup.Content(currentContent.toList()))
+            currentContent.clear()
+        }
+    }
+
+    fun flushTools() {
+        if (currentTools.isNotEmpty()) {
+            groups.add(ExecutedToolRoundGroup.Tools(currentTools.toList()))
+            currentTools.clear()
+        }
+    }
+
+    parts.forEach { part ->
+        if (part is UIMessagePart.Tool && part.isExecuted) {
+            flushContent()
+            currentTools.add(part)
+        } else {
+            flushTools()
+            currentContent.add(part)
+        }
+    }
+
+    flushContent()
+    flushTools()
+    return groups
+}
+
 @Serializable
 sealed class ToolApprovalState {
     @Serializable

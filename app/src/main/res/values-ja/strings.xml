@@ -1842,5 +1842,8 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_mcp_page_stdio_env_value">変数値</string>
   <string name="setting_mcp_page_stdio_env_value_placeholder">例：sk-***</string>
   <string name="setting_mcp_page_stdio_add_env">変数を追加</string>
+  <string name="assistant_page_tool_call_keep_rounds">保持するツール呼び出しラウンド</string>
+  <string name="assistant_page_tool_call_keep_rounds_desc">最近実行されたツール呼び出しとその結果をコンテキストに何ラウンド残すかを制御します。古いツール実行の履歴は削除されますが、通常のチャットメッセージは残ります。</string>
+  <string name="assistant_page_tool_call_keep_rounds_count">保持するツール呼び出しラウンド: %d</string>
+  <string name="assistant_page_tool_call_keep_rounds_unlimited">ツール呼び出しラウンドは無制限</string>
 </resources>
-

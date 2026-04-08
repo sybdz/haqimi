@@ -1840,4 +1840,8 @@
   <string name="assistant_page_sampling_desc_google">Sent inside generationConfig for Gemini or Vertex-compatible backends.</string>
   <string name="assistant_page_sampling_desc_claude">Sent as Anthropic Messages API fields.</string>
   <string name="assistant_page_sampling_desc_compat">Only fields supported by the selected backend are used.</string>
+  <string name="assistant_page_tool_call_keep_rounds">Tool Call Rounds to Keep</string>
+  <string name="assistant_page_tool_call_keep_rounds_desc">Controls how many recent rounds of executed tool calls and results remain in context. Older tool traces are removed while regular chat messages stay.</string>
+  <string name="assistant_page_tool_call_keep_rounds_count">Tool call rounds kept: %d</string>
+  <string name="assistant_page_tool_call_keep_rounds_unlimited">Unlimited tool call rounds</string>
 </resources>

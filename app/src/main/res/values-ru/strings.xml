@@ -1842,5 +1842,8 @@
   <string name="setting_mcp_page_stdio_env_value">Значение переменной</string>
   <string name="setting_mcp_page_stdio_env_value_placeholder">например: sk-***</string>
   <string name="setting_mcp_page_stdio_add_env">Добавить переменную</string>
+  <string name="assistant_page_tool_call_keep_rounds">Раунды вызова инструментов для сохранения</string>
+  <string name="assistant_page_tool_call_keep_rounds_desc">Определяет, сколько последних раундов выполненных вызовов инструментов и их результатов сохраняется в контексте. Более старые следы вызовов удаляются, но обычные сообщения чата остаются.</string>
+  <string name="assistant_page_tool_call_keep_rounds_count">Сохранено раундов вызова инструментов: %d</string>
+  <string name="assistant_page_tool_call_keep_rounds_unlimited">Раунды вызова инструментов без ограничений</string>
 </resources>
-

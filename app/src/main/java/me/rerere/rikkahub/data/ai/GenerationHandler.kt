@@ -28,6 +28,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
+import me.rerere.ai.ui.limitToolCallRounds
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxApprovalBlacklistMatcher
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
@@ -43,6 +44,7 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.data.model.resolveToolCallKeepRoundsLimit
 import me.rerere.rikkahub.data.skills.SkillsRepository
 import me.rerere.rikkahub.data.skills.buildSkillsCatalogPrompt
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -98,7 +100,7 @@ class GenerationHandler(
 
             val toolsInternal = buildList {
                 Log.i(TAG, "generateInternal: build tools($assistant)")
-                if (assistant?.enableMemory == true) {
+                if (assistant.enableMemory) {
                     val memoryAssistantId = if (assistant.useGlobalMemory) {
                         MemoryRepository.GLOBAL_MEMORY_ID
                     } else {
@@ -486,6 +488,10 @@ class GenerationHandler(
         lorebookRuntimeState: LorebookRuntimeState?,
         dryRun: Boolean = false,
     ): List<UIMessage> {
+        val preparedMessages = messages
+            .limitToolCallRounds(assistant.resolveToolCallKeepRoundsLimit())
+            .limitContext(assistant.contextMessageSize)
+
         return buildList {
             val system = buildString {
                 if (assistant.systemPrompt.isNotBlank()) {
@@ -512,11 +518,11 @@ class GenerationHandler(
 
                 tools.forEach { tool ->
                     appendLine()
-                    append(tool.systemPrompt(model, messages))
+                    append(tool.systemPrompt(model, preparedMessages))
                 }
             }
             if (system.isNotBlank()) add(UIMessage.system(prompt = system))
-            addAll(messages.limitContext(assistant.contextMessageSize))
+            addAll(preparedMessages)
         }.transforms(
             transformers = transformers,
             context = context,

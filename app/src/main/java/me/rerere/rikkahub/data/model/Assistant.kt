@@ -12,6 +12,7 @@ import kotlin.random.Random
 import kotlin.uuid.Uuid
 
 private val DEFAULT_SCHEDULED_TASK_ASSISTANT_ID = Uuid.parse("0950e2dc-9bd5-4801-afa3-aa887aa36b4e")
+const val ASSISTANT_TOOL_CALL_KEEP_ROUNDS_SLIDER_MAX = 32
 
 @Serializable
 data class Assistant(
@@ -26,6 +27,7 @@ data class Assistant(
     val temperature: Float? = null,
     val topP: Float? = null,
     val contextMessageSize: Int = 0,
+    val toolCallKeepRounds: Int = ASSISTANT_TOOL_CALL_KEEP_ROUNDS_SLIDER_MAX,
     val streamOutput: Boolean = true,
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
@@ -63,6 +65,10 @@ data class Assistant(
     val openAIVerbosity: String = "",
     val stCharacterData: SillyTavernCharacterData? = null,
 )
+
+fun Assistant.resolveToolCallKeepRoundsLimit(): Int? {
+    return toolCallKeepRounds.takeUnless { it >= ASSISTANT_TOOL_CALL_KEEP_ROUNDS_SLIDER_MAX }
+}
 
 fun Assistant.resolveConversationStarterMessages(
     random: Random = Random.Default,
