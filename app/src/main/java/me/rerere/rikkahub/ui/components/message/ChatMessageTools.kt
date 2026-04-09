@@ -105,6 +105,11 @@ private object ToolNames {
     const val TTS = "text_to_speech"
     const val ASK_USER = "ask_user"
     const val USE_SKILL = "use_skill"
+    const val TERMUX_EXEC = TermuxToolUiNames.EXEC
+    const val TERMUX_PYTHON = TermuxToolUiNames.PYTHON
+    const val WRITE_STDIN = TermuxToolUiNames.WRITE_STDIN
+    const val LIST_PTY_SESSIONS = TermuxToolUiNames.LIST_PTY_SESSIONS
+    const val CLOSE_PTY_SESSION = TermuxToolUiNames.CLOSE_PTY_SESSION
 }
 
 private object MemoryActions {
@@ -151,7 +156,7 @@ internal fun UIMessagePart.Tool.pendingApprovalPreview(): PendingApprovalPreview
     val arguments = inputAsJson()
     val argumentObject = arguments.jsonObjectOrNull
     return when (toolName) {
-        "termux_exec" -> argumentObject?.get("command")?.jsonPrimitiveOrNull?.contentOrNull
+        ToolNames.TERMUX_EXEC -> argumentObject?.get("command")?.jsonPrimitiveOrNull?.contentOrNull
             ?.takeIf { it.isNotBlank() }
             ?.let { PendingApprovalPreview(code = it, language = "bash") }
             ?: PendingApprovalPreview(
@@ -159,7 +164,7 @@ internal fun UIMessagePart.Tool.pendingApprovalPreview(): PendingApprovalPreview
                 language = "json"
             )
 
-        "termux_python" -> argumentObject?.get("code")?.jsonPrimitiveOrNull?.contentOrNull
+        ToolNames.TERMUX_PYTHON -> argumentObject?.get("code")?.jsonPrimitiveOrNull?.contentOrNull
             ?.takeIf { it.isNotBlank() }
             ?.let { PendingApprovalPreview(code = it, language = "python") }
             ?: PendingApprovalPreview(
@@ -167,7 +172,7 @@ internal fun UIMessagePart.Tool.pendingApprovalPreview(): PendingApprovalPreview
                 language = "json"
             )
 
-        "write_stdin" -> PendingApprovalPreview(
+        ToolNames.WRITE_STDIN -> PendingApprovalPreview(
             code = argumentObject?.get("chars")?.jsonPrimitiveOrNull?.contentOrNull
                 ?.takeIf { it.isNotBlank() }
                 ?: "[poll for more output]",
@@ -203,6 +208,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     val isDenied = tool.approvalState is ToolApprovalState.Denied
     val arguments = tool.inputAsJson()
     val pendingPreview = tool.pendingApprovalPreview()
+    val termuxPreview = tool.termuxOutputPreview()
     val memoryAction = arguments.getStringContent("action")
     val content = if (tool.isExecuted) {
         runCatching {
@@ -243,6 +249,17 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             "Speaking: $preview"
         }
 
+        ToolNames.TERMUX_EXEC -> "Termux Exec"
+        ToolNames.TERMUX_PYTHON -> "Termux Python"
+        ToolNames.WRITE_STDIN -> if (arguments.getStringContent("chars").isNullOrBlank()) {
+            "Termux PTY Poll"
+        } else {
+            "Termux PTY Input"
+        }
+
+        ToolNames.LIST_PTY_SESSIONS -> "Termux PTY Sessions"
+        ToolNames.CLOSE_PTY_SESSION -> "Termux PTY Close"
+
         ToolNames.USE_SKILL -> {
             val skillName = arguments.getStringContent("name") ?: ""
             val path = arguments.getStringContent("path")
@@ -262,6 +279,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
 
         ToolNames.SCRAPE_WEB -> arguments.getStringContent("url") != null
         ToolNames.TTS -> arguments.getStringContent("text") != null
+        ToolNames.TERMUX_EXEC, ToolNames.TERMUX_PYTHON, ToolNames.WRITE_STDIN -> termuxPreview != null
         else -> false
     } || isDenied || images.isNotEmpty() || pendingPreview != null
 
@@ -336,6 +354,18 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                             code = preview.code,
                             language = preview.language,
                             style = TextStyle(fontSize = 10.sp, lineHeight = 12.sp)
+                        )
+                    }
+                    termuxPreview?.let { preview ->
+                        TerminalOutputCard(
+                            title = preview.title,
+                            output = preview.output,
+                            commandPreview = preview.commandPreview,
+                            exitCode = preview.exitCode,
+                            running = preview.running,
+                            sessionId = preview.sessionId,
+                            isError = preview.isError,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     if (tool.toolName == ToolNames.MEMORY &&
@@ -668,6 +698,13 @@ private fun GenericToolPreview(
     scope: kotlinx.coroutines.CoroutineScope,
     onDismissRequest: () -> Unit
 ) {
+    val termuxPreview = remember(toolName, arguments, output) {
+        buildTermuxToolOutputPreview(
+            toolName = toolName,
+            arguments = arguments,
+            output = output,
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxHeight(0.8f)
@@ -720,25 +757,38 @@ private fun GenericToolPreview(
                 }
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    output.fastForEach { part ->
-                        when (part) {
-                            is UIMessagePart.Text -> HighlightCodeBlock(
-                                code = runCatching {
-                                    JsonInstantPretty.encodeToString(
-                                        JsonInstant.parseToJsonElement(part.text)
-                                    )
-                                }.getOrElse { part.text },
-                                language = "json",
-                                style = TextStyle(fontSize = 10.sp, lineHeight = 12.sp)
-                            )
+                    if (termuxPreview != null) {
+                        TerminalOutputCard(
+                            title = termuxPreview.title,
+                            output = termuxPreview.output,
+                            commandPreview = termuxPreview.commandPreview,
+                            exitCode = termuxPreview.exitCode,
+                            running = termuxPreview.running,
+                            sessionId = termuxPreview.sessionId,
+                            isError = termuxPreview.isError,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        output.fastForEach { part ->
+                            when (part) {
+                                is UIMessagePart.Text -> HighlightCodeBlock(
+                                    code = runCatching {
+                                        JsonInstantPretty.encodeToString(
+                                            JsonInstant.parseToJsonElement(part.text)
+                                        )
+                                    }.getOrElse { part.text },
+                                    language = "json",
+                                    style = TextStyle(fontSize = 10.sp, lineHeight = 12.sp)
+                                )
 
-                            is UIMessagePart.Image -> ZoomableAsyncImage(
-                                model = part.url,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                                is UIMessagePart.Image -> ZoomableAsyncImage(
+                                    model = part.url,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
 
-                            else -> {}
+                                else -> {}
+                            }
                         }
                     }
                 }
