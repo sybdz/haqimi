@@ -26,6 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -196,11 +199,13 @@ internal fun TerminalOutputCard(
     val bodyLineCount = remember(output) {
         output.lineSequence().count().coerceAtLeast(1)
     }
-    val visibleLineCount = bodyLineCount.coerceAtMost(TERMINAL_MAX_VISIBLE_LINES)
+    var laidOutLineCount by remember(output) { mutableIntStateOf(bodyLineCount) }
+    val effectiveLineCount = maxOf(bodyLineCount, laidOutLineCount)
+    val visibleLineCount = effectiveLineCount.coerceAtMost(TERMINAL_MAX_VISIBLE_LINES)
     val bodyMaxHeight = with(LocalDensity.current) {
         bodyTextStyle.lineHeight.toDp() * visibleLineCount + 18.dp
     }
-    val needsScroll = bodyLineCount > TERMINAL_MAX_VISIBLE_LINES
+    val needsScroll = effectiveLineCount > TERMINAL_MAX_VISIBLE_LINES
     val bodyScrollState = rememberScrollState()
     val terminalBodyColor = colorScheme.surfaceColorAtElevation(1.dp).copy(alpha = 0.96f)
 
@@ -265,9 +270,9 @@ internal fun TerminalOutputCard(
                         accentColor = colorScheme.primary,
                     )
                 }
-                if (bodyLineCount > 1) {
+                if (effectiveLineCount > 1) {
                     TerminalMetaChip(
-                        text = "$bodyLineCount lines",
+                        text = "$effectiveLineCount lines",
                         accentColor = colorScheme.outline,
                     )
                 }
@@ -279,9 +284,13 @@ internal fun TerminalOutputCard(
                 border = BorderStroke(1.dp, accentColor.copy(alpha = 0.1f)),
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = bodyMaxHeight)
+                    modifier = Modifier.fillMaxWidth().then(
+                        if (needsScroll) {
+                            Modifier.heightIn(max = bodyMaxHeight)
+                        } else {
+                            Modifier
+                        }
+                    )
                 ) {
                     val outputModifier = if (needsScroll) {
                         Modifier
@@ -296,6 +305,12 @@ internal fun TerminalOutputCard(
                             text = output,
                             style = bodyTextStyle,
                             color = colorScheme.onSurface.copy(alpha = 0.9f),
+                            onTextLayout = { layoutResult ->
+                                val measuredLines = layoutResult.lineCount.coerceAtLeast(bodyLineCount)
+                                if (laidOutLineCount != measuredLines) {
+                                    laidOutLineCount = measuredLines
+                                }
+                            },
                             modifier = outputModifier.padding(horizontal = 12.dp, vertical = 10.dp),
                         )
                     }
