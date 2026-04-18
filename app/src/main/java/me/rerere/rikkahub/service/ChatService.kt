@@ -1396,8 +1396,10 @@ class ChatService(
         val ptySessionsOpenedThisRun = linkedSetOf<String>()
         var latestGeneratedAssistantId: Uuid? = null
         runCatching {
+            val initialConversation = getConversationFlow(conversationId).value
+
             // reset suggestions
-            updateConversation(conversationId, conversation.copy(chatSuggestions = emptyList()))
+            updateConversation(conversationId, initialConversation.copy(chatSuggestions = emptyList()))
 
             // memory tool
             if (!model.abilities.contains(ModelAbility.TOOL)) {

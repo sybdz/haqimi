@@ -200,6 +200,23 @@ private fun List<IntRange>.overlaps(range: IntRange): Boolean {
     }
 }
 
+private data class MarkdownParseResult(
+    val preprocessed: String,
+    val astTree: ASTNode,
+    val hasHtmlBlocks: Boolean,
+)
+
+private fun ASTNode.containsHtmlBlocks(): Boolean {
+    if (type == MarkdownElementTypes.HTML_BLOCK) return true
+    return children.any { it.containsHtmlBlocks() }
+}
+
+private fun parseMarkdown(content: String): MarkdownParseResult {
+    val preprocessed = preProcessMarkdownContent(content)
+    val astTree = parser.buildMarkdownTreeFromString(preprocessed)
+    return MarkdownParseResult(preprocessed, astTree, astTree.containsHtmlBlocks())
+}
+
 internal fun extractCodeFenceContent(
     node: ASTNode,
     content: String,
@@ -350,10 +367,8 @@ fun MarkdownBlock(
     onClickCitation: (String) -> Unit = {}
 ) {
     var (data, setData) = remember {
-        val preprocessed = preProcessMarkdownContent(content)
-        val astTree = parser.buildMarkdownTreeFromString(preprocessed)
         mutableStateOf(
-            value = preprocessed to astTree,
+            value = parseMarkdown(content),
             policy = referentialEqualityPolicy(),
         )
     }
@@ -363,30 +378,36 @@ fun MarkdownBlock(
     val updatedContent by rememberUpdatedState(content)
     LaunchedEffect(Unit) {
         snapshotFlow { updatedContent }.distinctUntilChanged().mapLatest {
-            val preprocessed = preProcessMarkdownContent(it)
-            val astTree = parser.buildMarkdownTreeFromString(preprocessed)
-            preprocessed to astTree
+            parseMarkdown(it)
         }.catch { exception -> exception.printStackTrace() }.flowOn(Dispatchers.Default) // 在后台线程解析AST树
             .collect {
                 setData(it)
             }
     }
 
-    val (preprocessed, astTree) = data
-    ProvideTextStyle(style) {
-        Column(
-            modifier = modifier
-                .padding(start = 4.dp)
-                .animateContentSize()
-        ) {
-            astTree.children.fastForEach { child ->
-                MarkdownNode(
-                    node = child,
-                    content = preprocessed,
-                    headerLevelOffset = headerLevelOffset,
-                    onClickCitation = onClickCitation,
-                    messageDepthFromEnd = messageDepthFromEnd,
-                )
+    if (data.hasHtmlBlocks) {
+        MarkdownNew(
+            content = content,
+            modifier = modifier,
+            style = style,
+            onClickCitation = onClickCitation,
+        )
+    } else {
+        ProvideTextStyle(style) {
+            Column(
+                modifier = modifier
+                    .padding(start = 4.dp)
+                    .animateContentSize()
+            ) {
+                data.astTree.children.fastForEach { child ->
+                    MarkdownNode(
+                        node = child,
+                        content = data.preprocessed,
+                        headerLevelOffset = headerLevelOffset,
+                        onClickCitation = onClickCitation,
+                        messageDepthFromEnd = messageDepthFromEnd,
+                    )
+                }
             }
         }
     }

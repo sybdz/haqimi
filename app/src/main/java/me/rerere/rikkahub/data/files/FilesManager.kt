@@ -150,24 +150,25 @@ class FilesManager(
             dir.mkdirs()
         }
         uris.forEach { uri ->
-            val sourceName = getFileNameFromUri(uri) ?: uri.lastPathSegment ?: "file"
-            val sourceMime = resolveMimeType(uri, sourceName)
-            val fileName = buildUuidFileName(displayName = sourceName, mimeType = sourceMime)
-            val file = dir.resolve(fileName)
-            if (!file.exists()) {
-                file.createNewFile()
-            }
-            val newUri = file.toUri()
             runCatching {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    file.outputStream().use { outputStream ->
-                        inputStream.copyTo(outputStream)
+                val sourceName = getFileNameFromUri(uri) ?: uri.lastPathSegment ?: "file"
+                val sourceMime = resolveMimeType(uri, sourceName)
+                val fileName = buildUuidFileName(displayName = sourceName, mimeType = sourceMime)
+                val file = dir.resolve(fileName)
+                if (!file.exists()) {
+                    file.createNewFile()
+                }
+                val inputStream = context.contentResolver.openInputStream(uri)
+                    ?: error("Failed to open input stream for $uri")
+                inputStream.use { input ->
+                    file.outputStream().use { output ->
+                        input.copyTo(output)
                     }
                 }
                 val guessedMime = sourceMime.takeUnless { it == "application/octet-stream" }
                     ?: guessMimeType(file, sourceName)
                 trackUploadFile(file = file, displayName = sourceName, mimeType = guessedMime)
-                newUris.add(newUri)
+                newUris.add(file.toUri())
             }.onFailure {
                 it.printStackTrace()
                 Log.e(TAG, "createChatFilesByContents: Failed to save file from $uri", it)

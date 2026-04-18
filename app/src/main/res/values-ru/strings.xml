@@ -1846,4 +1846,5 @@
   <string name="assistant_page_tool_call_keep_rounds_desc">Определяет, сколько последних раундов выполненных вызовов инструментов и их результатов сохраняется в контексте. Более старые следы вызовов удаляются, но обычные сообщения чата остаются.</string>
   <string name="assistant_page_tool_call_keep_rounds_count">Сохранено раундов вызова инструментов: %d</string>
   <string name="assistant_page_tool_call_keep_rounds_unlimited">Раунды вызова инструментов без ограничений</string>
+  <string name="setting_provider_page_import_service_account_json">Импорт JSON-файла служебной учётной записи</string>
 </resources>
