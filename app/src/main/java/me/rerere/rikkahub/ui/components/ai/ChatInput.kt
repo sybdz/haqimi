@@ -452,9 +452,9 @@ fun ChatInput(
                             val model = effectiveChatModel
                             if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
                                 ReasoningButton(
-                                    reasoningTokens = assistant.thinkingBudget ?: 0,
-                                    onUpdateReasoningTokens = {
-                                        onUpdateAssistant(assistant.copy(thinkingBudget = it))
+                                    reasoningLevel = assistant.reasoningLevel,
+                                    onUpdateReasoningLevel = {
+                                        onUpdateAssistant(assistant.copy(reasoningLevel = it))
                                     },
                                     openAIReasoningEffort = assistant.openAIReasoningEffort,
                                     onUpdateOpenAIReasoningEffort = {

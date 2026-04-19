@@ -20,6 +20,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.AppScope
@@ -650,12 +651,12 @@ class SettingsStore(
         }
     }
 
-    suspend fun updateAssistantThinkingBudget(assistantId: Uuid, thinkingBudget: Int?) {
+    suspend fun updateAssistantReasoningLevel(assistantId: Uuid, reasoningLevel: ReasoningLevel) {
         update { settings ->
             settings.copy(
                 assistants = settings.assistants.map { assistant ->
                     if (assistant.id == assistantId) {
-                        assistant.copy(thinkingBudget = thinkingBudget)
+                        assistant.copy(reasoningLevel = reasoningLevel)
                     } else {
                         assistant
                     }

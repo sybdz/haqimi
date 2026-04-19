@@ -303,7 +303,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             put("messages", buildMessages(normalizedMessages, providerSetting.promptCaching))
             put("max_tokens", params.maxTokens ?: 64_000)
 
-            if (params.temperature != null && (params.thinkingBudget ?: 0) == 0) put(
+            if (params.temperature != null && !params.reasoningLevel.isEnabled) put(
                 "temperature",
                 params.temperature
             )
@@ -330,25 +330,32 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 })
             }
 
-            // 处理 thinking budget
+            // 处理 thinking
+            // Anthropic 新 API: adaptive 模式 + output_config.effort 控制强度
+            // 旧的 type=enabled + budget_tokens 在 Opus 4.7+ 上已不支持
             if (params.model.abilities.contains(ModelAbility.REASONING)) {
-                val level = ReasoningLevel.fromBudgetTokens(params.thinkingBudget ?: 0)
-                put("thinking", buildJsonObject {
-                    when (level) {
-                        ReasoningLevel.OFF -> {
-                            put("type", "disabled")
-                        }
-
-                        ReasoningLevel.AUTO -> {
-                            put("type", "adaptive")
-                        }
-
-                        else -> {
-                            put("type", "enabled")
-                            put("budget_tokens", params.thinkingBudget ?: 1024)
-                        }
+                when (params.reasoningLevel) {
+                    ReasoningLevel.OFF -> {
+                        put("thinking", buildJsonObject { put("type", "disabled") })
                     }
-                })
+
+                    ReasoningLevel.AUTO -> {
+                        put("thinking", buildJsonObject {
+                            put("type", "adaptive")
+                            put("display", "summarized")
+                        })
+                    }
+
+                    else -> {
+                        put("thinking", buildJsonObject {
+                            put("type", "adaptive")
+                            put("display", "summarized")
+                        })
+                        put("output_config", buildJsonObject {
+                            put("effort", params.reasoningLevel.effort)
+                        })
+                    }
+                }
             }
 
             // 处理工具

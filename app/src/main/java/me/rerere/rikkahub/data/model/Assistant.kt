@@ -6,6 +6,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.datastore.Settings
 import kotlin.random.Random
@@ -37,7 +38,7 @@ data class Assistant(
     val scheduledPromptTasks: List<ScheduledPromptTask> = emptyList(),
     val regexEnabled: Boolean = true,
     val regexes: List<AssistantRegex> = emptyList(),
-    val thinkingBudget: Int? = 1024,
+    val reasoningLevel: ReasoningLevel = ReasoningLevel.AUTO,
     val maxTokens: Int? = null,
     val frequencyPenalty: Float? = null,
     val presencePenalty: Float? = null,

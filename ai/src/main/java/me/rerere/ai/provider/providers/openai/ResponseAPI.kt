@@ -255,7 +255,7 @@ class ResponseAPI(
                         put("summary", "auto")
                     }
                     resolveOpenAIResponsesReasoningEffort(
-                        thinkingBudget = params.thinkingBudget,
+                        thinkingBudget = params.reasoningLevel.budgetTokens,
                         overrideEffort = params.openAIReasoningEffort
                     )?.let { effort ->
                         put("effort", effort)

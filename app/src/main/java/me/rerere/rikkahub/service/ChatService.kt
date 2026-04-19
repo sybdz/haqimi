@@ -44,6 +44,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderManager
@@ -712,7 +713,7 @@ class ChatService(
             stopSequences = assistant.stopSequences,
             googleResponseMimeType = assistant.googleResponseMimeType,
             tools = tools,
-            thinkingBudget = assistant.thinkingBudget,
+            reasoningLevel = assistant.reasoningLevel,
             openAIReasoningEffort = assistant.openAIReasoningEffort,
             openAIVerbosity = assistant.openAIVerbosity,
             customHeaders = buildList {
@@ -1617,7 +1618,7 @@ class ChatService(
                 ),
                 params = TextGenerationParams(
                     model = model,
-                    thinkingBudget = 0,
+                    reasoningLevel = ReasoningLevel.OFF,
                 ),
             )
 
@@ -1662,7 +1663,7 @@ class ChatService(
                 ),
                 params = TextGenerationParams(
                     model = model,
-                    thinkingBudget = 0,
+                    reasoningLevel = ReasoningLevel.OFF,
                 ),
             )
             val suggestions =

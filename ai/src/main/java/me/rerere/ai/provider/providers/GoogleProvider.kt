@@ -396,7 +396,6 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         val systemTextParts = leadingSystemMessages.systemMessages
             .flatMap { message -> message.parts.filterIsInstance<UIMessagePart.Text>() }
         return buildJsonObject {
-            // System message if available
             if (systemTextParts.isNotEmpty() && !isImageRequest) {
                 put("systemInstruction", buildJsonObject {
                     putJsonArray("parts") {
@@ -409,7 +408,6 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 })
             }
 
-            // Generation config
             put("generationConfig", buildJsonObject {
                 if (params.temperature != null) put("temperature", params.temperature)
                 if (params.topP != null) put("topP", params.topP)
@@ -435,12 +433,13 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                         val isGeminiPro =
                             params.model.modelId.contains(Regex("2\\.5.*pro", RegexOption.IGNORE_CASE))
 
-                        when (params.thinkingBudget) {
-                            null, -1 -> {} // 如果是自动，不设置thinkingBudget参数
+                        when (params.reasoningLevel) {
+                            ReasoningLevel.AUTO -> {}
 
-                            0 -> {
-                                // disable thinking if not gemini pro
-                                if (!isGeminiPro) {
+                            ReasoningLevel.OFF -> {
+                                if (ModelRegistry.GEMINI_3_SERIES.match(modelId = params.model.modelId)) {
+                                    put("thinkingLevel", "minimal")
+                                } else if (!isGeminiPro) {
                                     put("thinkingBudget", 0)
                                     put("includeThoughts", false)
                                 }
@@ -448,14 +447,13 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
                             else -> {
                                 if (ModelRegistry.GEMINI_3_SERIES.match(modelId = params.model.modelId)) {
-                                    when (val level = ReasoningLevel.fromBudgetTokens(params.thinkingBudget)) {
-                                        ReasoningLevel.HIGH -> put("thinkingLevel", "high")
-                                        ReasoningLevel.MEDIUM -> put("thinkingLevel", "high")
+                                    when (params.reasoningLevel) {
                                         ReasoningLevel.LOW -> put("thinkingLevel", "low")
-                                        else -> error("Unknown reasoning level: $level")
+                                        ReasoningLevel.MEDIUM -> put("thinkingLevel", "medium")
+                                        else -> put("thinkingLevel", "high")
                                     }
                                 } else {
-                                    put("thinkingBudget", params.thinkingBudget)
+                                    put("thinkingBudget", params.reasoningLevel.budgetTokens)
                                 }
                             }
                         }
@@ -463,13 +461,11 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 }
             })
 
-            // Contents (user messages)
             put(
                 "contents",
                 buildContents(normalizedMessages)
             )
 
-            // Tools
             if (params.tools.isNotEmpty() && params.model.abilities.contains(ModelAbility.TOOL)) {
                 put("tools", buildJsonArray {
                     add(buildJsonObject {
@@ -498,8 +494,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     })
                 })
             }
-            // Model BuiltIn Tools
-            // 目前不能和工具调用兼容
+
             if (params.model.tools.isNotEmpty()) {
                 put("tools", buildJsonArray {
                     params.model.tools.forEach { builtInTool ->
@@ -520,7 +515,6 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 })
             }
 
-            // Safety Settings
             putJsonArray("safetySettings") {
                 add(buildJsonObject {
                     put("category", "HARM_CATEGORY_HARASSMENT")
@@ -543,8 +537,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     put("threshold", "OFF")
                 })
             }
-        }
-            .mergeCustomBody(params.customBody)
+        }.mergeCustomBody(params.customBody)
     }
 
     private fun commonRoleToGoogleRole(role: MessageRole): String {

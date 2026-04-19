@@ -8,6 +8,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
@@ -59,7 +60,7 @@ class ChatCompletionsAPIMessageTest {
     }
 
     private fun createReasoningParams(
-        thinkingBudget: Int? = null,
+        reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
         openAIReasoningEffort: String = ""
     ): TextGenerationParams {
         return TextGenerationParams(
@@ -68,7 +69,7 @@ class ChatCompletionsAPIMessageTest {
                 displayName = "test-model",
                 abilities = listOf(ModelAbility.REASONING)
             ),
-            thinkingBudget = thinkingBudget,
+            reasoningLevel = reasoningLevel,
             openAIReasoningEffort = openAIReasoningEffort
         )
     }
@@ -384,7 +385,7 @@ class ChatCompletionsAPIMessageTest {
     fun `chat completions should derive reasoning effort when override is blank`() {
         val requestBody = invokeBuildRequestBody(
             providerSetting = ProviderSetting.OpenAI(baseUrl = "https://api.openai.com/v1"),
-            params = createReasoningParams(thinkingBudget = 1024)
+            params = createReasoningParams(reasoningLevel = ReasoningLevel.LOW)
         )
 
         assertEquals("low", requestBody["reasoning_effort"]?.jsonPrimitive?.content)
@@ -395,7 +396,7 @@ class ChatCompletionsAPIMessageTest {
         val requestBody = invokeBuildRequestBody(
             providerSetting = ProviderSetting.OpenAI(baseUrl = "https://api.openai.com/v1"),
             params = createReasoningParams(
-                thinkingBudget = 32_000,
+                reasoningLevel = ReasoningLevel.XHIGH,
                 openAIReasoningEffort = "auto"
             )
         )

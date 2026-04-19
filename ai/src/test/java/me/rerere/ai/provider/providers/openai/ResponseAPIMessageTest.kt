@@ -6,6 +6,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
@@ -60,7 +61,7 @@ class ResponseAPIMessageTest {
     }
 
     private fun createReasoningParams(
-        thinkingBudget: Int? = null,
+        reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
         openAIReasoningEffort: String = ""
     ): TextGenerationParams {
         return TextGenerationParams(
@@ -69,7 +70,7 @@ class ResponseAPIMessageTest {
                 displayName = "test-model",
                 abilities = listOf(ModelAbility.REASONING)
             ),
-            thinkingBudget = thinkingBudget,
+            reasoningLevel = reasoningLevel,
             openAIReasoningEffort = openAIReasoningEffort
         )
     }
@@ -382,7 +383,7 @@ class ResponseAPIMessageTest {
         )
         val requestBody = invokeBuildRequestBody(
             providerSetting = providerSetting,
-            params = createReasoningParams(thinkingBudget = 1024)
+            params = createReasoningParams(reasoningLevel = ReasoningLevel.LOW)
         )
 
         val reasoning = requestBody["reasoning"]?.jsonObject
@@ -398,7 +399,7 @@ class ResponseAPIMessageTest {
         val requestBody = invokeBuildRequestBody(
             providerSetting = providerSetting,
             params = createReasoningParams(
-                thinkingBudget = 1024,
+                reasoningLevel = ReasoningLevel.LOW,
                 openAIReasoningEffort = "auto"
             )
         )

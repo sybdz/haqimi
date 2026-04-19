@@ -3,6 +3,7 @@ package me.rerere.ai.provider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.ImageAspectRatio
 import me.rerere.ai.ui.ImageGenerationResult
@@ -59,7 +60,7 @@ data class TextGenerationParams(
     val stopSequences: List<String> = emptyList(),
     val googleResponseMimeType: String = "",
     val tools: List<Tool> = emptyList(),
-    val thinkingBudget: Int? = null,
+    val reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
     val customHeaders: List<CustomHeader> = emptyList(),
     val customBody: List<CustomBody> = emptyList(),
     val openAIReasoningEffort: String = "",
