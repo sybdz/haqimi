@@ -198,8 +198,8 @@ class ChatCompletionsAPIMessageTest {
     }
 
     @Test
-    fun `reasoning should only be included for messages after last user message`() {
-        // First assistant message (before user's last message) - reasoning should NOT be included
+    fun `reasoning should be included for all assistant messages`() {
+        // First assistant message before the user's last message should keep reasoning.
         val assistant1 = UIMessage(
             role = MessageRole.ASSISTANT,
             parts = listOf(
@@ -208,7 +208,7 @@ class ChatCompletionsAPIMessageTest {
             )
         )
 
-        // Second assistant message (after user's last message) - reasoning SHOULD be included
+        // Second assistant message after the user's last message should also keep reasoning.
         val assistant2 = UIMessage(
             role = MessageRole.ASSISTANT,
             parts = listOf(
@@ -233,19 +233,11 @@ class ChatCompletionsAPIMessageTest {
 
         assertEquals(2, assistantMessages.size)
 
-        // First assistant should NOT have reasoning_content
         val first = assistantMessages[0].jsonObject
-        assertTrue("First assistant should not have reasoning_content",
-            !first.containsKey("reasoning_content") ||
-            first["reasoning_content"]?.jsonPrimitive?.content.isNullOrEmpty()
-        )
+        assertEquals("Initial thinking", first["reasoning_content"]?.jsonPrimitive?.content)
 
-        // Second assistant SHOULD have reasoning_content
         val second = assistantMessages[1].jsonObject
-        assertTrue("Second assistant should have reasoning_content",
-            second.containsKey("reasoning_content") &&
-            second["reasoning_content"]?.jsonPrimitive?.content?.isNotEmpty() == true
-        )
+        assertEquals("Final thinking", second["reasoning_content"]?.jsonPrimitive?.content)
     }
 
     @Test
@@ -337,7 +329,7 @@ class ChatCompletionsAPIMessageTest {
     }
 
     @Test
-    fun `assistant with only reasoning and empty text should be filtered out`() {
+    fun `historical assistant with only reasoning and empty text should keep reasoning content`() {
         val messages = listOf(
             UIMessage.user("Question 1"),
             UIMessage(
@@ -352,11 +344,14 @@ class ChatCompletionsAPIMessageTest {
 
         val result = invokeBuildMessages(messages)
 
-        assertEquals(2, result.size)
+        assertEquals(3, result.size)
         assertEquals("user", result[0].jsonObject["role"]?.jsonPrimitive?.content)
         assertEquals("Question 1", result[0].jsonObject["content"]?.jsonPrimitive?.content)
-        assertEquals("user", result[1].jsonObject["role"]?.jsonPrimitive?.content)
-        assertEquals("Question 2", result[1].jsonObject["content"]?.jsonPrimitive?.content)
+        assertEquals("assistant", result[1].jsonObject["role"]?.jsonPrimitive?.content)
+        assertEquals("thinking", result[1].jsonObject["reasoning_content"]?.jsonPrimitive?.content)
+        assertEquals("", result[1].jsonObject["content"]?.jsonPrimitive?.content)
+        assertEquals("user", result[2].jsonObject["role"]?.jsonPrimitive?.content)
+        assertEquals("Question 2", result[2].jsonObject["content"]?.jsonPrimitive?.content)
     }
 
     @Test

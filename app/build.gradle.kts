@@ -17,7 +17,7 @@ plugins {
 
 android {
     namespace = "me.rerere.rikkahub"
-    compileSdk = 36
+    compileSdk = 37
     experimentalProperties["android.experimental.enableScreenshotTest"] = true
     val localProperties = Properties()
     val localPropertiesFile = rootProject.file("local.properties")
@@ -38,7 +38,7 @@ android {
     defaultConfig {
         applicationId = "me.rerere.rikkahub.ywxk"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 148
         versionName = "1.0.0-pre.1"
 
