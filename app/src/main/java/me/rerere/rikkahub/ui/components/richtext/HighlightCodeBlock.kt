@@ -77,6 +77,7 @@ import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
 import me.rerere.rikkahub.ui.theme.ThemeTokenParseResult
 import me.rerere.rikkahub.ui.theme.ThemeTokenTextScaleGroup
 import me.rerere.rikkahub.ui.theme.applyThemeTokenTextScale
+import me.rerere.rikkahub.ui.theme.luneSizeSpring
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.toDp
 import kotlin.time.Clock
@@ -359,7 +360,7 @@ private fun CodeBlockDefault(
             HighlightText(
                 code = displayCode,
                 language = language,
-                modifier = Modifier.animateContentSize(),
+                modifier = Modifier.animateContentSize(animationSpec = luneSizeSpring()),
                 fontSize = textStyle.fontSize,
                 lineHeight = textStyle.lineHeight,
                 colors = colorPalette,

@@ -23,12 +23,25 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.mapLatest
 
 val LocalHighlighter = compositionLocalOf<Highlighter> { error("No Highlighter provided") }
 
 private const val MAX_CODE_LENGTH = 4096
 
+private data class HighlightRenderResult(
+    val code: String,
+    val language: String,
+    val annotatedString: AnnotatedString,
+)
+
 @Composable
+@OptIn(ExperimentalCoroutinesApi::class)
 fun HighlightText(
     code: String,
     language: String,
@@ -45,26 +58,53 @@ fun HighlightText(
     minLines: Int = 1,
 ) {
     val highlighter = LocalHighlighter.current
-    var tokens: List<HighlightToken> by remember { mutableStateOf(emptyList()) }
     var annotatedString by remember { mutableStateOf(AnnotatedString(code)) }
 
     val updatedCode by rememberUpdatedState(code)
     val updatedLanguage by rememberUpdatedState(language)
-    LaunchedEffect(Unit) {
-        snapshotFlow { updatedCode to updatedLanguage }.collect {
-            tokens = if (updatedCode.length <= MAX_CODE_LENGTH) {
-                highlighter.highlight(updatedCode, updatedLanguage)
-            } else {
-                listOf(
-                    HighlightToken.Plain(content = updatedCode)
+    val updatedColors by rememberUpdatedState(colors)
+    LaunchedEffect(code) {
+        if (annotatedString.text != code) {
+            annotatedString = AnnotatedString(code)
+        }
+    }
+    LaunchedEffect(highlighter) {
+        snapshotFlow { Triple(updatedCode, updatedLanguage, updatedColors) }
+            .distinctUntilChanged()
+            .mapLatest { (nextCode, nextLanguage, nextColors) ->
+                val tokens = if (nextCode.length <= MAX_CODE_LENGTH) {
+                    highlighter.highlight(nextCode, nextLanguage)
+                } else {
+                    listOf(
+                        HighlightToken.Plain(content = nextCode)
+                    )
+                }
+                HighlightRenderResult(
+                    code = nextCode,
+                    language = nextLanguage,
+                    annotatedString = buildAnnotatedString {
+                        tokens.fastForEach { token ->
+                            buildHighlightText(token, nextColors)
+                        }
+                    }
                 )
             }
-            annotatedString = buildAnnotatedString {
-                tokens.fastForEach { token ->
-                    buildHighlightText(token, colors)
+            .flowOn(Dispatchers.Default)
+            .catch { exception ->
+                exception.printStackTrace()
+                emit(
+                    HighlightRenderResult(
+                        code = updatedCode,
+                        language = updatedLanguage,
+                        annotatedString = AnnotatedString(updatedCode),
+                    )
+                )
+            }
+            .collect { result ->
+                if (result.code == updatedCode && result.language == updatedLanguage) {
+                    annotatedString = result.annotatedString
                 }
             }
-        }
     }
 
     Text(

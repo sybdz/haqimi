@@ -69,6 +69,7 @@ import androidx.compose.ui.util.fastForEach
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
@@ -81,6 +82,7 @@ import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
 import me.rerere.rikkahub.ui.theme.ThemeTokenTextScaleGroup
 import me.rerere.rikkahub.ui.theme.applyThemeTokenTextScale
+import me.rerere.rikkahub.ui.theme.luneSizeSpring
 import me.rerere.rikkahub.utils.toDp
 import org.intellij.markdown.IElementType
 import org.intellij.markdown.MarkdownElementTypes
@@ -201,6 +203,7 @@ private fun List<IntRange>.overlaps(range: IntRange): Boolean {
 }
 
 private data class MarkdownParseResult(
+    val source: String,
     val preprocessed: String,
     val astTree: ASTNode,
     val hasHtmlBlocks: Boolean,
@@ -214,7 +217,7 @@ private fun ASTNode.containsHtmlBlocks(): Boolean {
 private fun parseMarkdown(content: String): MarkdownParseResult {
     val preprocessed = preProcessMarkdownContent(content)
     val astTree = parser.buildMarkdownTreeFromString(preprocessed)
-    return MarkdownParseResult(preprocessed, astTree, astTree.containsHtmlBlocks())
+    return MarkdownParseResult(content, preprocessed, astTree, astTree.containsHtmlBlocks())
 }
 
 internal fun extractCodeFenceContent(
@@ -378,17 +381,24 @@ fun MarkdownBlock(
     // 这里在后台线程解析AST树, 防止频繁更新的时候掉帧
     val updatedContent by rememberUpdatedState(content)
     LaunchedEffect(Unit) {
-        snapshotFlow { updatedContent }.distinctUntilChanged().mapLatest {
-            parseMarkdown(it)
-        }.catch { exception -> exception.printStackTrace() }.flowOn(Dispatchers.Default) // 在后台线程解析AST树
-            .collect {
-                setData(it)
+        snapshotFlow { updatedContent }
+            .distinctUntilChanged()
+            .conflate()
+            .mapLatest {
+                parseMarkdown(it)
+            }
+            .flowOn(Dispatchers.Default) // 在后台线程解析AST树
+            .catch { exception -> exception.printStackTrace() }
+            .collect { parsed ->
+                if (parsed.source == updatedContent) {
+                    setData(parsed)
+                }
             }
     }
 
     if (data.hasHtmlBlocks) {
         MarkdownNew(
-            content = content,
+            content = data.source,
             modifier = modifier,
             style = style,
             onClickCitation = onClickCitation,
@@ -398,7 +408,7 @@ fun MarkdownBlock(
             val contentModifier = if (animateContent) {
                 modifier
                     .padding(start = 4.dp)
-                    .animateContentSize()
+                    .animateContentSize(animationSpec = luneSizeSpring())
             } else {
                 modifier.padding(start = 4.dp)
             }

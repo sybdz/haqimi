@@ -1497,7 +1497,7 @@ class ChatService(
                             findPendingApprovalTool(getConversationFlow(conversationId).value.currentMessages)?.toolCallId
                         val updatedConversation = getConversationFlow(conversationId).value
                             .updateCurrentMessages(chunk.messages)
-                        updateConversation(conversationId, updatedConversation)
+                        updateConversation(conversationId, updatedConversation, checkDeletedFiles = false)
                         val pendingTool = findPendingApprovalTool(updatedConversation.currentMessages)
                         when {
                             pendingTool == null -> cancelToolApprovalNotification(conversationId)
@@ -1950,10 +1950,16 @@ class ChatService(
 
     // ---- 对话状态更新 ----
 
-    private fun updateConversation(conversationId: Uuid, conversation: Conversation) {
+    private fun updateConversation(
+        conversationId: Uuid,
+        conversation: Conversation,
+        checkDeletedFiles: Boolean = true,
+    ) {
         if (conversation.id != conversationId) return
         val session = getOrCreateSession(conversationId)
-        checkFilesDelete(conversation, session.state.value)
+        if (checkDeletedFiles) {
+            checkFilesDelete(conversation, session.state.value)
+        }
         session.state.value = conversation
     }
 

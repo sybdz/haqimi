@@ -113,6 +113,31 @@ internal fun userRegexRenderCacheKey(settings: Settings) =
     settings.selectedUserPersonaProfile() to settings.displaySetting.userNickname.trim()
 
 @Composable
+private fun StreamingAwareMarkdownBlock(
+    content: String,
+    loading: Boolean,
+    modifier: Modifier = Modifier,
+    messageDepthFromEnd: Int? = null,
+    onClickCitation: (String) -> Unit = {},
+) {
+    val block: @Composable () -> Unit = {
+        MarkdownBlock(
+            content = content,
+            modifier = modifier,
+            messageDepthFromEnd = messageDepthFromEnd,
+            onClickCitation = onClickCitation,
+        )
+    }
+    if (loading) {
+        block()
+    } else {
+        SelectionContainer {
+            block()
+        }
+    }
+}
+
+@Composable
 fun ChatMessage(
     node: MessageNode,
     modifier: Modifier = Modifier,
@@ -483,13 +508,12 @@ private fun MessagePartsBlock(
                                     onClick = { onUserMessageClick?.invoke() },
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                        SelectionContainer {
-                                            MarkdownBlock(
-                                                content = renderedText,
-                                                messageDepthFromEnd = messageDepthFromEnd,
-                                                onClickCitation = handleClickCitation
-                                            )
-                                        }
+                                        StreamingAwareMarkdownBlock(
+                                            content = renderedText,
+                                            loading = loading,
+                                            messageDepthFromEnd = messageDepthFromEnd,
+                                            onClickCitation = handleClickCitation
+                                        )
                                     }
                                 }
                             }
@@ -520,24 +544,22 @@ private fun MessagePartsBlock(
                                     ),
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                        SelectionContainer {
-                                            MarkdownBlock(
-                                                content = renderedText,
-                                                messageDepthFromEnd = messageDepthFromEnd,
-                                                onClickCitation = handleClickCitation,
-                                            )
-                                        }
+                                        StreamingAwareMarkdownBlock(
+                                            content = renderedText,
+                                            loading = loading,
+                                            messageDepthFromEnd = messageDepthFromEnd,
+                                            onClickCitation = handleClickCitation,
+                                        )
                                     }
                                 }
                             } else {
-                                SelectionContainer {
-                                    MarkdownBlock(
-                                        content = renderedText,
-                                        messageDepthFromEnd = messageDepthFromEnd,
-                                        onClickCitation = handleClickCitation,
-                                        modifier = Modifier
-                                    )
-                                }
+                                StreamingAwareMarkdownBlock(
+                                    content = renderedText,
+                                    loading = loading,
+                                    messageDepthFromEnd = messageDepthFromEnd,
+                                    onClickCitation = handleClickCitation,
+                                    modifier = Modifier
+                                )
                             }
                         }
                     }

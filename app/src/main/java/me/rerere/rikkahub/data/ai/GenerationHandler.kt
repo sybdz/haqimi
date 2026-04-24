@@ -24,7 +24,9 @@ import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.registry.ModelRegistry
+import me.rerere.ai.ui.MessageChunk
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessageChoice
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.handleMessageChunk
@@ -55,7 +57,7 @@ import java.util.Locale
 import kotlin.time.Clock
 
 private const val TAG = "GenerationHandler"
-private const val STREAM_UI_UPDATE_INTERVAL_MS = 32L
+private const val STREAM_UI_UPDATE_INTERVAL_MS = 64L
 
 internal data class ToolApprovalPassResult(
     val tools: List<UIMessagePart.Tool>,
@@ -67,6 +69,136 @@ sealed interface GenerationChunk {
     data class Messages(
         val messages: List<UIMessage>
     ) : GenerationChunk
+}
+
+private enum class BufferedStreamPartKind {
+    TEXT,
+    REASONING,
+}
+
+private data class SimpleStreamPartDelta(
+    val chunkId: String,
+    val model: String,
+    val choiceIndex: Int,
+    val role: MessageRole,
+    val kind: BufferedStreamPartKind,
+    val content: String,
+    val reasoningCreatedAt: kotlin.time.Instant? = null,
+)
+
+private class BufferedStreamPart(
+    private val first: SimpleStreamPartDelta,
+) {
+    private val content = StringBuilder(first.content)
+
+    fun canAppend(next: SimpleStreamPartDelta): Boolean {
+        return first.choiceIndex == next.choiceIndex &&
+            first.role == next.role &&
+            first.kind == next.kind
+    }
+
+    fun append(next: SimpleStreamPartDelta) {
+        content.append(next.content)
+    }
+
+    fun toChunk(): MessageChunk {
+        val part = when (first.kind) {
+            BufferedStreamPartKind.TEXT -> UIMessagePart.Text(content.toString())
+            BufferedStreamPartKind.REASONING -> UIMessagePart.Reasoning(
+                reasoning = content.toString(),
+                createdAt = first.reasoningCreatedAt ?: Clock.System.now(),
+                finishedAt = null,
+            )
+        }
+        return MessageChunk(
+            id = first.chunkId,
+            model = first.model,
+            choices = listOf(
+                UIMessageChoice(
+                    index = first.choiceIndex,
+                    delta = UIMessage(
+                        role = first.role,
+                        parts = listOf(part),
+                    ),
+                    message = null,
+                    finishReason = null,
+                )
+            )
+        )
+    }
+}
+
+private class StreamChunkBuffer {
+    private val chunks = mutableListOf<MessageChunk>()
+    private var bufferedPart: BufferedStreamPart? = null
+
+    fun add(chunk: MessageChunk) {
+        val simpleDelta = chunk.asSimpleStreamPartDelta()
+        if (simpleDelta == null) {
+            flushBufferedPart()
+            chunks += chunk
+            return
+        }
+
+        val current = bufferedPart
+        if (current != null && current.canAppend(simpleDelta)) {
+            current.append(simpleDelta)
+        } else {
+            flushBufferedPart()
+            bufferedPart = BufferedStreamPart(simpleDelta)
+        }
+    }
+
+    fun drain(): List<MessageChunk> {
+        flushBufferedPart()
+        if (chunks.isEmpty()) return emptyList()
+        val drained = chunks.toList()
+        chunks.clear()
+        return drained
+    }
+
+    private fun flushBufferedPart() {
+        bufferedPart?.let { chunks += it.toChunk() }
+        bufferedPart = null
+    }
+}
+
+private fun MessageChunk.asSimpleStreamPartDelta(): SimpleStreamPartDelta? {
+    if (usage != null) return null
+    val choice = choices.singleOrNull() ?: return null
+    if (choice.message != null || choice.finishReason != null) return null
+    val delta = choice.delta ?: return null
+    if (delta.annotations.isNotEmpty()) return null
+    val part = delta.parts.singleOrNull() ?: return null
+
+    return when (part) {
+        is UIMessagePart.Text -> {
+            if (part.text.isEmpty() || part.metadata != null) return null
+            SimpleStreamPartDelta(
+                chunkId = id,
+                model = model,
+                choiceIndex = choice.index,
+                role = delta.role,
+                kind = BufferedStreamPartKind.TEXT,
+                content = part.text,
+            )
+        }
+
+        is UIMessagePart.Reasoning -> {
+            if (part.reasoning.isEmpty() || part.metadata != null || part.finishedAt != null) return null
+            SimpleStreamPartDelta(
+                chunkId = id,
+                model = model,
+                choiceIndex = choice.index,
+                role = delta.role,
+                kind = BufferedStreamPartKind.REASONING,
+                content = part.reasoning,
+                reasoningCreatedAt = part.createdAt,
+            )
+        }
+
+        else -> null
+    }
 }
 
 internal fun List<UIMessage>.prepareMessagesForGeneration(
@@ -456,12 +588,29 @@ class GenerationHandler(
             )
             var lastUiUpdateAt = 0L
             var lastEmittedMessages: List<UIMessage>? = null
+            val pendingChunks = StreamChunkBuffer()
+
+            fun applyPendingChunks() {
+                pendingChunks.drain().forEach { chunk ->
+                    messages = messages.handleMessageChunk(chunk = chunk, model = model)
+                    chunk.usage?.let { usage ->
+                        messages = messages.mapIndexed { index, message ->
+                            if (index == messages.lastIndex) {
+                                message.copy(usage = message.usage.merge(usage))
+                            } else {
+                                message
+                            }
+                        }
+                    }
+                }
+            }
 
             suspend fun emitUiUpdate(force: Boolean = false) {
                 val now = Clock.System.now().toEpochMilliseconds()
                 if (!force && now - lastUiUpdateAt < STREAM_UI_UPDATE_INTERVAL_MS) {
                     return
                 }
+                applyPendingChunks()
                 if (lastEmittedMessages === messages) {
                     return
                 }
@@ -474,17 +623,8 @@ class GenerationHandler(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params
-            ).collect {
-                messages = messages.handleMessageChunk(chunk = it, model = model)
-                it.usage?.let { usage ->
-                    messages = messages.mapIndexed { index, message ->
-                        if (index == messages.lastIndex) {
-                            message.copy(usage = message.usage.merge(usage))
-                        } else {
-                            message
-                        }
-                    }
-                }
+            ).collect { chunk ->
+                pendingChunks.add(chunk)
                 emitUiUpdate()
             }
             emitUiUpdate(force = true)

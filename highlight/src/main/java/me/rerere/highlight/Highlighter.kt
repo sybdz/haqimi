@@ -54,7 +54,8 @@ class Highlighter(ctx: Context) {
 
     suspend fun highlight(code: String, language: String) =
         suspendCancellableCoroutine { continuation ->
-            executor.submit {
+            val future = executor.submit {
+                if (!continuation.isActive) return@submit
                 runCatching {
                     val result = highlightFn.call(code, language)
                     require(result is QuickJSArray) {
@@ -81,13 +82,18 @@ class Highlighter(ctx: Context) {
                         }
                     }
                     result.release()
-                    continuation.resume(tokens)
+                    if (continuation.isActive) {
+                        continuation.resume(tokens)
+                    }
                 }.onFailure {
                     it.printStackTrace()
                     if (continuation.isActive) {
                         continuation.resumeWithException(it)
                     }
                 }
+            }
+            continuation.invokeOnCancellation {
+                future.cancel(false)
             }
         }
 
