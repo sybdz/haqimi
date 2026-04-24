@@ -20,9 +20,16 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -139,6 +146,32 @@ internal fun AssistantBasicContent(
         else ->
             stringResource(R.string.assistant_page_sampling_desc_compat)
     }
+    var assistantNameDraft by rememberSaveable(assistant.id) {
+        mutableStateOf(assistant.name)
+    }
+    val latestAssistantNameDraft by rememberUpdatedState(assistantNameDraft)
+    val latestAssistant by rememberUpdatedState(assistant)
+    val latestOnUpdate by rememberUpdatedState(onUpdate)
+
+    fun commitAssistantName() {
+        if (assistantNameDraft != assistant.name) {
+            onUpdate(assistant.copy(name = assistantNameDraft))
+        }
+    }
+
+    LaunchedEffect(assistant.id, assistant.name) {
+        if (assistantNameDraft != assistant.name) {
+            assistantNameDraft = assistant.name
+        }
+    }
+
+    DisposableEffect(assistant.id) {
+        onDispose {
+            if (latestAssistantNameDraft != latestAssistant.name) {
+                latestOnUpdate(latestAssistant.copy(name = latestAssistantNameDraft))
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -182,15 +215,17 @@ internal fun AssistantBasicContent(
 
             ) {
                 OutlinedTextField(
-                    value = assistant.name,
+                    value = assistantNameDraft,
                     onValueChange = {
-                        onUpdate(
-                            assistant.copy(
-                                name = it
-                            )
-                        )
+                        assistantNameDraft = it
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState ->
+                            if (!focusState.isFocused) {
+                                commitAssistantName()
+                            }
+                        }
                 )
             }
 

@@ -49,7 +49,7 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +57,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -75,6 +76,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
@@ -120,6 +122,7 @@ import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.uuid.Uuid
 
 internal fun draftSubmissionRequiresModel(
@@ -351,7 +354,14 @@ private fun ChatPageContent(
     val enableGlassBlur = setting.displaySetting.enableBlurEffect
     val hazeState = rememberHazeState()
     val activeHazeState = if (enableGlassBlur) hazeState else null
-    val currentDraftText = inputState.textContent.text.toString()
+    val draftTextRef = remember(inputState) { AtomicReference("") }
+    val showSuggestions = remember(inputState) {
+        derivedStateOf {
+            !inputState.isEditing() &&
+                inputState.textContent.text.isEmpty() &&
+                inputState.messageContent.isEmpty()
+        }
+    }
     val historyUserName = setting.effectiveUserName().ifBlank { "User" }
     val historyAssistantName = setting.resolveHistoryAssistantName(conversation)
     val chatHistorySnapshot = remember(
@@ -415,21 +425,28 @@ private fun ChatPageContent(
                 forceTermuxCommandMode = setting.termuxCommandModeEnabled
             )
             scope.launch {
-                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                val bottomIndex = chatListState.layoutInfo.totalItemsCount - 1
+                if (bottomIndex >= 0) {
+                    chatListState.requestScrollToItem(bottomIndex)
+                }
             }
         }
         inputState.clearInput()
         return true
     }
 
-    val latestCurrentDraftText by rememberUpdatedState(currentDraftText)
     val latestSubmitDraft by rememberUpdatedState(::submitDraft)
     val latestInputState by rememberUpdatedState(inputState)
     val latestConversation by rememberUpdatedState(conversation)
     val latestLoadingJob by rememberUpdatedState(loadingJob)
 
-    SideEffect {
-        chatComposerBridge.updateDraftTextSnapshot(currentDraftText)
+    LaunchedEffect(chatComposerBridge, inputState) {
+        snapshotFlow { inputState.textContent.text.toString() }
+            .distinctUntilChanged()
+            .collect { draftText ->
+                draftTextRef.set(draftText)
+                chatComposerBridge.updateDraftTextSnapshot(draftText)
+            }
     }
 
     LaunchedEffect(chatHistoryBridge, chatHistorySnapshot) {
@@ -492,7 +509,7 @@ private fun ChatPageContent(
         chatComposerBridge.register(composerDelegate)
         chatHistoryBridge.register(historyDelegate)
         onDispose {
-            chatComposerBridge.updateDraftTextSnapshot(latestCurrentDraftText)
+            chatComposerBridge.updateDraftTextSnapshot(draftTextRef.get())
             chatComposerBridge.unregister(composerDelegate)
             chatHistoryBridge.unregister(historyDelegate)
         }
@@ -691,9 +708,7 @@ private fun ChatPageContent(
                     onToggleFavorite = { node ->
                         vm.toggleMessageFavorite(node)
                     },
-                    showSuggestions = !inputState.isEditing() &&
-                        inputState.textContent.text.isEmpty() &&
-                        inputState.messageContent.isEmpty(),
+                    showSuggestions = showSuggestions,
                 )
             }
 

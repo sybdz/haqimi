@@ -374,13 +374,72 @@ private fun SettingProviderModelPage(
     )
 }
 
+private sealed interface ProviderRemoteModelListKey {
+    data class OpenAI(
+        val id: Uuid,
+        val apiKeyHash: Int,
+        val baseUrl: String,
+        val chatCompletionsPath: String,
+        val useResponseApi: Boolean,
+    ) : ProviderRemoteModelListKey
+
+    data class Google(
+        val id: Uuid,
+        val apiKeyHash: Int,
+        val baseUrl: String,
+        val vertexAI: Boolean,
+        val useServiceAccount: Boolean,
+        val serviceAccountEmail: String,
+        val privateKeyHash: Int,
+        val location: String,
+        val projectId: String,
+    ) : ProviderRemoteModelListKey
+
+    data class Claude(
+        val id: Uuid,
+        val apiKeyHash: Int,
+        val baseUrl: String,
+    ) : ProviderRemoteModelListKey
+}
+
+private fun ProviderSetting.remoteModelListKey(): ProviderRemoteModelListKey {
+    return when (this) {
+        is ProviderSetting.OpenAI -> ProviderRemoteModelListKey.OpenAI(
+            id = id,
+            apiKeyHash = apiKey.hashCode(),
+            baseUrl = baseUrl,
+            chatCompletionsPath = chatCompletionsPath,
+            useResponseApi = useResponseApi,
+        )
+
+        is ProviderSetting.Google -> ProviderRemoteModelListKey.Google(
+            id = id,
+            apiKeyHash = apiKey.hashCode(),
+            baseUrl = baseUrl,
+            vertexAI = vertexAI,
+            useServiceAccount = useServiceAccount,
+            serviceAccountEmail = serviceAccountEmail,
+            privateKeyHash = privateKey.hashCode(),
+            location = location,
+            projectId = projectId,
+        )
+
+        is ProviderSetting.Claude -> ProviderRemoteModelListKey.Claude(
+            id = id,
+            apiKeyHash = apiKey.hashCode(),
+            baseUrl = baseUrl,
+        )
+    }
+}
+
 @Composable
 private fun ModelList(
     providerSetting: ProviderSetting,
     onUpdateProvider: (ProviderSetting) -> Unit
 ) {
     val providerManager = koinInject<ProviderManager>()
-    val modelList by produceState(emptyList(), providerSetting) {
+    val remoteModelListKey = remember(providerSetting) { providerSetting.remoteModelListKey() }
+    val modelList by produceState(emptyList(), remoteModelListKey) {
         runCatching {
             println("loading models...")
             value = providerManager.getProviderByType(providerSetting)

@@ -53,6 +53,7 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -117,7 +118,6 @@ import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
 import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.luneGlassBorderColor
 import me.rerere.rikkahub.ui.components.ui.luneGlassContainerColor
-import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.theme.preferredContentColor
 import me.rerere.rikkahub.utils.plus
 import kotlin.math.roundToInt
@@ -126,6 +126,19 @@ import kotlin.uuid.Uuid
 private const val TAG = "ChatList"
 private const val LoadingIndicatorKey = "LoadingIndicator"
 private const val ScrollBottomKey = "ScrollBottomKey"
+
+private fun UIMessage.renderedContentLength(): Int {
+    return parts.sumOf { part ->
+        when (part) {
+            is UIMessagePart.Text -> part.text.length
+            is UIMessagePart.Reasoning -> part.reasoning.length
+            is UIMessagePart.Tool -> part.output.sumOf { outputPart ->
+                (outputPart as? UIMessagePart.Text)?.text?.length ?: 0
+            }
+            else -> 1
+        }
+    }
+}
 
 private fun Modifier.clearChatInputFocusOnTap(
     onDismiss: () -> Unit,
@@ -175,7 +188,7 @@ fun ChatList(
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
-    showSuggestions: Boolean = true,
+    showSuggestions: State<Boolean>,
 ) {
     AnimatedContent(
         targetState = previewMode,
@@ -249,7 +262,7 @@ private fun ChatListNormal(
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
-    showSuggestions: Boolean,
+    showSuggestions: State<Boolean>,
 ) {
     val scope = rememberCoroutineScope()
     var isRecentScroll by remember { mutableStateOf(false) }
@@ -280,6 +293,11 @@ private fun ChatListNormal(
             val inputPos = state.layoutInfo.viewportEndOffset - inputBarHeight.roundToInt()
             lastPos <= inputPos - 8
         }
+    }
+    var stickToBottom by remember { mutableStateOf(true) }
+    val lastMessage = conversation.messageNodes.lastOrNull()?.currentMessage
+    val lastMessageRenderLength = remember(lastMessage) {
+        lastMessage?.renderedContentLength() ?: 0
     }
     DisposableEffect(
         activity,
@@ -315,9 +333,6 @@ private fun ChatListNormal(
     var selecting by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
 
-    // 自动跟随键盘滚动
-    ImeLazyListAutoScroller(lazyListState = state)
-
     // 对话大小警告对话框
     val sizeInfo = rememberConversationSizeInfo(conversation)
     var showSizeWarningDialog by rememberSaveable(conversation.id) { mutableStateOf(true) }
@@ -338,14 +353,26 @@ private fun ChatListNormal(
     ) {
         // 自动滚动到底部
         if (settings.displaySetting.enableAutoScroll) {
+            LaunchedEffect(isAtBottom, state.isScrollInProgress) {
+                if (isAtBottom) {
+                    stickToBottom = true
+                } else if (state.isScrollInProgress) {
+                    stickToBottom = false
+                }
+            }
+
             LaunchedEffect(
-                isAtBottom,
+                stickToBottom,
                 loading,
                 state.isScrollInProgress,
                 conversation.messageNodes.lastIndex,
+                lastMessageRenderLength,
             ) {
-                if (loading && !state.isScrollInProgress && isAtBottom && conversation.messageNodes.isNotEmpty()) {
-                    state.requestScrollToItem(conversation.messageNodes.lastIndex + 10)
+                if (loading && !state.isScrollInProgress && stickToBottom && conversation.messageNodes.isNotEmpty()) {
+                    val bottomIndex = state.layoutInfo.totalItemsCount - 1
+                    if (bottomIndex >= 0) {
+                        state.requestScrollToItem(bottomIndex)
+                    }
                 }
             }
         }
@@ -599,16 +626,31 @@ private fun ChatListNormal(
             )
 
             // Suggestion
-            if (showSuggestions && conversation.chatSuggestions.isNotEmpty() && !captureProgress) {
-                ChatSuggestionsRow(
-                    conversation = conversation,
-                    onClickSuggestion = onClickSuggestion,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp)
-                )
-            }
+            ChatSuggestionsOverlay(
+                showSuggestions = showSuggestions,
+                conversation = conversation,
+                captureProgress = captureProgress,
+                onClickSuggestion = onClickSuggestion,
+            )
         }
+    }
+}
+
+@Composable
+private fun BoxScope.ChatSuggestionsOverlay(
+    showSuggestions: State<Boolean>,
+    conversation: Conversation,
+    captureProgress: Boolean,
+    onClickSuggestion: (String) -> Unit,
+) {
+    if (showSuggestions.value && conversation.chatSuggestions.isNotEmpty() && !captureProgress) {
+        ChatSuggestionsRow(
+            conversation = conversation,
+            onClickSuggestion = onClickSuggestion,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 8.dp)
+        )
     }
 }
 

@@ -221,11 +221,15 @@ private fun ColumnScope.ModelList(
     val settings = settingsStore.settingsFlow
         .collectAsStateWithLifecycle()
 
-    val favoriteModels = settings.value.favoriteModels.mapNotNull { modelId ->
-        val model = settings.value.providers.findModelById(modelId) ?: return@mapNotNull null
-        if (model.type != modelType) return@mapNotNull null
-        val provider = model.findProvider(providers = settings.value.providers, checkOverwrite = false) ?: return@mapNotNull null
-        model to provider
+    val favoriteModelIds = settings.value.favoriteModels
+    val favoriteModelIdSet = remember(favoriteModelIds) { favoriteModelIds.toSet() }
+    val favoriteModels = remember(favoriteModelIds, providers, modelType) {
+        favoriteModelIds.mapNotNull { modelId ->
+            val model = providers.findModelById(modelId) ?: return@mapNotNull null
+            if (model.type != modelType) return@mapNotNull null
+            val provider = model.findProvider(providers = providers, checkOverwrite = false) ?: return@mapNotNull null
+            model to provider
+        }
     }
 
     var searchKeywords by remember { mutableStateOf("") }
@@ -481,7 +485,7 @@ private fun ColumnScope.ModelList(
                 items = searchFilteredModelsByProvider[providerSetting.id].orEmpty(),
                 key = { it.id }
             ) { model ->
-                val favorite = settings.value.favoriteModels.contains(model.id)
+                val favorite = model.id in favoriteModelIdSet
                 ModelItem(
                     model = model,
                     onSelect = onSelect,

@@ -14,7 +14,7 @@ import urllib.request
 from pathlib import Path
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8317/v1beta"
-DEFAULT_MODEL = "gemini-3.1-pro-high"
+DEFAULT_MODEL = "gemini-3.1-pro-preview"
 DEFAULT_TIMEOUT = 260
 DEFAULT_TEMPERATURE = 1
 DEFAULT_MAX_OUTPUT_TOKENS = 65536

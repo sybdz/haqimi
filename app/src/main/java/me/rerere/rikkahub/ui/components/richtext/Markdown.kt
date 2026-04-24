@@ -364,6 +364,7 @@ fun MarkdownBlock(
     style: TextStyle = LocalTextStyle.current,
     headerLevelOffset: Int = 0,
     messageDepthFromEnd: Int? = null,
+    animateContent: Boolean = true,
     onClickCitation: (String) -> Unit = {}
 ) {
     var (data, setData) = remember {
@@ -394,10 +395,15 @@ fun MarkdownBlock(
         )
     } else {
         ProvideTextStyle(style) {
-            Column(
-                modifier = modifier
+            val contentModifier = if (animateContent) {
+                modifier
                     .padding(start = 4.dp)
                     .animateContentSize()
+            } else {
+                modifier.padding(start = 4.dp)
+            }
+            Column(
+                modifier = contentModifier
             ) {
                 data.astTree.children.fastForEach { child ->
                     MarkdownNode(
@@ -787,6 +793,16 @@ private fun MarkdownNode(
             val language =
                 node.findChildOfTypeRecursive(MarkdownTokenTypes.FENCE_LANG)?.getTextInNode(content) ?: "plaintext"
             val hasEnd = node.findChildOfTypeRecursive(MarkdownTokenTypes.CODE_FENCE_END) != null
+            if (!hasEnd) {
+                IncompleteCodeFenceBlock(
+                    code = code,
+                    language = language,
+                    modifier = Modifier
+                        .padding(bottom = 4.dp)
+                        .fillMaxWidth(),
+                )
+                return
+            }
             val displaySetting = LocalSettings.current.displaySetting
             val shouldRenderCodeBlock = displaySetting.shouldRenderCodeBlock(messageDepthFromEnd)
             val renderTarget = remember(
@@ -865,6 +881,40 @@ private fun MarkdownNode(
                     messageDepthFromEnd = messageDepthFromEnd,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun IncompleteCodeFenceBlock(
+    code: String,
+    language: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (language.isNotBlank() && language != "plaintext") {
+                Text(
+                    text = language,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                text = code,
+                style = LocalTextStyle.current.copy(fontFamily = JetbrainsMono),
+                softWrap = true,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }

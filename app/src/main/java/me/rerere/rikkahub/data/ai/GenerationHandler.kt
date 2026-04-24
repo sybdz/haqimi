@@ -55,6 +55,7 @@ import java.util.Locale
 import kotlin.time.Clock
 
 private const val TAG = "GenerationHandler"
+private const val STREAM_UI_UPDATE_INTERVAL_MS = 32L
 
 internal data class ToolApprovalPassResult(
     val tools: List<UIMessagePart.Tool>,
@@ -453,6 +454,22 @@ class GenerationHandler(
                     stream = true
                 )
             )
+            var lastUiUpdateAt = 0L
+            var lastEmittedMessages: List<UIMessage>? = null
+
+            suspend fun emitUiUpdate(force: Boolean = false) {
+                val now = Clock.System.now().toEpochMilliseconds()
+                if (!force && now - lastUiUpdateAt < STREAM_UI_UPDATE_INTERVAL_MS) {
+                    return
+                }
+                if (lastEmittedMessages === messages) {
+                    return
+                }
+                onUpdateMessages(messages)
+                lastEmittedMessages = messages
+                lastUiUpdateAt = now
+            }
+
             providerImpl.streamText(
                 providerSetting = provider,
                 messages = internalMessages,
@@ -468,8 +485,9 @@ class GenerationHandler(
                         }
                     }
                 }
-                onUpdateMessages(messages)
+                emitUiUpdate()
             }
+            emitUiUpdate(force = true)
         } else {
             aiLoggingManager.addLog(
                 AILogging.Generation(
