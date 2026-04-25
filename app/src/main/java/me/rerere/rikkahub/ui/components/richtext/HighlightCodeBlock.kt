@@ -84,21 +84,6 @@ import kotlin.time.Clock
 
 private const val COLLAPSE_LINES = 10
 
-internal fun normalizeCodeFenceContentForDisplay(
-    code: String,
-    completeCodeBlock: Boolean,
-): String {
-    if (!completeCodeBlock) {
-        return code
-    }
-
-    return when {
-        code.endsWith("\r\n") -> code.dropLast(2)
-        code.endsWith('\n') || code.endsWith('\r') -> code.dropLast(1)
-        else -> code
-    }
-}
-
 internal fun shouldRenderMermaidRichly(
     language: String,
     completeCodeBlock: Boolean,
@@ -133,12 +118,6 @@ fun HighlightCodeBlock(
     }
     val autoWrap = settings.displaySetting.codeBlockAutoWrap
     val showLineNumbers = settings.displaySetting.showLineNumbers
-    val normalizedCode = remember(code, completeCodeBlock) {
-        normalizeCodeFenceContentForDisplay(
-            code = code,
-            completeCodeBlock = completeCodeBlock,
-        )
-    }
 
     val createDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("*/*")
@@ -202,9 +181,9 @@ fun HighlightCodeBlock(
                         )
                     }
                     val textStyle = LocalTextStyle.current.merge(baseCodeStyle)
-                    val codeLines = remember(normalizedCode) { normalizedCode.lines() }
+                    val codeLines = remember(code) { code.lines() }
                     val collapsedCode = remember(codeLines) { codeLines.take(COLLAPSE_LINES).joinToString("\n") }
-                    val displayCode = if (isExpanded) normalizedCode else collapsedCode
+                    val displayCode = if (isExpanded) code else collapsedCode
                     val displayLines = remember(displayCode) { displayCode.lines() }
 
                     // 如果显示行号且自动换行，需要逐行渲染以保持对齐
