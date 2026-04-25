@@ -113,27 +113,19 @@ internal fun userRegexRenderCacheKey(settings: Settings) =
     settings.selectedUserPersonaProfile() to settings.displaySetting.userNickname.trim()
 
 @Composable
-private fun StreamingAwareMarkdownBlock(
+private fun SelectableMarkdownBlock(
     content: String,
-    loading: Boolean,
     modifier: Modifier = Modifier,
     messageDepthFromEnd: Int? = null,
     onClickCitation: (String) -> Unit = {},
 ) {
-    val block: @Composable () -> Unit = {
+    SelectionContainer {
         MarkdownBlock(
             content = content,
             modifier = modifier,
             messageDepthFromEnd = messageDepthFromEnd,
             onClickCitation = onClickCitation,
         )
-    }
-    if (loading) {
-        block()
-    } else {
-        SelectionContainer {
-            block()
-        }
     }
 }
 
@@ -508,9 +500,8 @@ private fun MessagePartsBlock(
                                     onClick = { onUserMessageClick?.invoke() },
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                        StreamingAwareMarkdownBlock(
+                                        SelectableMarkdownBlock(
                                             content = renderedText,
-                                            loading = loading,
                                             messageDepthFromEnd = messageDepthFromEnd,
                                             onClickCitation = handleClickCitation
                                         )
@@ -544,18 +535,16 @@ private fun MessagePartsBlock(
                                     ),
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                        StreamingAwareMarkdownBlock(
+                                        SelectableMarkdownBlock(
                                             content = renderedText,
-                                            loading = loading,
                                             messageDepthFromEnd = messageDepthFromEnd,
                                             onClickCitation = handleClickCitation,
                                         )
                                     }
                                 }
                             } else {
-                                StreamingAwareMarkdownBlock(
+                                SelectableMarkdownBlock(
                                     content = renderedText,
-                                    loading = loading,
                                     messageDepthFromEnd = messageDepthFromEnd,
                                     onClickCitation = handleClickCitation,
                                     modifier = Modifier

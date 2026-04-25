@@ -33,7 +33,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -69,7 +68,6 @@ import androidx.compose.ui.util.fastForEach
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
@@ -82,7 +80,6 @@ import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
 import me.rerere.rikkahub.ui.theme.ThemeTokenTextScaleGroup
 import me.rerere.rikkahub.ui.theme.applyThemeTokenTextScale
-import me.rerere.rikkahub.ui.theme.luneSizeSpring
 import me.rerere.rikkahub.utils.toDp
 import org.intellij.markdown.IElementType
 import org.intellij.markdown.MarkdownElementTypes
@@ -203,7 +200,6 @@ private fun List<IntRange>.overlaps(range: IntRange): Boolean {
 }
 
 private data class MarkdownParseResult(
-    val source: String,
     val preprocessed: String,
     val astTree: ASTNode,
     val hasHtmlBlocks: Boolean,
@@ -217,7 +213,7 @@ private fun ASTNode.containsHtmlBlocks(): Boolean {
 private fun parseMarkdown(content: String): MarkdownParseResult {
     val preprocessed = preProcessMarkdownContent(content)
     val astTree = parser.buildMarkdownTreeFromString(preprocessed)
-    return MarkdownParseResult(content, preprocessed, astTree, astTree.containsHtmlBlocks())
+    return MarkdownParseResult(preprocessed, astTree, astTree.containsHtmlBlocks())
 }
 
 internal fun extractCodeFenceContent(
@@ -370,12 +366,7 @@ fun MarkdownBlock(
     animateContent: Boolean = true,
     onClickCitation: (String) -> Unit = {}
 ) {
-    var (data, setData) = remember {
-        mutableStateOf(
-            value = parseMarkdown(content),
-            policy = referentialEqualityPolicy(),
-        )
-    }
+    var (data, setData) = remember { mutableStateOf(parseMarkdown(content)) }
 
     // 监听内容变化，重新解析AST树
     // 这里在后台线程解析AST树, 防止频繁更新的时候掉帧
@@ -383,22 +374,15 @@ fun MarkdownBlock(
     LaunchedEffect(Unit) {
         snapshotFlow { updatedContent }
             .distinctUntilChanged()
-            .conflate()
-            .mapLatest {
-                parseMarkdown(it)
-            }
-            .flowOn(Dispatchers.Default) // 在后台线程解析AST树
+            .mapLatest { parseMarkdown(it) }
             .catch { exception -> exception.printStackTrace() }
-            .collect { parsed ->
-                if (parsed.source == updatedContent) {
-                    setData(parsed)
-                }
-            }
+            .flowOn(Dispatchers.Default)
+            .collect { setData(it) }
     }
 
     if (data.hasHtmlBlocks) {
         MarkdownNew(
-            content = data.source,
+            content = content,
             modifier = modifier,
             style = style,
             onClickCitation = onClickCitation,
@@ -408,7 +392,7 @@ fun MarkdownBlock(
             val contentModifier = if (animateContent) {
                 modifier
                     .padding(start = 4.dp)
-                    .animateContentSize(animationSpec = luneSizeSpring())
+                    .animateContentSize()
             } else {
                 modifier.padding(start = 4.dp)
             }
@@ -798,7 +782,18 @@ private fun MarkdownNode(
 
         // 代码块
         MarkdownElementTypes.CODE_FENCE -> {
-            val code = extractCodeFenceContent(node, content) ?: return
+            // 这里不能直接取CODE_FENCE_CONTENT的内容，因为首行indent没有包含在内
+            // 因此，需要往上找到最后一个EOL元素，用它来作为代码块的起始offset
+            val contentStartIndex = node.children.indexOfFirst { it.type == MarkdownTokenTypes.CODE_FENCE_CONTENT }
+            if (contentStartIndex == -1) return
+            val eolElement =
+                node.children.subList(0, contentStartIndex).findLast { it.type == MarkdownTokenTypes.EOL } ?: return
+            val codeContentStartOffset = eolElement.endOffset
+            val codeContentEndOffset =
+                node.children.findLast { it.type == MarkdownTokenTypes.CODE_FENCE_CONTENT }?.endOffset ?: return
+            val code = content.substring(
+                codeContentStartOffset, codeContentEndOffset
+            ).trimIndent()
 
             val language =
                 node.findChildOfTypeRecursive(MarkdownTokenTypes.FENCE_LANG)?.getTextInNode(content) ?: "plaintext"
