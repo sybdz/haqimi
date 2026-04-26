@@ -1425,6 +1425,7 @@ fun FilePickButton(onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}) {
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     "application/vnd.ms-powerpoint",
                     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "application/epub+zip",
                     "application/zip"
                 )
 
@@ -1437,6 +1438,7 @@ fun FilePickButton(onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}) {
                         mime.startsWith("text/") ||
                         mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
                         mime == "application/pdf" ||
+                        mime == "application/epub+zip" ||
                         mime == "application/zip" ||
                         fileName.endsWith(".txt", ignoreCase = true) ||
                         fileName.endsWith(".md", ignoreCase = true) ||
@@ -1456,6 +1458,7 @@ fun FilePickButton(onAddFiles: (List<UIMessagePart.Document>) -> Unit = {}) {
                         fileName.endsWith(".mdx", ignoreCase = true) ||
                         fileName.endsWith(".yml", ignoreCase = true) ||
                         fileName.endsWith(".yaml", ignoreCase = true) ||
+                        fileName.endsWith(".epub", ignoreCase = true) ||
                         fileName.endsWith(".zip", ignoreCase = true)
 
                     if (isAllowed) {

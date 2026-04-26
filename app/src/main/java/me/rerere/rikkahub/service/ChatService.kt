@@ -519,6 +519,11 @@ class ChatService(
         return session.generationJob
     }
 
+    fun getProcessingStatusFlow(conversationId: Uuid): StateFlow<String?> {
+        val session = sessions[conversationId] ?: return MutableStateFlow(null)
+        return session.processingStatus
+    }
+
     fun getConversationJobs(): Flow<Map<Uuid, Job?>> {
         return _sessionsVersion.flatMapLatest {
             val currentSessions = sessions.values.toList()
@@ -1445,6 +1450,7 @@ class ChatService(
                 stGenerationType = stGenerationType,
                 stMacroState = getConversationStMacroState(conversationId),
                 lorebookRuntimeState = session.getLorebookRuntimeState(),
+                processingStatus = session.processingStatus,
                 inputTransformers = buildList {
                     addAll(inputTransformers)
                     add(RegexPromptOnlyTransformer)

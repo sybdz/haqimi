@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.transformers
 
 import android.content.Context
+import kotlinx.coroutines.flow.MutableStateFlow
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
@@ -17,6 +18,7 @@ class TransformerContext(
     val stMacroState: StMacroState? = null,
     val lorebookRuntimeState: LorebookRuntimeState? = null,
     val dryRun: Boolean = false,
+    val processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
 )
 
 interface MessageTransformer {
@@ -71,6 +73,7 @@ suspend fun List<UIMessage>.transforms(
     stMacroState: StMacroState? = null,
     lorebookRuntimeState: LorebookRuntimeState? = null,
     dryRun: Boolean = false,
+    processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
 ): List<UIMessage> {
     val ctx = TransformerContext(
         context = context,
@@ -81,6 +84,7 @@ suspend fun List<UIMessage>.transforms(
         stMacroState = stMacroState,
         lorebookRuntimeState = lorebookRuntimeState,
         dryRun = dryRun,
+        processingStatus = processingStatus,
     )
     val transformedMessages = transformers.fold(this) { acc, transformer ->
         transformer.transform(ctx, acc)
@@ -111,6 +115,7 @@ suspend fun List<UIMessage>.visualTransforms(
     stMacroState: StMacroState? = null,
     lorebookRuntimeState: LorebookRuntimeState? = null,
     dryRun: Boolean = false,
+    processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
 ): List<UIMessage> {
     val ctx = TransformerContext(
         context = context,
@@ -121,6 +126,7 @@ suspend fun List<UIMessage>.visualTransforms(
         stMacroState = stMacroState,
         lorebookRuntimeState = lorebookRuntimeState,
         dryRun = dryRun,
+        processingStatus = processingStatus,
     )
     return transformers.fold(this) { acc, transformer ->
         if (transformer is OutputMessageTransformer) {
@@ -141,6 +147,7 @@ suspend fun List<UIMessage>.onGenerationFinish(
     stMacroState: StMacroState? = null,
     lorebookRuntimeState: LorebookRuntimeState? = null,
     dryRun: Boolean = false,
+    processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
 ): List<UIMessage> {
     val ctx = TransformerContext(
         context = context,
@@ -151,6 +158,7 @@ suspend fun List<UIMessage>.onGenerationFinish(
         stMacroState = stMacroState,
         lorebookRuntimeState = lorebookRuntimeState,
         dryRun = dryRun,
+        processingStatus = processingStatus,
     )
     return transformers.fold(this) { acc, transformer ->
         if (transformer is OutputMessageTransformer) {

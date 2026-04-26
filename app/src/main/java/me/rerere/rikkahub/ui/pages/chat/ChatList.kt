@@ -168,6 +168,7 @@ fun ChatList(
     conversation: Conversation,
     state: LazyListState,
     loading: Boolean,
+    processingStatus: String? = null,
     previewMode: Boolean,
     topBarVisible: Boolean,
     settings: Settings,
@@ -212,6 +213,7 @@ fun ChatList(
                 conversation = conversation,
                 state = state,
                 loading = loading,
+                processingStatus = processingStatus,
                 topBarVisible = topBarVisible,
                 settings = settings,
                 hazeState = hazeState,
@@ -243,6 +245,7 @@ private fun ChatListNormal(
     conversation: Conversation,
     state: LazyListState,
     loading: Boolean,
+    processingStatus: String? = null,
     topBarVisible: Boolean,
     settings: Settings,
     hazeState: HazeState,
@@ -493,15 +496,26 @@ private fun ChatListNormal(
 
             if (loading) {
                 item(LoadingIndicatorKey) {
-                    Box(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
                     ) {
                         RabbitLoadingIndicator(
                             modifier = Modifier.size(28.dp)
                         )
+                        AnimatedVisibility(
+                            visible = processingStatus != null,
+                        ) {
+                            Text(
+                                text = processingStatus ?: "",
+                                modifier = Modifier.padding(start = 8.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }

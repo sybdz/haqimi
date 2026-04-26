@@ -169,6 +169,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val setting by vm.settings.collectAsStateWithLifecycle()
     val conversation by vm.conversation.collectAsStateWithLifecycle()
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
+    val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
@@ -257,6 +258,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 ChatPageContent(
                     inputState = inputState,
                     loadingJob = loadingJob,
+                    processingStatus = processingStatus,
                     setting = setting,
                     conversation = conversation,
                     drawerState = drawerState,
@@ -288,6 +290,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 ChatPageContent(
                     inputState = inputState,
                     loadingJob = loadingJob,
+                    processingStatus = processingStatus,
                     setting = setting,
                     conversation = conversation,
                     drawerState = drawerState,
@@ -328,6 +331,7 @@ private fun Settings.resolveHistoryAssistantName(conversation: Conversation): St
 private fun ChatPageContent(
     inputState: ChatInputState,
     loadingJob: Job?,
+    processingStatus: String?,
     setting: Settings,
     bigScreen: Boolean,
     conversation: Conversation,
@@ -640,6 +644,7 @@ private fun ChatPageContent(
                     conversation = conversation,
                     state = chatListState,
                     loading = loadingJob != null,
+                    processingStatus = processingStatus,
                     previewMode = previewMode,
                     topBarVisible = topBarVisible,
                     settings = setting,

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.datetime.TimeZone
@@ -117,6 +118,7 @@ class GenerationHandler(
         stGenerationType: String = "normal",
         stMacroState: StMacroState? = null,
         lorebookRuntimeState: LorebookRuntimeState? = null,
+        processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -173,6 +175,7 @@ class GenerationHandler(
                             stGenerationType = stGenerationType,
                             stMacroState = stMacroState,
                             lorebookRuntimeState = lorebookRuntimeState,
+                            processingStatus = processingStatus,
                         )
                         emit(
                             GenerationChunk.Messages(
@@ -185,6 +188,7 @@ class GenerationHandler(
                                     stGenerationType = stGenerationType,
                                     stMacroState = stMacroState,
                                     lorebookRuntimeState = lorebookRuntimeState,
+                                    processingStatus = processingStatus,
                                 )
                             )
                         )
@@ -199,6 +203,7 @@ class GenerationHandler(
                     stGenerationType = stGenerationType,
                     stMacroState = stMacroState,
                     lorebookRuntimeState = lorebookRuntimeState,
+                    processingStatus = processingStatus,
                 )
                 messages = messages.onGenerationFinish(
                     transformers = outputTransformers,
@@ -209,6 +214,7 @@ class GenerationHandler(
                     stGenerationType = stGenerationType,
                     stMacroState = stMacroState,
                     lorebookRuntimeState = lorebookRuntimeState,
+                    processingStatus = processingStatus,
                 )
                 messages = messages.slice(0 until messages.lastIndex) + messages.last().copy(
                     finishedAt = Clock.System.now()
@@ -354,6 +360,7 @@ class GenerationHandler(
                         stGenerationType = stGenerationType,
                         stMacroState = stMacroState,
                         lorebookRuntimeState = lorebookRuntimeState,
+                        processingStatus = processingStatus,
                     )
                 )
             )
@@ -403,6 +410,7 @@ class GenerationHandler(
         stGenerationType: String,
         stMacroState: StMacroState?,
         lorebookRuntimeState: LorebookRuntimeState?,
+        processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
     ) {
         val internalMessages = prepareInternalMessages(
             assistant = assistant,
@@ -415,6 +423,7 @@ class GenerationHandler(
             stGenerationType = stGenerationType,
             stMacroState = stMacroState,
             lorebookRuntimeState = lorebookRuntimeState,
+            processingStatus = processingStatus,
         )
 
         var messages: List<UIMessage> = messages
@@ -513,6 +522,7 @@ class GenerationHandler(
         stMacroState: StMacroState?,
         lorebookRuntimeState: LorebookRuntimeState?,
         dryRun: Boolean = false,
+        processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
     ): List<UIMessage> {
         val preparedMessages = messages.prepareMessagesForGeneration(
             contextMessageSize = assistant.contextMessageSize,
@@ -560,6 +570,7 @@ class GenerationHandler(
             stMacroState = stMacroState,
             lorebookRuntimeState = lorebookRuntimeState,
             dryRun = dryRun,
+            processingStatus = processingStatus,
         )
     }
 

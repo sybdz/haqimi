@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.document.DocxParser
+import me.rerere.document.EpubParser
 import me.rerere.document.PdfParser
 import me.rerere.document.PptxParser
 import java.io.ByteArrayOutputStream
@@ -71,6 +72,10 @@ object DocumentAsPromptTransformer : InputMessageTransformer {
 
     private fun parsePptxAsText(file: File): String {
         return PptxParser.parse(file)
+    }
+
+    private fun parseEpubAsText(file: File): String {
+        return EpubParser.parse(file)
     }
 
     private fun parseZipAsText(file: File): String {
@@ -163,6 +168,7 @@ object DocumentAsPromptTransformer : InputMessageTransformer {
         }
         return runCatching {
             when {
+                document.isEpub() -> parseEpubAsText(file)
                 document.isZipArchive() -> parseZipAsText(file)
                 document.mime == "application/pdf" -> parsePdfAsText(file)
                 document.mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ->
@@ -176,6 +182,11 @@ object DocumentAsPromptTransformer : InputMessageTransformer {
         }.getOrElse {
             "[ERROR, failed to read file: ${document.fileName}]"
         }
+    }
+
+    private fun UIMessagePart.Document.isEpub(): Boolean {
+        return mime == "application/epub+zip" ||
+            fileName.endsWith(".epub", ignoreCase = true)
     }
 
     private fun UIMessagePart.Document.isZipArchive(): Boolean {

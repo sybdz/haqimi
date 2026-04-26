@@ -63,6 +63,9 @@ import me.rerere.highlight.buildHighlightText
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.hugeicons.stroke.Copy01
+import me.rerere.hugeicons.stroke.Download04
+import me.rerere.hugeicons.stroke.Eye
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -155,6 +158,7 @@ fun HighlightCodeBlock(
                 createDocumentLauncher = createDocumentLauncher,
                 navController = navController,
                 themeTokens = themeTokens,
+                completeCodeBlock = completeCodeBlock,
             )
         }
         Column(
@@ -360,9 +364,14 @@ private fun HighlightCodeActions(
     createDocumentLauncher: ManagedActivityResultLauncher<String, Uri?>,
     navController: Navigator,
     themeTokens: ThemeTokenParseResult,
+    completeCodeBlock: Boolean = true,
 ) {
-    val previewTarget = remember(language, code) {
-        CodeBlockRenderResolver.resolve(language = language, code = code)
+    val previewTarget = remember(language, code, completeCodeBlock) {
+        if (completeCodeBlock) {
+            CodeBlockRenderResolver.resolve(language = language, code = code)
+        } else {
+            null
+        }
     }
     val actionTextStyle = remember(themeTokens) {
         themeTokens.applyThemeTokenTextScale(
@@ -383,70 +392,64 @@ private fun HighlightCodeActions(
         )
         Spacer(Modifier.weight(1f))
         Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .clickable {
-                    scope.launch {
-                        clipboardManager.setClipEntry(
-                            ClipEntry(
-                                ClipData.newPlainText("code", code),
-                            )
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val iconSize = 16.dp
+            val iconTint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+
+            Icon(
+                imageVector = HugeIcons.Download04,
+                contentDescription = stringResource(id = R.string.chat_page_save),
+                tint = iconTint,
+                modifier = Modifier.clickable {
+                        val extension = when (language.lowercase()) {
+                            "kotlin" -> "kt"
+                            "java" -> "java"
+                            "python" -> "py"
+                            "javascript" -> "js"
+                            "typescript" -> "ts"
+                            "cpp", "c++" -> "cpp"
+                            "c" -> "c"
+                            "html" -> "html"
+                            "svg" -> "svg"
+                            "css" -> "css"
+                            "xml" -> "xml"
+                            "json" -> "json"
+                            "yaml", "yml" -> "yml"
+                            "markdown", "md" -> "md"
+                            "sql" -> "sql"
+                            "sh", "bash" -> "sh"
+                            else -> "txt"
+                        }
+                        createDocumentLauncher.launch(
+                            "code_${
+                                Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                            }.$extension"
                         )
                     }
-                },
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = stringResource(id = R.string.chat_page_save),
-                fontSize = actionTextStyle.fontSize,
-                lineHeight = actionTextStyle.lineHeight,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.clickable {
-                    val extension = when (language.lowercase()) {
-                        "kotlin" -> "kt"
-                        "java" -> "java"
-                        "python" -> "py"
-                        "javascript" -> "js"
-                        "typescript" -> "ts"
-                        "cpp", "c++" -> "cpp"
-                        "c" -> "c"
-                        "html" -> "html"
-                        "svg" -> "svg"
-                        "css" -> "css"
-                        "xml" -> "xml"
-                        "json" -> "json"
-                        "yaml", "yml" -> "yml"
-                        "markdown", "md" -> "md"
-                        "sql" -> "sql"
-                        "sh", "bash" -> "sh"
-                        else -> "txt"
-                    }
-                    createDocumentLauncher.launch(
-                        "code_${
-                            Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                        }.$extension"
-                    )
-                }
+                    .padding(4.dp)
+                    .size(iconSize)
             )
 
-            Text(
-                text = stringResource(id = R.string.code_block_copy),
-                fontSize = actionTextStyle.fontSize,
-                lineHeight = actionTextStyle.lineHeight,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            Icon(
+                imageVector = HugeIcons.Copy01,
+                contentDescription = stringResource(id = R.string.code_block_copy),
+                tint = iconTint,
                 modifier = Modifier.clickable {
-                    scope.launch {
-                        clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("code", code)))
+                        scope.launch {
+                            clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("code", code)))
+                        }
                     }
-                }
+                    .padding(4.dp)
+                    .size(iconSize)
             )
 
             if (previewTarget != null) {
-                Text(
-                    text = stringResource(id = R.string.code_block_preview),
-                    fontSize = actionTextStyle.fontSize,
-                    lineHeight = actionTextStyle.lineHeight,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                Icon(
+                    imageVector = HugeIcons.Eye,
+                    contentDescription = stringResource(id = R.string.code_block_preview),
+                    tint = iconTint,
                     modifier = Modifier
                         .clickable {
                             val previewHtml = CodeBlockRenderResolver.buildHtmlForWebView(
@@ -455,6 +458,8 @@ private fun HighlightCodeActions(
                             )
                             navController.navigate(Screen.WebView(content = previewHtml.base64Encode()))
                         }
+                        .padding(4.dp)
+                        .size(iconSize)
                 )
             }
         }

@@ -81,6 +81,10 @@ class ChatVM(
             .getGenerationJobStateFlow(_conversationId)
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    val processingStatus: StateFlow<String?> =
+        chatService
+            .getProcessingStatusFlow(_conversationId)
+
     val conversationJobs = chatService
         .getConversationJobs()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
