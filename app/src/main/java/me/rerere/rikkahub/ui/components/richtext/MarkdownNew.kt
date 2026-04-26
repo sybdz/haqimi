@@ -72,6 +72,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick01
+import me.rerere.rikkahub.data.diagnostics.Diagnostics
 import me.rerere.rikkahub.ui.components.table.DataTable
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -116,9 +117,18 @@ private val flavour by lazy {
 private val parser by lazy { MarkdownParser(flavour) }
 
 private fun generateMarkdownHtml(content: String): String {
-    val preprocessed = preProcess(content)
-    val tree = parser.buildMarkdownTreeFromString(preprocessed)
-    return HtmlGenerator(preprocessed, tree, flavour).generateHtml()
+    return Diagnostics.trace(
+        category = "markdown_html",
+        name = "generate html",
+        thresholdMs = 24,
+        metadata = mapOf(
+            "chars" to content.length
+        )
+    ) {
+        val preprocessed = preProcess(content)
+        val tree = parser.buildMarkdownTreeFromString(preprocessed)
+        HtmlGenerator(preprocessed, tree, flavour).generateHtml()
+    }
 }
 
 // ---- Main composable ----

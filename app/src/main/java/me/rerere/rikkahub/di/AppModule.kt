@@ -14,6 +14,8 @@ import me.rerere.rikkahub.data.ai.tools.termux.TermuxCommandManager
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxMcpStdioServerManager
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxPtySessionManager
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxWorkdirServerManager
+import me.rerere.rikkahub.data.diagnostics.DiagnosticsBundleBuilder
+import me.rerere.rikkahub.data.diagnostics.DiagnosticsMonitor
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.event.ChatComposerBridge
 import me.rerere.rikkahub.data.event.ChatHistoryBridge
@@ -132,6 +134,12 @@ val appModule = module {
     }
 
     single {
+        DiagnosticsMonitor(
+            appScope = get(),
+        )
+    }
+
+    single {
         ChatService(
             context = get(),
             appScope = get(),
@@ -146,6 +154,16 @@ val appModule = module {
             termuxPtySessionManager = get(),
             mcpManager = get(),
             filesManager = get(),
+        )
+    }
+
+    single {
+        DiagnosticsBundleBuilder(
+            context = get(),
+            settingsStore = get(),
+            aiLoggingManager = get(),
+            chatService = get(),
+            diagnosticsMonitor = get(),
         )
     }
 

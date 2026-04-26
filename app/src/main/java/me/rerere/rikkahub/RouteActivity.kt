@@ -60,6 +60,7 @@ import me.rerere.highlight.Highlighter
 import me.rerere.highlight.LocalHighlighter
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.diagnostics.Diagnostics
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.components.ui.TTSController
@@ -365,6 +366,17 @@ class RouteActivity : ComponentActivity() {
 
         val backStack = rememberNavBackStack(startScreen)
         SideEffect { this@RouteActivity.navStack = backStack }
+        val currentScreenName = backStack.lastOrNull()?.javaClass?.simpleName ?: "none"
+        LaunchedEffect(currentScreenName, backStack.size) {
+            Diagnostics.info(
+                category = "navigation",
+                message = "screen changed",
+                metadata = mapOf(
+                    "screen" to currentScreenName,
+                    "stackSize" to backStack.size
+                )
+            )
+        }
 
         ShareHandler(backStack)
         LaunchedEffect(backStack, settings) {

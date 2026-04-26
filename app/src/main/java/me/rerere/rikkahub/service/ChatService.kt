@@ -99,6 +99,7 @@ import me.rerere.rikkahub.data.ai.transformers.readLatestAssistantStRuntimeSnaps
 import me.rerere.rikkahub.data.ai.transformers.readStRuntimeSnapshot
 import me.rerere.rikkahub.data.ai.transformers.withStRuntimeSnapshot
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.diagnostics.Diagnostics
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
@@ -206,6 +207,12 @@ class ChatService(
 
     fun addError(error: Throwable, conversationId: Uuid? = null) {
         if (error is CancellationException) return
+        Diagnostics.error(
+            category = "chat",
+            message = "chat error",
+            throwable = error,
+            metadata = mapOf("conversationId" to conversationId)
+        )
         _errors.update { it + ChatError(error = error, conversationId = conversationId) }
     }
 

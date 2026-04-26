@@ -1,9 +1,13 @@
 package me.rerere.rikkahub.ui.pages.log
 
 import android.content.ClipData
+import android.content.Context
+import android.content.Intent
+import androidx.core.content.FileProvider
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Share01
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -41,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -62,6 +67,9 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.common.android.LogEntry
 import me.rerere.common.android.Logging
+import me.rerere.rikkahub.data.diagnostics.Diagnostics
+import me.rerere.rikkahub.data.diagnostics.DiagnosticsBundleBuilder
+import me.rerere.rikkahub.data.diagnostics.DiagnosticsMonitor
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -70,11 +78,19 @@ import me.rerere.rikkahub.utils.JsonInstantPretty
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.koin.compose.koinInject
 
 @Composable
 fun LogPage() {
     var logs by remember { mutableStateOf(Logging.getRecentLogs()) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val context = LocalContext.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val toaster = LocalToaster.current
+    val diagnosticsBundleBuilder: DiagnosticsBundleBuilder = koinInject()
+    val diagnosticsMonitor: DiagnosticsMonitor = koinInject()
+    val copied = stringResource(R.string.copied)
 
     Scaffold(
         topBar = {
@@ -84,7 +100,30 @@ fun LogPage() {
                 actions = {
                     IconButton(
                         onClick = {
+                            scope.launch {
+                                val report = diagnosticsBundleBuilder.buildReport()
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("rikkahub-diagnostics", report)))
+                                toaster.show(copied, type = ToastType.Success)
+                            }
+                        }
+                    ) {
+                        Icon(HugeIcons.Copy01, null)
+                    }
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                val file = diagnosticsBundleBuilder.writeReportFile()
+                                shareDiagnosticFile(context, file)
+                            }
+                        }
+                    ) {
+                        Icon(HugeIcons.Share01, null)
+                    }
+                    IconButton(
+                        onClick = {
                             Logging.clear()
+                            diagnosticsMonitor.clear()
+                            Diagnostics.clear()
                             logs = Logging.getRecentLogs()
                         }
                     ) {
@@ -106,6 +145,20 @@ fun LogPage() {
                 .padding(contentPadding)
         )
     }
+}
+
+private fun shareDiagnosticFile(context: Context, file: java.io.File) {
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, "Share diagnostics"))
 }
 
 @Composable

@@ -1,5 +1,7 @@
 package me.rerere.highlight
 
+import android.os.SystemClock
+import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +29,8 @@ import androidx.compose.ui.util.fastForEach
 val LocalHighlighter = compositionLocalOf<Highlighter> { error("No Highlighter provided") }
 
 private const val MAX_CODE_LENGTH = 4096
+private const val SLOW_HIGHLIGHT_MS = 32L
+private const val TAG = "HighlightText"
 
 @Composable
 fun HighlightText(
@@ -52,6 +56,7 @@ fun HighlightText(
     val updatedLanguage by rememberUpdatedState(language)
     LaunchedEffect(Unit) {
         snapshotFlow { updatedCode to updatedLanguage }.collect {
+            val startMs = SystemClock.elapsedRealtime()
             tokens = if (updatedCode.length <= MAX_CODE_LENGTH) {
                 highlighter.highlight(updatedCode, updatedLanguage)
             } else {
@@ -63,6 +68,13 @@ fun HighlightText(
                 tokens.fastForEach { token ->
                     buildHighlightText(token, colors)
                 }
+            }
+            val elapsedMs = SystemClock.elapsedRealtime() - startMs
+            if (elapsedMs >= SLOW_HIGHLIGHT_MS) {
+                Log.w(
+                    TAG,
+                    "highlight took ${elapsedMs}ms language=$updatedLanguage chars=${updatedCode.length}"
+                )
             }
         }
     }

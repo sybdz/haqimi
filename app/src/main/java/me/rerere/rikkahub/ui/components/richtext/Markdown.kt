@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.mapLatest
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.rikkahub.data.datastore.shouldRenderCodeBlock
 import me.rerere.hugeicons.stroke.Tick01
+import me.rerere.rikkahub.data.diagnostics.Diagnostics
 import me.rerere.rikkahub.ui.components.table.DataTable
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -211,9 +212,18 @@ private fun ASTNode.containsHtmlBlocks(): Boolean {
 }
 
 private fun parseMarkdown(content: String): MarkdownParseResult {
-    val preprocessed = preProcessMarkdownContent(content)
-    val astTree = parser.buildMarkdownTreeFromString(preprocessed)
-    return MarkdownParseResult(preprocessed, astTree, astTree.containsHtmlBlocks())
+    return Diagnostics.trace(
+        category = "markdown",
+        name = "parse",
+        thresholdMs = 24,
+        metadata = mapOf(
+            "chars" to content.length
+        )
+    ) {
+        val preprocessed = preProcessMarkdownContent(content)
+        val astTree = parser.buildMarkdownTreeFromString(preprocessed)
+        MarkdownParseResult(preprocessed, astTree, astTree.containsHtmlBlocks())
+    }
 }
 
 internal fun extractCodeFenceContent(
@@ -808,7 +818,28 @@ private fun MarkdownNode(
                 displaySetting.enableCodeBlockRichRender,
             ) {
                 if (hasEnd && shouldRenderCodeBlock && displaySetting.enableCodeBlockRichRender) {
-                    CodeBlockRenderResolver.resolve(language = language, code = code)
+                    Diagnostics.trace(
+                        category = "code_block",
+                        name = "resolve rich render",
+                        thresholdMs = 8,
+                        metadata = mapOf(
+                            "language" to language,
+                            "chars" to code.length,
+                            "messageDepthFromEnd" to messageDepthFromEnd
+                        )
+                    ) {
+                        CodeBlockRenderResolver.resolve(language = language, code = code)
+                    }?.also { target ->
+                        Diagnostics.info(
+                            category = "code_block",
+                            message = "rich render target",
+                            metadata = mapOf(
+                                "language" to language,
+                                "renderType" to target.renderType,
+                                "chars" to code.length
+                            )
+                        )
+                    }
                 } else {
                     null
                 }

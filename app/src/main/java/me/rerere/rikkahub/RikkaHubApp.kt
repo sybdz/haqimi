@@ -24,6 +24,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import me.rerere.common.android.appTempFolder
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxWorkdirServerManager
+import me.rerere.rikkahub.data.diagnostics.Diagnostics
+import me.rerere.rikkahub.data.diagnostics.DiagnosticsMonitor
 import me.rerere.rikkahub.di.appModule
 import me.rerere.rikkahub.di.dataSourceModule
 import me.rerere.rikkahub.di.repositoryModule
@@ -67,6 +69,16 @@ class RikkaHubApp : Application() {
 
         // install crash handler
         CrashHandler.install(this)
+
+        get<DiagnosticsMonitor>().start(this)
+        Diagnostics.info(
+            category = "startup",
+            message = "application onCreate",
+            metadata = mapOf(
+                "buildType" to BuildConfig.BUILD_TYPE,
+                "version" to "${BuildConfig.VERSION_NAME}(${BuildConfig.VERSION_CODE})"
+            )
+        )
 
         // delete temp files
         deleteTempFiles()
@@ -273,6 +285,20 @@ class RikkaHubApp : Application() {
         get<AppScope>().cancel()
         stopService(Intent(this, WebServerService::class.java))
         stopService(Intent(this, ScheduledTaskKeepAliveService::class.java))
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        runCatching {
+            get<DiagnosticsMonitor>().recordTrimMemory(level)
+        }
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        runCatching {
+            get<DiagnosticsMonitor>().recordLowMemory()
+        }
     }
 }
 

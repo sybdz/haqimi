@@ -59,6 +59,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowExpandDiagonal01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.diagnostics.Diagnostics
 import me.rerere.rikkahub.data.event.ChatComposerBridge
 import me.rerere.rikkahub.data.event.ChatHistoryBridge
 import me.rerere.rikkahub.ui.components.webview.WebContent
@@ -443,6 +444,19 @@ internal fun WebRenderedCodeBlock(
         initialHtml = inlineHtml,
         interfaces = webViewInterfaces,
     )
+
+    LaunchedEffect(renderSignature) {
+        Diagnostics.info(
+            category = "code_block_webview",
+            message = "rendered code block created",
+            metadata = mapOf(
+                "language" to target.normalizedLanguage,
+                "type" to target.renderType,
+                "codeChars" to code.length,
+                "htmlChars" to inlineHtml.length
+            )
+        )
+    }
 
     fun resolveExpandedHtml(): String {
         val cachedHtml = expandedHtmlCache

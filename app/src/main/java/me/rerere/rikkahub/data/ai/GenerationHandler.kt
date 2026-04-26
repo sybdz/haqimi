@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +44,7 @@ import me.rerere.rikkahub.data.ai.transformers.transforms
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.ai.tools.buildMemoryTools
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.diagnostics.Diagnostics
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
@@ -463,11 +465,37 @@ class GenerationHandler(
                     stream = true
                 )
             )
+            val streamStartMs = SystemClock.elapsedRealtime()
+            var chunkCount = 0
+            var firstChunkMs: Long? = null
+            Diagnostics.info(
+                category = "generation",
+                message = "stream started",
+                metadata = mapOf(
+                    "model" to model.modelId,
+                    "provider" to provider.name,
+                    "messages" to internalMessages.size,
+                    "tools" to tools.size
+                )
+            )
             providerImpl.streamText(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params
             ).collect {
+                chunkCount++
+                val nowMs = SystemClock.elapsedRealtime()
+                if (firstChunkMs == null) {
+                    val firstChunkElapsedMs = nowMs - streamStartMs
+                    firstChunkMs = firstChunkElapsedMs
+                    Diagnostics.duration(
+                        category = "generation",
+                        name = "first stream chunk",
+                        elapsedMs = firstChunkElapsedMs,
+                        thresholdMs = 0,
+                        metadata = mapOf("model" to model.modelId, "provider" to provider.name)
+                    )
+                }
                 messages = messages.handleMessageChunk(chunk = it, model = model)
                 it.usage?.let { usage ->
                     messages = messages.mapIndexed { index, message ->
@@ -478,8 +506,31 @@ class GenerationHandler(
                         }
                     }
                 }
+                if (chunkCount % 25 == 0) {
+                    Diagnostics.debug(
+                        category = "generation",
+                        message = "stream progress",
+                        metadata = mapOf(
+                            "chunks" to chunkCount,
+                            "elapsedMs" to (nowMs - streamStartMs),
+                            "textChars" to messages.lastOrNull().orEmptyTextLength()
+                        )
+                    )
+                }
                 onUpdateMessages(messages)
             }
+            Diagnostics.duration(
+                category = "generation",
+                name = "stream completed",
+                elapsedMs = SystemClock.elapsedRealtime() - streamStartMs,
+                thresholdMs = 0,
+                metadata = mapOf(
+                    "model" to model.modelId,
+                    "provider" to provider.name,
+                    "chunks" to chunkCount,
+                    "textChars" to messages.lastOrNull().orEmptyTextLength()
+                )
+            )
         } else {
             aiLoggingManager.addLog(
                 AILogging.Generation(
@@ -489,11 +540,23 @@ class GenerationHandler(
                     stream = false
                 )
             )
-            val chunk = providerImpl.generateText(
-                providerSetting = provider,
-                messages = internalMessages,
-                params = params,
-            )
+            val chunk = Diagnostics.traceSuspend(
+                category = "generation",
+                name = "generate text",
+                thresholdMs = 0,
+                metadata = mapOf(
+                    "model" to model.modelId,
+                    "provider" to provider.name,
+                    "messages" to internalMessages.size,
+                    "tools" to tools.size
+                )
+            ) {
+                providerImpl.generateText(
+                    providerSetting = provider,
+                    messages = internalMessages,
+                    params = params,
+                )
+            }
             messages = messages.handleMessageChunk(chunk = chunk, model = model)
             chunk.usage?.let { usage ->
                 messages = messages.mapIndexed { index, message ->
@@ -688,4 +751,22 @@ internal fun evaluatePendingToolApprovals(
         tools = updatedTools,
         hasPendingApproval = hasPendingApproval,
     )
+}
+
+private fun UIMessage?.orEmptyTextLength(): Int {
+    return this?.parts?.sumOf { part ->
+        when (part) {
+            is UIMessagePart.Text -> part.text.length
+            is UIMessagePart.Reasoning -> part.reasoning.length
+            is UIMessagePart.Tool -> part.input.length + part.output.sumOf { outputPart ->
+                when (outputPart) {
+                    is UIMessagePart.Text -> outputPart.text.length
+                    is UIMessagePart.Reasoning -> outputPart.reasoning.length
+                    else -> 0
+                }
+            }
+
+            else -> 0
+        }
+    } ?: 0
 }
