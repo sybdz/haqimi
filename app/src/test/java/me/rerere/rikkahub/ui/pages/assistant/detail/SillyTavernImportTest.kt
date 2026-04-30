@@ -631,12 +631,10 @@ class SillyTavernImportTest {
             currentAssistant = currentAssistant,
             payload = payload,
             existingLorebooks = emptyList(),
-            existingSharedRegexes = emptyList(),
             includeRegexes = true,
         )
 
         assertEquals(1, application.assistant.regexes.size)
-        assertEquals(0, application.sharedRegexes.size)
     }
 
     @Test

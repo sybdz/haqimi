@@ -99,17 +99,20 @@ class AssistantRegexTest {
     }
 
     @Test
-    fun `global and assistant regexes should be applied together in order`() {
+    fun `preset and assistant regexes should be applied together in order`() {
+        val presetRegex = AssistantRegex(
+            id = Uuid.random(),
+            enabled = true,
+            findRegex = "foo",
+            replaceString = "bar",
+            affectingScope = setOf(AssistantAffectScope.USER),
+        )
+        val preset = SillyTavernPreset(
+            regexes = listOf(presetRegex),
+        )
         val settings = Settings(
-            globalRegexes = listOf(
-                AssistantRegex(
-                    id = Uuid.random(),
-                    enabled = true,
-                    findRegex = "foo",
-                    replaceString = "bar",
-                    affectingScope = setOf(AssistantAffectScope.USER),
-                )
-            )
+            stPresets = listOf(preset),
+            selectedStPresetId = preset.id,
         )
         val assistant = Assistant(
             regexes = listOf(
@@ -135,25 +138,18 @@ class AssistantRegexTest {
     }
 
     @Test
-    fun `group toggles should gate global preset and assistant regexes independently`() {
-        val globalRegex = AssistantRegex(
+    fun `group toggles should gate preset and assistant regexes independently`() {
+        val presetRegex = AssistantRegex(
             id = Uuid.random(),
             enabled = true,
             findRegex = "foo",
             replaceString = "bar",
             affectingScope = setOf(AssistantAffectScope.USER),
         )
-        val presetRegex = AssistantRegex(
-            id = Uuid.random(),
-            enabled = true,
-            findRegex = "bar",
-            replaceString = "baz",
-            affectingScope = setOf(AssistantAffectScope.USER),
-        )
         val assistantRegex = AssistantRegex(
             id = Uuid.random(),
             enabled = true,
-            findRegex = "baz",
+            findRegex = "bar",
             replaceString = "qux",
             affectingScope = setOf(AssistantAffectScope.USER),
         )
@@ -166,8 +162,6 @@ class AssistantRegexTest {
             regexes = listOf(assistantRegex),
         )
         val settings = Settings(
-            globalRegexEnabled = false,
-            globalRegexes = listOf(globalRegex),
             stPresets = listOf(preset),
             selectedStPresetId = preset.id,
         )
@@ -182,31 +176,20 @@ class AssistantRegexTest {
             )
         )
 
-        val globalOnly = settings.copy(globalRegexEnabled = true)
+        val presetEnabled = settings.copy(
+            stPresets = listOf(preset.copy(regexEnabled = true)),
+        )
         assertEquals(
             "bar",
             "foo".replaceRegexes(
                 assistant = assistant,
-                settings = globalOnly,
+                settings = presetEnabled,
                 scope = AssistantAffectScope.USER,
                 phase = AssistantRegexApplyPhase.ACTUAL_MESSAGE,
             )
         )
 
-        val globalAndPreset = globalOnly.copy(
-            stPresets = listOf(preset.copy(regexEnabled = true)),
-        )
-        assertEquals(
-            "baz",
-            "foo".replaceRegexes(
-                assistant = assistant,
-                settings = globalAndPreset,
-                scope = AssistantAffectScope.USER,
-                phase = AssistantRegexApplyPhase.ACTUAL_MESSAGE,
-            )
-        )
-
-        val allEnabled = globalAndPreset
+        val allEnabled = presetEnabled
         val assistantEnabled = assistant.copy(regexEnabled = true)
         assertEquals(
             "qux",
@@ -265,20 +248,28 @@ class AssistantRegexTest {
     }
 
     @Test
-    fun `assistant regex should override same shared regex from earlier scopes`() {
-        val globalRegex = AssistantRegex(
+    fun `assistant regex should override same preset regex from earlier scopes`() {
+        val presetId = Uuid.random()
+        val presetRegex = AssistantRegex(
             id = Uuid.random(),
             enabled = false,
             findRegex = "foo",
             replaceString = "bar",
             affectingScope = setOf(AssistantAffectScope.USER),
         )
-        val assistantRegex = globalRegex.copy(
+        val assistantRegex = presetRegex.copy(
             id = Uuid.random(),
             enabled = true,
         )
         val settings = Settings(
-            globalRegexes = listOf(globalRegex),
+            stPresets = listOf(
+                SillyTavernPreset(
+                    id = presetId,
+                    regexEnabled = true,
+                    regexes = listOf(presetRegex),
+                )
+            ),
+            selectedStPresetId = presetId,
         )
         val assistant = Assistant(
             regexEnabled = true,

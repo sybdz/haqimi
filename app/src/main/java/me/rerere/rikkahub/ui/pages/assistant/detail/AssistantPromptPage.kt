@@ -209,7 +209,6 @@ private fun AssistantPromptContent(
                         existing
                     }
                 },
-                globalRegexes = pendingImport.application.sharedRegexes,
             ),
             latestAssistant,
             nextAssistant,
@@ -273,7 +272,6 @@ private fun AssistantPromptContent(
                                 currentAssistant = assistant,
                                 payload = payload,
                                 existingLorebooks = settings.lorebooks,
-                                existingSharedRegexes = settings.globalRegexes,
                                 includeRegexes = includeRegexes,
                             ),
                             runtimeTemplate = payload.characterRuntimeTemplate(),
@@ -328,7 +326,7 @@ private fun AssistantPromptContent(
                             )
                         }
                         Text(
-                            text = "全局 Regex ${settings.globalRegexes.size} 条，当前预设 Regex ${settings.activeStPresetRegexes().size} 条，助手 Regex ${assistant.regexes.size} 条，关联世界书 ${linkedLorebooks.size} 本。",
+                            text = "当前预设 Regex ${settings.activeStPresetRegexes().size} 条，助手 Regex ${assistant.regexes.size} 条，关联世界书 ${linkedLorebooks.size} 本。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

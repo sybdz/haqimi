@@ -1037,7 +1037,7 @@ class PromptInjectionTransformerTest {
     }
 
     @Test
-    fun `recursive lorebook should activate chained entries`() {
+    fun `recursive lorebook metadata should not activate chained entries`() {
         val lorebookId = Uuid.random()
         val seedEntry = createRegexInjection(
             keywords = listOf("alpha"),
@@ -1065,11 +1065,11 @@ class PromptInjectionTransformerTest {
 
         val systemText = getMessageText(result[0])
         assertTrue(systemText.contains("beta breadcrumb"))
-        assertTrue(systemText.contains("Chained lore"))
+        assertTrue(!systemText.contains("Chained lore"))
     }
 
     @Test
-    fun `recursive lorebook should respect prevent recursion metadata`() {
+    fun `prevent recursion metadata should not affect single pass lorebook scan`() {
         val lorebookId = Uuid.random()
         val seedEntry = createRegexInjection(
             keywords = listOf("alpha"),
@@ -1103,7 +1103,7 @@ class PromptInjectionTransformerTest {
     }
 
     @Test
-    fun `lorebook should respect generation type triggers`() {
+    fun `lorebook should ignore generation type trigger metadata`() {
         val lorebookId = Uuid.random()
         val lorebook = createLorebook(
             id = lorebookId,
@@ -1132,16 +1132,16 @@ class PromptInjectionTransformerTest {
             generationType = "continue",
         )
 
-        assertEquals("System prompt", getMessageText(normalResult[0]))
+        assertTrue(getMessageText(normalResult[0]).contains("Continue lore"))
         assertTrue(getMessageText(continueResult[0]).contains("Continue lore"))
     }
 
     @Test
-    fun `lorebook token budget should keep ignore budget entries`() {
+    fun `lorebook token budget should count ignore budget entries`() {
         val lorebookId = Uuid.random()
         val lorebook = createLorebook(
             id = lorebookId,
-            tokenBudget = 3,
+            tokenBudget = 2,
             entries = listOf(
                 createRegexInjection(
                     keywords = emptyList(),
@@ -1175,12 +1175,12 @@ class PromptInjectionTransformerTest {
 
         val systemText = getMessageText(result[0])
         assertTrue(systemText.contains("alpha beta"))
-        assertTrue(systemText.contains("epsilon"))
+        assertTrue(!systemText.contains("epsilon"))
         assertTrue(!systemText.contains("gamma delta"))
     }
 
     @Test
-    fun `lorebook inclusion groups should keep the highest score winner`() {
+    fun `lorebook inclusion group scoring metadata should not filter entries`() {
         val lorebookId = Uuid.random()
         val lorebook = createLorebook(
             id = lorebookId,
@@ -1216,12 +1216,12 @@ class PromptInjectionTransformerTest {
         )
 
         val systemText = getMessageText(result[0])
+        assertTrue(systemText.contains("Single score"))
         assertTrue(systemText.contains("Higher score"))
-        assertTrue(!systemText.contains("Single score"))
     }
 
     @Test
-    fun `sticky and cooldown worldbook effects should persist across turns`() {
+    fun `sticky and cooldown worldbook effects should not persist across turns`() {
         val lorebookId = Uuid.random()
         val runtimeState = LorebookRuntimeState()
         val lorebook = createLorebook(
@@ -1276,12 +1276,12 @@ class PromptInjectionTransformerTest {
         )
 
         assertTrue(getMessageText(firstTurn[0]).contains("Timed lore"))
-        assertTrue(getMessageText(stickyTurn[0]).contains("Timed lore"))
+        assertEquals("System prompt", getMessageText(stickyTurn[0]))
         assertEquals("System prompt", getMessageText(cooldownTurn[0]))
     }
 
     @Test
-    fun `delay effect should suppress lorebook until enough turns exist`() {
+    fun `delay metadata should not suppress lorebook entries`() {
         val lorebookId = Uuid.random()
         val lorebook = createLorebook(
             id = lorebookId,
@@ -1314,7 +1314,7 @@ class PromptInjectionTransformerTest {
             lorebooks = listOf(lorebook),
         )
 
-        assertEquals("System prompt", getMessageText(earlyResult[0]))
+        assertTrue(getMessageText(earlyResult[0]).contains("Delayed lore"))
         assertTrue(getMessageText(readyResult[0]).contains("Delayed lore"))
     }
 
@@ -1769,7 +1769,7 @@ class PromptInjectionTransformerTest {
     }
 
     @Test
-    fun `global lorebook min activations should expand scan depth`() {
+    fun `global lorebook min activations should not expand scan depth`() {
         val lorebookId = Uuid.random()
         val lorebook = createLorebook(
             id = lorebookId,
@@ -1801,7 +1801,7 @@ class PromptInjectionTransformerTest {
             lorebooks = listOf(lorebook),
         )
 
-        assertTrue(getMessageText(result[0]).contains("Expanded depth hit"))
+        assertEquals("System prompt", getMessageText(result[0]))
     }
 
     @Test

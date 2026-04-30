@@ -86,7 +86,6 @@ import me.rerere.rikkahub.data.ai.transformers.PromptInjectionTransformer
 import me.rerere.rikkahub.data.ai.transformers.RegexOutputTransformer
 import me.rerere.rikkahub.data.ai.transformers.RegexPromptOnlyTransformer
 import me.rerere.rikkahub.data.ai.transformers.StMacroEnvironment
-import me.rerere.rikkahub.data.ai.transformers.SillyTavernCompatScriptTransformer
 import me.rerere.rikkahub.data.ai.transformers.StMacroState
 import me.rerere.rikkahub.data.ai.transformers.LorebookRuntimeState
 import me.rerere.rikkahub.data.ai.transformers.SillyTavernPromptTransformer
@@ -187,7 +186,6 @@ class ChatService(
     private val generationHandler: GenerationHandler,
     private val providerManager: ProviderManager,
     private val localTools: LocalTools,
-    private val stCompatScriptTransformer: SillyTavernCompatScriptTransformer,
     private val termuxCommandManager: TermuxCommandManager,
     private val termuxPtySessionManager: TermuxPtySessionManager,
     val mcpManager: McpManager,
@@ -580,7 +578,6 @@ class ChatService(
             inputTransformers = buildList {
                 addAll(inputTransformers)
                 add(RegexPromptOnlyTransformer)
-                add(stCompatScriptTransformer)
             },
             assistant = assistant,
             memories = if (assistant.useGlobalMemory) {
@@ -1159,7 +1156,6 @@ class ChatService(
             inputTransformers = buildList {
                 addAll(inputTransformers)
                 add(RegexPromptOnlyTransformer)
-                add(stCompatScriptTransformer)
             },
             outputTransformers = outputTransformers,
             tools = buildList {
@@ -1454,7 +1450,6 @@ class ChatService(
                 inputTransformers = buildList {
                     addAll(inputTransformers)
                     add(RegexPromptOnlyTransformer)
-                    add(stCompatScriptTransformer)
                 },
                 outputTransformers = outputTransformers,
                 tools = buildConversationTools(

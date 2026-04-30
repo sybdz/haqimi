@@ -85,11 +85,6 @@ internal fun transformSillyTavernPrompt(
         settings = settings,
         runtimeState = runtimeState,
     )
-    updateActiveLorebookOutlets(
-        entries = triggeredLorebookEntries,
-        stMacroState = stMacroState,
-    )
-
     val worldInfoBefore = triggeredLorebookEntries
         .filter { it.position == InjectionPosition.BEFORE_SYSTEM_PROMPT }
         .joinToString("\n") { it.content.trim() }

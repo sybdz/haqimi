@@ -6,7 +6,6 @@ import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.LorebookGlobalSettings
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.WorldInfoCharacterStrategy
-import me.rerere.rikkahub.data.model.passesProbabilityCheck
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -208,8 +207,6 @@ internal fun selectBudgetedCandidates(
     var currentBudget = activatedEntries.sumOf { it.budgetedTokenCount() }
 
     for (candidate in orderedCandidates) {
-        if (!candidate.entry.passesProbabilityCheck(forceSuccess = candidate.isSticky)) continue
-
         val budgetedTokens = candidate.entry.budgetedTokenCount()
         if (budget != null && budget > 0 && currentBudget + budgetedTokens > budget) {
             continue
@@ -223,7 +220,7 @@ internal fun selectBudgetedCandidates(
 }
 
 private fun PromptInjection.RegexInjection.budgetedTokenCount(): Int {
-    return if (ignoreBudget()) 0 else estimateLorebookTokenCount(content)
+    return estimateLorebookTokenCount(content)
 }
 
 internal fun estimateLorebookTokenCount(text: String): Int {

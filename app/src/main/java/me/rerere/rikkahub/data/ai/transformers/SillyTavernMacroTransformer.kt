@@ -286,7 +286,7 @@ object SillyTavernMacroTransformer : InputMessageTransformer {
             "random" -> pickRandom(parsed.args)
             "pick" -> pickDeterministic(parsed.args, body, state, macroOffset, rootHash)
             "banned" -> ""
-            "outlet" -> env.outlets[arg(0)] ?: ""
+            "outlet" -> ""
             "instructstorystringprefix" -> env.instructStoryStringPrefix
             "instructstorystringsuffix" -> env.instructStoryStringSuffix
             "instructuserprefix", "instructinput" -> env.instructUserPrefix

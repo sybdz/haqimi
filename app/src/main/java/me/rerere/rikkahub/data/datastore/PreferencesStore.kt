@@ -255,11 +255,9 @@ class SettingsStore(
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
                 scheduledTaskKeepAliveEnabled = preferences[SCHEDULED_TASK_KEEP_ALIVE_ENABLED] == true,
-                stCompatScriptEnabled = preferences[ST_COMPAT_SCRIPT_ENABLED] == true,
-                stCompatScriptSource = preferences[ST_COMPAT_SCRIPT_SOURCE] ?: "",
-                stCompatExtensionSettings = preferences[ST_COMPAT_EXTENSION_SETTINGS]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: buildJsonObject { },
+                stCompatScriptEnabled = false,
+                stCompatScriptSource = "",
+                stCompatExtensionSettings = buildJsonObject { },
                 searchServices = preferences[SEARCH_SERVICES]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: listOf(SearchServiceOptions.DEFAULT),
@@ -311,21 +309,8 @@ class SettingsStore(
                 quickMessages = preferences[QUICK_MESSAGES]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
-                globalRegexEnabled = preferences[GLOBAL_REGEX_ENABLED] != false,
-                globalRegexes = preferences[GLOBAL_REGEXES]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: run {
-                    val hasStoredPresetLibrary =
-                        preferences[ST_PRESET_TEMPLATE] != null ||
-                            preferences[ST_PRESETS]
-                                ?.let { JsonInstant.decodeFromString<List<SillyTavernPreset>>(it) }
-                                ?.isNotEmpty() == true
-                    if (!hasStoredPresetLibrary) {
-                        preferences[REGEXES]?.let { JsonInstant.decodeFromString(it) } ?: emptyList()
-                    } else {
-                        emptyList()
-                    }
-                },
+                globalRegexEnabled = false,
+                globalRegexes = emptyList(),
                 stGlobalVariables = preferences[ST_GLOBAL_VARIABLES]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyMap(),
@@ -481,7 +466,8 @@ class SettingsStore(
                     .distinctBy { it.id },
                 lorebooks = settings.lorebooks.distinctBy { it.id },
                 globalLorebookIds = settings.globalLorebookIds.filter { it in validLorebookIds }.toSet(),
-                globalRegexes = settings.globalRegexes.distinctBy { it.id },
+                globalRegexEnabled = false,
+                globalRegexes = emptyList(),
                 regexes = normalizedStSettings.regexes.distinctBy { it.id },
                 stPresets = normalizedStSettings.stPresets,
                 selectedStPresetId = normalizedStSettings.selectedStPresetId,
@@ -524,7 +510,8 @@ class SettingsStore(
             modeInjections = settings.modeInjections.map { it.normalizedForSystemPromptSupplement() },
             lorebookGlobalSettings = settings.lorebookGlobalSettings.normalized(),
             globalLorebookIds = settings.globalLorebookIds.filter { it in validLorebookIds }.toSet(),
-            globalRegexes = settings.globalRegexes.distinctBy { it.id },
+            globalRegexEnabled = false,
+            globalRegexes = emptyList(),
             stPresets = normalizedStSettings.stPresets,
             selectedStPresetId = normalizedStSettings.selectedStPresetId,
             stPresetTemplate = normalizedStSettings.stPresetTemplate,
@@ -570,9 +557,9 @@ class SettingsStore(
             preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(normalizedSettings.assistantTags)
             preferences[SCHEDULED_TASKS] = JsonInstant.encodeToString(normalizedSettings.scheduledTasks)
             preferences[SCHEDULED_TASK_KEEP_ALIVE_ENABLED] = normalizedSettings.scheduledTaskKeepAliveEnabled
-            preferences[ST_COMPAT_SCRIPT_ENABLED] = normalizedSettings.stCompatScriptEnabled
-            preferences[ST_COMPAT_SCRIPT_SOURCE] = normalizedSettings.stCompatScriptSource
-            preferences[ST_COMPAT_EXTENSION_SETTINGS] = JsonInstant.encodeToString(normalizedSettings.stCompatExtensionSettings)
+            preferences.remove(ST_COMPAT_SCRIPT_ENABLED)
+            preferences.remove(ST_COMPAT_SCRIPT_SOURCE)
+            preferences.remove(ST_COMPAT_EXTENSION_SETTINGS)
 
             preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(normalizedSettings.searchServices)
             preferences[SEARCH_COMMON] = JsonInstant.encodeToString(normalizedSettings.searchCommonOptions)
@@ -599,8 +586,8 @@ class SettingsStore(
             preferences[GLOBAL_LOREBOOK_IDS] = JsonInstant.encodeToString(normalizedSettings.globalLorebookIds)
             preferences[LOREBOOK_GLOBAL_SETTINGS] = JsonInstant.encodeToString(normalizedSettings.lorebookGlobalSettings)
             preferences[QUICK_MESSAGES] = JsonInstant.encodeToString(normalizedSettings.quickMessages)
-            preferences[GLOBAL_REGEX_ENABLED] = normalizedSettings.globalRegexEnabled
-            preferences[GLOBAL_REGEXES] = JsonInstant.encodeToString(normalizedSettings.globalRegexes)
+            preferences.remove(GLOBAL_REGEX_ENABLED)
+            preferences.remove(GLOBAL_REGEXES)
             preferences[ST_GLOBAL_VARIABLES] = JsonInstant.encodeToString(normalizedSettings.stGlobalVariables)
             preferences[REGEXES] = JsonInstant.encodeToString(normalizedSettings.regexes)
             preferences[ST_PRESET_ENABLED] = normalizedSettings.stPresetEnabled
@@ -762,7 +749,7 @@ data class Settings(
     val globalLorebookIds: Set<Uuid> = emptySet(),
     val lorebookGlobalSettings: LorebookGlobalSettings = LorebookGlobalSettings(),
     val quickMessages: List<QuickMessage> = emptyList(),
-    val globalRegexEnabled: Boolean = true,
+    val globalRegexEnabled: Boolean = false,
     val globalRegexes: List<AssistantRegex> = emptyList(),
     val stGlobalVariables: Map<String, String> = emptyMap(),
     // Legacy cache for older builds. Active preset regexes are mirrored here during persistence.

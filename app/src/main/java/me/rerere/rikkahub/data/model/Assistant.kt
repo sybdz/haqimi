@@ -782,7 +782,6 @@ fun PromptInjection.RegexInjection.matchesTriggerKeywords(
     globalSettings: LorebookGlobalSettings? = null,
 ): Boolean {
     if (!enabled) return false
-    if (!matchesGenerationType(triggerContext.generationType)) return false
     if (constantActive) return true
     if (keywords.isEmpty()) return false
     val caseSensitive = effectiveCaseSensitive(globalSettings)
@@ -842,7 +841,7 @@ fun PromptInjection.RegexInjection.matchScore(
     triggerContext: LorebookTriggerContext = LorebookTriggerContext(recentMessagesText = context),
     globalSettings: LorebookGlobalSettings? = null,
 ): Int {
-    if (!enabled || !matchesGenerationType(triggerContext.generationType) || keywords.isEmpty()) {
+    if (!enabled || keywords.isEmpty()) {
         return 0
     }
     val caseSensitive = effectiveCaseSensitive(globalSettings)

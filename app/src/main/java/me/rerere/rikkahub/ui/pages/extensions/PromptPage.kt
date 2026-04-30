@@ -848,7 +848,7 @@ private fun LorebookOverviewCard(
             }
             LorebookGuideRow(
                 title = "全局设置",
-                body = "控制默认扫描深度、预算、递归和匹配策略，决定整个 lorebook 系统在聊天时如何搜索可触发条目。"
+                body = "控制默认扫描深度、预算和匹配策略，决定整个 lorebook 系统在聊天时如何搜索可触发条目。"
             )
             LorebookGuideRow(
                 title = "书本管理",
@@ -856,7 +856,7 @@ private fun LorebookOverviewCard(
             )
             LorebookGuideRow(
                 title = "条目编辑",
-                body = "条目负责定义关键词、注入位置和高级 ST 兼容字段。建议先把基础触发跑通，再逐步加概率、分组、sticky 或 recursion。"
+                body = "条目负责定义关键词、触发来源、注入位置和内容。建议保持关键词短而准。"
             )
         }
     }
@@ -887,24 +887,6 @@ private fun LorebookGlobalSettingsCard(
     settings: LorebookGlobalSettings,
     onEdit: (LorebookGlobalSettings) -> Unit,
 ) {
-    fun updateMinActivations(value: Int) {
-        onEdit(
-            settings.copy(
-                minActivations = value,
-                maxRecursionSteps = if (value > 0) 0 else settings.maxRecursionSteps,
-            )
-        )
-    }
-
-    fun updateMaxRecursionSteps(value: Int) {
-        onEdit(
-            settings.copy(
-                maxRecursionSteps = value,
-                minActivations = if (value > 0) 0 else settings.minActivations,
-            )
-        )
-    }
-
     Card(
         colors = CustomColors.cardColorsOnSurfaceContainer
     ) {
@@ -930,16 +912,6 @@ private fun LorebookGlobalSettingsCard(
                 onValueChange = { onEdit(settings.copy(scanDepth = it)) }
             )
             LorebookGlobalNumberField(
-                label = stringResource(R.string.prompt_page_lorebook_global_min_activations),
-                value = settings.minActivations,
-                onValueChange = ::updateMinActivations
-            )
-            LorebookGlobalNumberField(
-                label = stringResource(R.string.prompt_page_lorebook_global_min_activations_depth_max),
-                value = settings.minActivationsDepthMax,
-                onValueChange = { onEdit(settings.copy(minActivationsDepthMax = it)) }
-            )
-            LorebookGlobalNumberField(
                 label = stringResource(R.string.prompt_page_lorebook_global_budget_percent),
                 value = settings.budgetPercent,
                 onValueChange = { onEdit(settings.copy(budgetPercent = it.coerceIn(0, 100))) }
@@ -948,11 +920,6 @@ private fun LorebookGlobalSettingsCard(
                 label = stringResource(R.string.prompt_page_lorebook_global_budget_cap),
                 value = settings.budgetCap,
                 onValueChange = { onEdit(settings.copy(budgetCap = it)) }
-            )
-            LorebookGlobalNumberField(
-                label = stringResource(R.string.prompt_page_lorebook_global_max_recursion_steps),
-                value = settings.maxRecursionSteps,
-                onValueChange = ::updateMaxRecursionSteps
             )
 
             Text(
@@ -978,16 +945,6 @@ private fun LorebookGlobalSettingsCard(
                 }
             )
             FormItem(
-                label = { Text(stringResource(R.string.prompt_page_lorebook_global_recursive)) },
-                description = { Text(stringResource(R.string.prompt_page_lorebook_global_recursive_desc)) },
-                tail = {
-                    Switch(
-                        checked = settings.recursiveScanning,
-                        onCheckedChange = { onEdit(settings.copy(recursiveScanning = it)) }
-                    )
-                }
-            )
-            FormItem(
                 label = { Text(stringResource(R.string.prompt_page_lorebook_global_case_sensitive)) },
                 tail = {
                     Switch(
@@ -1002,15 +959,6 @@ private fun LorebookGlobalSettingsCard(
                     Switch(
                         checked = settings.matchWholeWords,
                         onCheckedChange = { onEdit(settings.copy(matchWholeWords = it)) }
-                    )
-                }
-            )
-            FormItem(
-                label = { Text(stringResource(R.string.prompt_page_lorebook_global_group_scoring)) },
-                tail = {
-                    Switch(
-                        checked = settings.useGroupScoring,
-                        onCheckedChange = { onEdit(settings.copy(useGroupScoring = it)) }
                     )
                 }
             )
@@ -1160,11 +1108,6 @@ private fun LorebookCard(
                         if (isGlobalBinding) {
                             Tag(type = TagType.SUCCESS) {
                                 Text("全局生效")
-                            }
-                        }
-                        if (book.recursiveScanning) {
-                            Tag(type = TagType.SUCCESS) {
-                                Text(stringResource(R.string.prompt_page_lorebook_recursive_badge))
                             }
                         }
                         book.tokenBudget?.let { budget ->
@@ -1399,17 +1342,6 @@ private fun LorebookEditSheet(
                         Switch(
                             checked = book.enabled,
                             onCheckedChange = { onEdit(book.copy(enabled = it)) }
-                        )
-                    }
-                )
-
-                FormItem(
-                    label = { Text(stringResource(R.string.prompt_page_lorebook_book_recursive)) },
-                    description = { Text(stringResource(R.string.prompt_page_lorebook_book_recursive_desc)) },
-                    tail = {
-                        Switch(
-                            checked = book.recursiveScanning,
-                            onCheckedChange = { onEdit(book.copy(recursiveScanning = it)) }
                         )
                     }
                 )

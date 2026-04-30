@@ -44,7 +44,6 @@ data class AssistantImportPayload(
 data class AssistantImportApplication(
     val assistant: Assistant,
     val lorebooks: List<Lorebook>,
-    val sharedRegexes: List<AssistantRegex> = emptyList(),
 )
 
 internal fun AssistantImportPayload.toSillyTavernPreset(): SillyTavernPreset {
@@ -153,14 +152,12 @@ internal fun AssistantImportPayload.withMaterializedImportedAvatar(
 internal fun applyImportedAssistantForCreate(
     payload: AssistantImportPayload,
     existingLorebooks: List<Lorebook>,
-    existingSharedRegexes: List<AssistantRegex> = emptyList(),
     includeRegexes: Boolean,
 ): AssistantImportApplication {
     return applyImportedAssistantForCreate(
         currentAssistant = Assistant(),
         payload = payload,
         existingLorebooks = existingLorebooks,
-        existingSharedRegexes = existingSharedRegexes,
         includeRegexes = includeRegexes,
     )
 }
@@ -169,7 +166,6 @@ internal fun applyImportedAssistantForCreate(
     currentAssistant: Assistant,
     payload: AssistantImportPayload,
     existingLorebooks: List<Lorebook>,
-    existingSharedRegexes: List<AssistantRegex> = emptyList(),
     includeRegexes: Boolean,
 ): AssistantImportApplication {
     require(payload.kind == AssistantImportKind.CHARACTER_CARD) {
@@ -191,7 +187,6 @@ internal fun applyImportedAssistantForCreate(
     return AssistantImportApplication(
         assistant = assistant,
         lorebooks = lorebooks,
-        sharedRegexes = existingSharedRegexes,
     )
 }
 
@@ -199,7 +194,6 @@ internal fun applyImportedAssistantToExisting(
     currentAssistant: Assistant,
     payload: AssistantImportPayload,
     existingLorebooks: List<Lorebook>,
-    existingSharedRegexes: List<AssistantRegex> = emptyList(),
     includeRegexes: Boolean,
 ): AssistantImportApplication {
     require(payload.kind == AssistantImportKind.CHARACTER_CARD) {
@@ -221,7 +215,6 @@ internal fun applyImportedAssistantToExisting(
     return AssistantImportApplication(
         assistant = nextAssistant,
         lorebooks = mergedLorebooks,
-        sharedRegexes = existingSharedRegexes,
     )
 }
 

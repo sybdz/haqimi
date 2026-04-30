@@ -369,7 +369,7 @@ class SillyTavernMacroTransformerTest {
     }
 
     @Test
-    fun `macros should resolve lorebook outlet values`() {
+    fun `macros should drop lorebook outlet compatibility values`() {
         val env = StMacroEnvironment(
             user = "Alice",
             char = "Seraphina",
@@ -397,6 +397,6 @@ class SillyTavernMacroTransformerTest {
             env = env,
         )
 
-        assertEquals(listOf("Stored memory"), result.map { it.toText() })
+        assertEquals(emptyList<String>(), result.map { it.toText() })
     }
 }

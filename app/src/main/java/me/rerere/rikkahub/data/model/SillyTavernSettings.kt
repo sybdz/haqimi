@@ -86,10 +86,6 @@ fun Settings.activeStPresetRegexes(): List<AssistantRegex> {
     }
 }
 
-fun Settings.activeGlobalRegexes(): List<AssistantRegex> {
-    return if (globalRegexEnabled) globalRegexes else emptyList()
-}
-
 fun Settings.resolveStSendIfEmptyContent(
     content: List<UIMessagePart>,
     answer: Boolean,
@@ -113,7 +109,7 @@ private fun Settings.legacyRuntimeRegexes(): List<AssistantRegex> {
     return if (resolveStPresetState().activePreset == null) regexes else emptyList()
 }
 
-fun Settings.runtimeRegexes(): List<AssistantRegex> = activeGlobalRegexes() + activeStPresetRegexes() + legacyRuntimeRegexes()
+fun Settings.runtimeRegexes(): List<AssistantRegex> = activeStPresetRegexes() + legacyRuntimeRegexes()
 
 fun Settings.applyActiveStPresetSampling(assistant: Assistant): Assistant {
     if (!stPresetEnabled) return assistant

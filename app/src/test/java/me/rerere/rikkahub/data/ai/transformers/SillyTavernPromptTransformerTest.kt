@@ -579,7 +579,7 @@ class SillyTavernPromptTransformerTest {
     }
 
     @Test
-    fun `st lorebook should support recursive scanning`() {
+    fun `st lorebook should use single pass scanning`() {
         val lorebook = Lorebook(
             id = Uuid.random(),
             recursiveScanning = true,
@@ -616,8 +616,7 @@ class SillyTavernPromptTransformerTest {
             template = template,
         )
 
-        assertEquals("beta breadcrumb", result[0].toText())
-        assertEquals("Recursive lore", result[1].toText())
+        assertEquals(listOf("beta breadcrumb", "alpha trigger"), result.map { it.toText() })
     }
 
     @Test
@@ -1114,7 +1113,7 @@ class SillyTavernPromptTransformerTest {
     }
 
     @Test
-    fun `outlet lorebook entries should populate macro state without injecting prompt text`() {
+    fun `outlet lorebook entries should be ignored`() {
         val lorebook = Lorebook(
             id = Uuid.random(),
             entries = listOf(
@@ -1146,6 +1145,6 @@ class SillyTavernPromptTransformerTest {
         )
 
         assertEquals(listOf("Hello"), result.map { it.toText() })
-        assertEquals("Stored memory", stMacroState.outlets["memory"])
+        assertEquals(emptyMap<String, String>(), stMacroState.outlets)
     }
 }

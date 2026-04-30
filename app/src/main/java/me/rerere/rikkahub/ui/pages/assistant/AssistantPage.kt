@@ -67,7 +67,6 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANTS_IDS
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.AssistantRegex
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.SillyTavernPromptTemplate
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -106,7 +105,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
     val assistantMemoryCounts by vm.assistantMemoryCounts.collectAsStateWithLifecycle()
     val latestSettingsState = rememberUpdatedState(settings)
     var pendingImportedLorebooks by remember { mutableStateOf<List<Lorebook>>(emptyList()) }
-    var pendingImportedSharedRegexes by remember { mutableStateOf(settings.globalRegexes) }
     var pendingImportedCharacterRuntimeTemplate by remember { mutableStateOf<SillyTavernPromptTemplate?>(null) }
     val createState = useEditState<Assistant> {
         val currentSettings = latestSettingsState.value
@@ -116,11 +114,9 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
         vm.addAssistantWithLorebooks(
             assistant = it,
             lorebooks = pendingImportedLorebooks,
-            sharedRegexes = pendingImportedSharedRegexes,
             baseSettings = baseSettings,
         )
         pendingImportedLorebooks = emptyList()
-        pendingImportedSharedRegexes = currentSettings.globalRegexes
         pendingImportedCharacterRuntimeTemplate = null
     }
     val navController = LocalNavController.current
@@ -166,7 +162,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                             IconButton(
                                 onClick = {
                                     pendingImportedLorebooks = emptyList()
-                                    pendingImportedSharedRegexes = settings.globalRegexes
                                     pendingImportedCharacterRuntimeTemplate = null
                                     createState.open(Assistant())
                                 }) {
@@ -312,10 +307,8 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
         state = createState,
         settings = settings,
         pendingImportedLorebooks = pendingImportedLorebooks,
-        pendingImportedSharedRegexes = pendingImportedSharedRegexes,
         pendingImportedCharacterRuntimeTemplate = pendingImportedCharacterRuntimeTemplate,
         onPendingImportedLorebooksChange = { pendingImportedLorebooks = it },
-        onPendingImportedSharedRegexesChange = { pendingImportedSharedRegexes = it },
         onPendingImportedCharacterRuntimeTemplateChange = { pendingImportedCharacterRuntimeTemplate = it },
     )
 
@@ -448,10 +441,8 @@ private fun AssistantCreationSheet(
     state: EditState<Assistant>,
     settings: Settings,
     pendingImportedLorebooks: List<Lorebook>,
-    pendingImportedSharedRegexes: List<AssistantRegex>,
     pendingImportedCharacterRuntimeTemplate: SillyTavernPromptTemplate?,
     onPendingImportedLorebooksChange: (List<Lorebook>) -> Unit,
-    onPendingImportedSharedRegexesChange: (List<AssistantRegex>) -> Unit,
     onPendingImportedCharacterRuntimeTemplateChange: (SillyTavernPromptTemplate?) -> Unit,
 ) {
     state.EditStateContent { assistant, update ->
@@ -463,7 +454,6 @@ private fun AssistantCreationSheet(
         fun resetPendingImportState() {
             pendingCharacterCardImport = null
             onPendingImportedLorebooksChange(emptyList())
-            onPendingImportedSharedRegexesChange(settings.globalRegexes)
             onPendingImportedCharacterRuntimeTemplateChange(null)
         }
 
@@ -476,7 +466,6 @@ private fun AssistantCreationSheet(
                     settings.lorebooks.none { it.id == imported.id }
                 }
             )
-            onPendingImportedSharedRegexesChange(pendingImport.application.sharedRegexes)
             if (enableRuntime) {
                 onPendingImportedCharacterRuntimeTemplateChange(pendingImport.runtimeTemplate)
             }
@@ -529,7 +518,6 @@ private fun AssistantCreationSheet(
                                     currentAssistant = assistant,
                                     payload = payload,
                                     existingLorebooks = settings.lorebooks + pendingImportedLorebooks,
-                                    existingSharedRegexes = pendingImportedSharedRegexes,
                                     includeRegexes = includeRegexes,
                                 ),
                                 runtimeTemplate = payload.characterRuntimeTemplate(),

@@ -39,8 +39,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
 import me.rerere.ai.core.MessageRole
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -49,13 +47,10 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.data.model.PromptInjection
-import me.rerere.rikkahub.data.model.stExtension
-import me.rerere.rikkahub.data.model.updateStExtension
 import me.rerere.rikkahub.ui.components.ui.EditorGuideAction
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.Tag
-import me.rerere.rikkahub.ui.components.ui.TagType
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -70,8 +65,6 @@ internal fun RegexInjectionEditDialog(
     var newKeyword by remember(entry.id) { mutableStateOf("") }
     var newSecondaryKeyword by remember(entry.id) { mutableStateOf("") }
     val placement = entry.toLorebookInjectionPlacement()
-    val useProbability = entry.metadataBoolean("useProbability", default = true)
-    val triggers = entry.metadataList("triggers")
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -249,36 +242,6 @@ internal fun RegexInjectionEditDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
 
-                FormItem(
-                    label = { Text(stringResource(R.string.prompt_page_lorebook_use_probability)) },
-                    description = { Text(stringResource(R.string.prompt_page_lorebook_use_probability_desc)) },
-                    tail = {
-                        Switch(
-                            checked = useProbability,
-                            onCheckedChange = {
-                                onEdit(entry.withMetadataBoolean("useProbability", it, persistFalse = true))
-                            },
-                        )
-                    },
-                )
-
-                AnimatedVisibility(visible = useProbability) {
-                    OutlinedTextField(
-                        value = entry.probability?.toString().orEmpty(),
-                        onValueChange = { value ->
-                            val normalized = value.trim()
-                            onEdit(
-                                entry.copy(
-                                    probability = normalized.toIntOrNull()?.coerceIn(0, 100),
-                                ),
-                            )
-                        },
-                        label = { Text(stringResource(R.string.prompt_page_lorebook_probability)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                }
-
                 Text(
                     text = stringResource(R.string.prompt_page_lorebook_trigger_sources),
                     style = MaterialTheme.typography.titleSmall,
@@ -320,32 +283,6 @@ internal fun RegexInjectionEditDialog(
                 }
 
                 Text(
-                    text = stringResource(R.string.prompt_page_lorebook_generation_triggers),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    lorebookGenerationTypes.forEach { trigger ->
-                        val selected = trigger in triggers
-                        Tag(
-                            type = if (selected) TagType.INFO else TagType.DEFAULT,
-                            onClick = {
-                                val updatedTriggers = if (selected) {
-                                    triggers - trigger
-                                } else {
-                                    (triggers + trigger).distinct()
-                                }
-                                onEdit(entry.withMetadataList("triggers", updatedTriggers))
-                            },
-                        ) {
-                            Text(stringResource(lorebookGenerationTypeLabelRes(trigger)))
-                        }
-                    }
-                }
-
-                Text(
                     text = stringResource(R.string.prompt_page_lorebook_entry_injection_section),
                     style = MaterialTheme.typography.titleSmall,
                 )
@@ -373,128 +310,6 @@ internal fun RegexInjectionEditDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
                 }
-
-                Text(
-                    text = stringResource(R.string.prompt_page_lorebook_advanced_section),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    text = stringResource(R.string.prompt_page_lorebook_advanced_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                OutlinedTextField(
-                    value = entry.metadataText("group"),
-                    onValueChange = { onEdit(entry.withMetadataText("group", it)) },
-                    label = { Text(stringResource(R.string.prompt_page_lorebook_group_names)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedTextField(
-                        value = entry.metadataInt("group_weight")?.toString().orEmpty(),
-                        onValueChange = { value ->
-                            onEdit(entry.withMetadataInt("group_weight", value.toIntOrNull()))
-                        },
-                        label = { Text(stringResource(R.string.prompt_page_lorebook_group_weight)) },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                    OutlinedTextField(
-                        value = entry.metadataInt("delay")?.toString().orEmpty(),
-                        onValueChange = { value ->
-                            onEdit(entry.withMetadataInt("delay", value.toIntOrNull()))
-                        },
-                        label = { Text(stringResource(R.string.prompt_page_lorebook_delay_messages)) },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedTextField(
-                        value = entry.metadataInt("sticky")?.toString().orEmpty(),
-                        onValueChange = { value ->
-                            onEdit(entry.withMetadataInt("sticky", value.toIntOrNull()))
-                        },
-                        label = { Text(stringResource(R.string.prompt_page_lorebook_sticky_messages)) },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                    OutlinedTextField(
-                        value = entry.metadataInt("cooldown")?.toString().orEmpty(),
-                        onValueChange = { value ->
-                            onEdit(entry.withMetadataInt("cooldown", value.toIntOrNull()))
-                        },
-                        label = { Text(stringResource(R.string.prompt_page_lorebook_cooldown_messages)) },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                }
-
-                OutlinedTextField(
-                    value = entry.metadataText("delay_until_recursion"),
-                    onValueChange = { onEdit(entry.withMetadataText("delay_until_recursion", it)) },
-                    label = { Text(stringResource(R.string.prompt_page_lorebook_delay_until_recursion)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    LorebookCheckboxField(
-                        label = stringResource(R.string.prompt_page_lorebook_group_override),
-                        checked = entry.metadataBoolean("group_override"),
-                        onCheckedChange = { onEdit(entry.withMetadataBoolean("group_override", it)) },
-                    )
-                    LorebookCheckboxField(
-                        label = stringResource(R.string.prompt_page_lorebook_use_group_scoring),
-                        checked = entry.metadataBoolean("use_group_scoring"),
-                        onCheckedChange = { onEdit(entry.withMetadataBoolean("use_group_scoring", it)) },
-                    )
-                    LorebookCheckboxField(
-                        label = stringResource(R.string.prompt_page_lorebook_exclude_recursion),
-                        checked = entry.metadataBoolean("exclude_recursion"),
-                        onCheckedChange = { onEdit(entry.withMetadataBoolean("exclude_recursion", it)) },
-                    )
-                    LorebookCheckboxField(
-                        label = stringResource(R.string.prompt_page_lorebook_prevent_recursion),
-                        checked = entry.metadataBoolean("prevent_recursion"),
-                        onCheckedChange = { onEdit(entry.withMetadataBoolean("prevent_recursion", it)) },
-                    )
-                    LorebookCheckboxField(
-                        label = stringResource(R.string.prompt_page_lorebook_ignore_budget),
-                        checked = entry.metadataBoolean("ignore_budget"),
-                        onCheckedChange = { onEdit(entry.withMetadataBoolean("ignore_budget", it)) },
-                    )
-                    LorebookCheckboxField(
-                        label = stringResource(R.string.prompt_page_lorebook_vectorized),
-                        checked = entry.metadataBoolean("vectorized"),
-                        onCheckedChange = { onEdit(entry.withMetadataBoolean("vectorized", it)) },
-                    )
-                }
-
-                OutlinedTextField(
-                    value = entry.metadataText("outlet_name"),
-                    onValueChange = { onEdit(entry.withMetadataText("outlet_name", it)) },
-                    label = { Text(stringResource(R.string.prompt_page_lorebook_outlet_name)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                OutlinedTextField(
-                    value = entry.metadataText("automation_id"),
-                    onValueChange = { onEdit(entry.withMetadataText("automation_id", it)) },
-                    label = { Text(stringResource(R.string.prompt_page_lorebook_automation_id)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
 
                 OutlinedTextField(
                     value = entry.content,
@@ -536,7 +351,6 @@ private enum class LorebookInjectionPlacement {
     ASSISTANT_DEPTH,
     EXAMPLE_MESSAGES_TOP,
     EXAMPLE_MESSAGES_BOTTOM,
-    OUTLET,
 }
 
 private val lorebookInjectionPlacements = listOf(
@@ -549,11 +363,9 @@ private val lorebookInjectionPlacements = listOf(
     LorebookInjectionPlacement.ASSISTANT_DEPTH,
     LorebookInjectionPlacement.EXAMPLE_MESSAGES_TOP,
     LorebookInjectionPlacement.EXAMPLE_MESSAGES_BOTTOM,
-    LorebookInjectionPlacement.OUTLET,
 )
 
 private val lorebookSelectiveLogicOptions = listOf(0, 1, 2, 3)
-private val lorebookGenerationTypes = listOf("normal", "continue", "quiet", "impersonate")
 private val lorebookEntryRoles = listOf(
     MessageRole.SYSTEM,
     MessageRole.USER,
@@ -577,7 +389,7 @@ private fun PromptInjection.RegexInjection.toLorebookInjectionPlacement(): Loreb
 
     InjectionPosition.EXAMPLE_MESSAGES_TOP -> LorebookInjectionPlacement.EXAMPLE_MESSAGES_TOP
     InjectionPosition.EXAMPLE_MESSAGES_BOTTOM -> LorebookInjectionPlacement.EXAMPLE_MESSAGES_BOTTOM
-    InjectionPosition.OUTLET -> LorebookInjectionPlacement.OUTLET
+    InjectionPosition.OUTLET -> LorebookInjectionPlacement.AFTER_SYSTEM_PROMPT
 }
 
 private fun PromptInjection.RegexInjection.withLorebookInjectionPlacement(
@@ -601,7 +413,6 @@ private fun PromptInjection.RegexInjection.withLorebookInjectionPlacement(
     )
     LorebookInjectionPlacement.EXAMPLE_MESSAGES_TOP -> copy(position = InjectionPosition.EXAMPLE_MESSAGES_TOP)
     LorebookInjectionPlacement.EXAMPLE_MESSAGES_BOTTOM -> copy(position = InjectionPosition.EXAMPLE_MESSAGES_BOTTOM)
-    LorebookInjectionPlacement.OUTLET -> copy(position = InjectionPosition.OUTLET)
 }
 
 private fun LorebookInjectionPlacement.isDepthPlacement(): Boolean = when (this) {
@@ -637,7 +448,6 @@ private fun getLorebookInjectionPlacementLabel(placement: LorebookInjectionPlace
     LorebookInjectionPlacement.ASSISTANT_DEPTH -> stringResource(R.string.prompt_page_position_assistant_depth)
     LorebookInjectionPlacement.EXAMPLE_MESSAGES_TOP -> stringResource(R.string.prompt_page_position_example_messages_top)
     LorebookInjectionPlacement.EXAMPLE_MESSAGES_BOTTOM -> stringResource(R.string.prompt_page_position_example_messages_bottom)
-    LorebookInjectionPlacement.OUTLET -> stringResource(R.string.prompt_page_position_outlet)
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -730,160 +540,6 @@ private fun LorebookCheckboxField(
     }
 }
 
-private fun PromptInjection.RegexInjection.metadataBoolean(
-    key: String,
-    default: Boolean = false,
-): Boolean {
-    val extension = stExtension()
-    return when (key) {
-        "useProbability" -> extension.useProbability ?: default
-        "group_override" -> extension.groupOverride
-        "use_group_scoring" -> extension.useGroupScoring
-        "exclude_recursion" -> extension.excludeRecursion
-        "prevent_recursion" -> extension.preventRecursion
-        "ignore_budget" -> extension.ignoreBudget
-        "vectorized" -> extension.vectorized
-        else -> stMetadata[key]?.trim()?.let { value ->
-            value.equals("true", ignoreCase = true) || value == "1"
-        } ?: default
-    }
-}
-
-private fun PromptInjection.RegexInjection.metadataInt(key: String): Int? {
-    val extension = stExtension()
-    return when (key) {
-        "group_weight" -> extension.groupWeight
-        "delay" -> extension.delay
-        "sticky" -> extension.sticky
-        "cooldown" -> extension.cooldown
-        else -> stMetadata[key]?.trim()?.toIntOrNull()
-    }
-}
-
-private fun PromptInjection.RegexInjection.metadataText(key: String): String {
-    val extension = stExtension()
-    return when (key) {
-        "group" -> extension.group
-        "delay_until_recursion" -> extension.delayUntilRecursion
-        "outlet_name" -> extension.outletName
-        "automation_id" -> extension.automationId
-        else -> stMetadata[key].orEmpty()
-    }
-}
-
-private fun PromptInjection.RegexInjection.metadataList(key: String): List<String> {
-    return when (key) {
-        "triggers" -> stExtension().triggers
-        else -> Regex("[,\\n]")
-            .split(stMetadata[key].orEmpty())
-            .mapNotNull { value ->
-                value
-                    .trim()
-                    .removePrefix("[")
-                    .removeSuffix("]")
-                    .removePrefix("\"")
-                    .removeSuffix("\"")
-                    .takeIf { it.isNotBlank() }
-            }
-            .distinct()
-    }
-}
-
-private fun PromptInjection.RegexInjection.withMetadataText(
-    key: String,
-    value: String,
-): PromptInjection.RegexInjection {
-    val normalized = value.trim()
-    return when (key) {
-        "group" -> updateStExtension { it.copy(group = normalized) }
-        "delay_until_recursion" -> updateStExtension { it.copy(delayUntilRecursion = normalized) }
-        "outlet_name" -> updateStExtension { it.copy(outletName = normalized) }
-        "automation_id" -> updateStExtension { it.copy(automationId = normalized) }
-        else -> {
-            val updated = stMetadata.toMutableMap()
-            if (normalized.isEmpty()) {
-                updated.remove(key)
-            } else {
-                updated[key] = normalized
-            }
-            copy(stMetadata = updated)
-        }
-    }
-}
-
-private fun PromptInjection.RegexInjection.withMetadataBoolean(
-    key: String,
-    value: Boolean,
-    persistFalse: Boolean = false,
-): PromptInjection.RegexInjection {
-    return when (key) {
-        "useProbability" -> updateStExtension {
-            it.copy(useProbability = if (value || persistFalse) value else null)
-        }
-        "group_override" -> updateStExtension { it.copy(groupOverride = value) }
-        "use_group_scoring" -> updateStExtension { it.copy(useGroupScoring = value) }
-        "exclude_recursion" -> updateStExtension { it.copy(excludeRecursion = value) }
-        "prevent_recursion" -> updateStExtension { it.copy(preventRecursion = value) }
-        "ignore_budget" -> updateStExtension { it.copy(ignoreBudget = value) }
-        "vectorized" -> updateStExtension { it.copy(vectorized = value) }
-        else -> {
-            val updated = stMetadata.toMutableMap()
-            when {
-                value -> updated[key] = "true"
-                persistFalse -> updated[key] = "false"
-                else -> updated.remove(key)
-            }
-            copy(stMetadata = updated)
-        }
-    }
-}
-
-private fun PromptInjection.RegexInjection.withMetadataInt(
-    key: String,
-    value: Int?,
-): PromptInjection.RegexInjection {
-    val normalized = value?.takeIf { it > 0 }
-    return when (key) {
-        "group_weight" -> updateStExtension { it.copy(groupWeight = normalized) }
-        "delay" -> updateStExtension { it.copy(delay = normalized) }
-        "sticky" -> updateStExtension { it.copy(sticky = normalized) }
-        "cooldown" -> updateStExtension { it.copy(cooldown = normalized) }
-        else -> {
-            val updated = stMetadata.toMutableMap()
-            if (normalized == null) {
-                updated.remove(key)
-            } else {
-                updated[key] = normalized.toString()
-            }
-            copy(stMetadata = updated)
-        }
-    }
-}
-
-private fun PromptInjection.RegexInjection.withMetadataList(
-    key: String,
-    values: List<String>,
-): PromptInjection.RegexInjection {
-    val normalized = values
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
-        .distinct()
-    return when (key) {
-        "triggers" -> updateStExtension { it.copy(triggers = normalized) }
-        else -> {
-            val updated = stMetadata.toMutableMap()
-            if (normalized.isEmpty()) {
-                updated.remove(key)
-            } else {
-                updated[key] = buildJsonArray {
-                    normalized.forEach { add(JsonPrimitive(it)) }
-                }.toString()
-            }
-            copy(stMetadata = updated)
-        }
-    }
-}
-
 @StringRes
 private fun lorebookSelectiveLogicLabelRes(value: Int): Int {
     return when (value) {
@@ -891,16 +547,6 @@ private fun lorebookSelectiveLogicLabelRes(value: Int): Int {
         2 -> R.string.prompt_page_lorebook_selective_logic_not_any
         3 -> R.string.prompt_page_lorebook_selective_logic_all
         else -> R.string.prompt_page_lorebook_selective_logic_any
-    }
-}
-
-@StringRes
-private fun lorebookGenerationTypeLabelRes(value: String): Int {
-    return when (value) {
-        "continue" -> R.string.prompt_page_st_preset_editor_trigger_continue
-        "quiet" -> R.string.prompt_page_st_preset_editor_trigger_quiet
-        "impersonate" -> R.string.prompt_page_st_preset_editor_trigger_impersonate
-        else -> R.string.prompt_page_st_preset_editor_trigger_normal
     }
 }
 

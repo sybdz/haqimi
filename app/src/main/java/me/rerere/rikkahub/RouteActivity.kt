@@ -110,7 +110,6 @@ import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPluginPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
@@ -494,10 +493,6 @@ class RouteActivity : ComponentActivity() {
                                 AssistantRequestPage(key.id)
                             }
 
-                            entry<Screen.AssistantPlugin> {
-                                SettingPluginPage()
-                            }
-
                             entry<Screen.AssistantMcp> { key ->
                                 AssistantMcpPage(key.id)
                             }
@@ -520,10 +515,6 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.Setting> {
                                 SettingPage()
-                            }
-
-                            entry<Screen.SettingPlugin> {
-                                SettingPluginPage()
                             }
 
                             entry<Screen.Backup> {
@@ -741,9 +732,6 @@ sealed interface Screen : NavKey {
     data class AssistantRequest(val id: String) : Screen
 
     @Serializable
-    data class AssistantPlugin(val id: String) : Screen
-
-    @Serializable
     data class AssistantMcp(val id: String) : Screen
 
     @Serializable
@@ -760,9 +748,6 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Setting : Screen
-
-    @Serializable
-    data object SettingPlugin : Screen
 
     @Serializable
     data object Backup : Screen

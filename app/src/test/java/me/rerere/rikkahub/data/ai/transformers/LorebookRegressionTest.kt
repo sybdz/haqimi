@@ -11,7 +11,6 @@ import me.rerere.rikkahub.data.model.WorldInfoCharacterStrategy
 import me.rerere.rikkahub.data.model.matchesTriggerKeywords
 import me.rerere.rikkahub.data.model.withStExtension
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.uuid.Uuid
@@ -65,7 +64,7 @@ class LorebookRegressionTest {
     }
 
     @Test
-    fun `shared lorebook budget should not count ignore budget entries`() {
+    fun `shared lorebook budget should count imported ignore budget metadata`() {
         val ignoredEntry = regexEntry(
             priority = 200,
             content = tokenContent(120),
@@ -85,11 +84,11 @@ class LorebookRegressionTest {
             strategy = WorldInfoCharacterStrategy.EVENLY,
         )
 
-        assertEquals(listOf(ignoredEntry.id, fittingEntry.id), selected.map { it.id })
+        assertEquals(listOf(fittingEntry.id), selected.map { it.id })
     }
 
     @Test
-    fun `local lorebook budget should not count ignore budget entries`() {
+    fun `local lorebook budget should count imported ignore budget metadata`() {
         val ignoredEntry = regexEntry(
             priority = 200,
             content = tokenContent(120),
@@ -109,11 +108,11 @@ class LorebookRegressionTest {
             activatedEntries = emptyList(),
         )
 
-        assertEquals(listOf(ignoredEntry.id, fittingEntry.id), selected.map { it.id })
+        assertEquals(listOf(fittingEntry.id), selected.map { it.id })
     }
 
     @Test
-    fun `local lorebook budget should ignore already activated ignore budget entries`() {
+    fun `local lorebook budget should count already activated ignore budget metadata`() {
         val ignoredActivatedEntry = regexEntry(
             priority = 200,
             content = tokenContent(120),
@@ -132,11 +131,11 @@ class LorebookRegressionTest {
             activatedEntries = listOf(ignoredActivatedEntry),
         )
 
-        assertEquals(listOf(fittingEntry.id), selected.map { it.id })
+        assertEquals(emptyList<Uuid>(), selected.map { it.id })
     }
 
     @Test
-    fun `constant active lorebook entries should still respect generation type triggers`() {
+    fun `constant active lorebook entries should ignore imported generation type triggers`() {
         val continueOnlyEntry = regexEntry(
             content = "Continue only",
             constantActive = true,
@@ -144,7 +143,7 @@ class LorebookRegressionTest {
             StLorebookEntryExtension(triggers = listOf("continue"))
         )
 
-        assertFalse(
+        assertTrue(
             continueOnlyEntry.matchesTriggerKeywords(
                 context = "",
                 triggerContext = LorebookTriggerContext(

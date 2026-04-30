@@ -162,13 +162,7 @@ class SillyTavernSettingsTest {
     }
 
     @Test
-    fun `runtime regexes should combine global and selected preset groups`() {
-        val globalRegex = AssistantRegex(
-            id = Uuid.random(),
-            name = "Global",
-            findRegex = "foo",
-            replaceString = "bar",
-        )
+    fun `runtime regexes should use selected preset group`() {
         val presetARegex = AssistantRegex(
             id = Uuid.random(),
             name = "Preset A",
@@ -191,27 +185,20 @@ class SillyTavernSettingsTest {
             regexes = listOf(presetBRegex),
         )
         val settings = Settings(
-            globalRegexes = listOf(globalRegex),
             stPresets = listOf(presetA, presetB),
             selectedStPresetId = presetA.id,
         )
 
-        assertEquals(listOf(globalRegex, presetARegex), settings.runtimeRegexes())
+        assertEquals(listOf(presetARegex), settings.runtimeRegexes())
         assertEquals(listOf(presetARegex), settings.activeStPresetRegexes())
 
         val switched = settings.selectStPreset(presetB.id)
-        assertEquals(listOf(globalRegex), switched.runtimeRegexes())
+        assertEquals(emptyList<AssistantRegex>(), switched.runtimeRegexes())
         assertEquals(emptyList<AssistantRegex>(), switched.activeStPresetRegexes())
     }
 
     @Test
     fun `runtime regexes should fall back to legacy cache when preset state is missing`() {
-        val globalRegex = AssistantRegex(
-            id = Uuid.random(),
-            name = "Global",
-            findRegex = "foo",
-            replaceString = "bar",
-        )
         val legacyRegex = AssistantRegex(
             id = Uuid.random(),
             name = "Legacy",
@@ -219,11 +206,10 @@ class SillyTavernSettingsTest {
             replaceString = "baz",
         )
         val settings = Settings(
-            globalRegexes = listOf(globalRegex),
             regexes = listOf(legacyRegex),
         )
 
-        assertEquals(listOf(globalRegex, legacyRegex), settings.runtimeRegexes())
+        assertEquals(listOf(legacyRegex), settings.runtimeRegexes())
         assertEquals(emptyList<AssistantRegex>(), settings.activeStPresetRegexes())
     }
 
