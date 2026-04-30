@@ -174,7 +174,7 @@ private fun ReasoningContent(
             settings,
             messageDepthFromEnd,
         ) {
-            !loading && settings.hasApplicableRegexes(
+            settings.hasApplicableRegexes(
                 assistant = assistant,
                 scope = AssistantAffectScope.ASSISTANT,
                 phase = AssistantRegexApplyPhase.VISUAL_ONLY,

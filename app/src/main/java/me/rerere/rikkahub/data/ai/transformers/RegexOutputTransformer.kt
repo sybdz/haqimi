@@ -16,7 +16,7 @@ object RegexOutputTransformer : OutputMessageTransformer, KoinComponent {
         ctx: TransformerContext,
         messages: List<UIMessage>,
     ): List<UIMessage> {
-        // Visual-only regexes are applied by the chat renderer after streaming finishes.
+        // Visual-only regexes are applied by the chat renderer, including while streaming.
         return applyAssistantOutputRegexes(
             ctx = ctx,
             messages = messages,

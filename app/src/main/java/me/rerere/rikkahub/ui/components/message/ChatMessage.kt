@@ -138,9 +138,7 @@ private fun String.applyVisualRegexesIfNeeded(
     scope: AssistantAffectScope,
     messageDepthFromEnd: Int?,
     placement: Int,
-    deferWhileStreaming: Boolean,
 ): String {
-    if (deferWhileStreaming) return this
     if (
         !settings.hasApplicableRegexes(
             assistant = assistant,
@@ -521,7 +519,6 @@ private fun MessagePartsBlock(
                                         scope = AssistantAffectScope.USER,
                                         messageDepthFromEnd = messageDepthFromEnd,
                                         placement = AssistantRegexPlacement.USER_INPUT,
-                                        deferWhileStreaming = loading,
                                     )
                                 }
                                 Surface(
@@ -558,7 +555,6 @@ private fun MessagePartsBlock(
                                     scope = AssistantAffectScope.ASSISTANT,
                                     messageDepthFromEnd = messageDepthFromEnd,
                                     placement = AssistantRegexPlacement.AI_OUTPUT,
-                                    deferWhileStreaming = loading,
                                 )
                             }
                             if (settings.displaySetting.showAssistantBubble) {

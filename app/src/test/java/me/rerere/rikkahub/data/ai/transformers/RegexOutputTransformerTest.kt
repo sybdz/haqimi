@@ -15,7 +15,7 @@ import kotlin.uuid.Uuid
 
 class RegexOutputTransformerTest {
     @Test
-    fun `visual transform should include markdown-only output regex but finish should only persist actual output`() = runBlocking {
+    fun `visual transform should leave visual-only regexes to renderer and finish should persist actual output`() = runBlocking {
         val assistant = Assistant(
             regexes = listOf(
                 AssistantRegex(
@@ -48,7 +48,7 @@ class RegexOutputTransformerTest {
         val visual = RegexOutputTransformer.visualTransform(ctx, messages)
         val finished = RegexOutputTransformer.onGenerationFinish(ctx, messages)
 
-        assertEquals(listOf("baz"), visual.map { it.toText() })
+        assertEquals(listOf("bar"), visual.map { it.toText() })
         assertEquals(listOf("bar"), finished.map { it.toText() })
     }
 }
