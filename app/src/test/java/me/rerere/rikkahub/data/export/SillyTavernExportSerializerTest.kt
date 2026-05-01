@@ -263,14 +263,7 @@ class SillyTavernExportSerializerTest {
             ?.content
             .orEmpty()
 
-        assertEquals(
-            "true",
-            exported["extensions"]
-                ?.jsonObject
-                ?.get("rikkahub_inline_prompt_regexes")
-                ?.jsonPrimitive
-                ?.content,
-        )
+        assertNull(exported["extensions"])
         assertTrue(mainPromptContent.contains("<regex>"))
 
         val payload = parseAssistantImportFromJson(
@@ -281,86 +274,6 @@ class SillyTavernExportSerializerTest {
         assertFalse(payload.regexes.any { it.sourceKind == AssistantRegexSourceKind.ST_INLINE_PROMPT })
         assertTrue(payload.presetTemplate?.findPrompt("main")?.content?.contains("<regex>") == true)
         assertTrue(payload.presetTemplate?.findPrompt("main")?.content?.contains("\"foo\":\"baz\"") == true)
-    }
-
-    @Test
-    fun `preset export should preserve raw preset fields that app does not model`() {
-        val payload = parseAssistantImportFromJson(
-            jsonString = """
-                {
-                  "name": "Raw Preservation Preset",
-                  "stream_openai": false,
-                  "bias_preset_selected": "Mirostat",
-                  "function_calling": true,
-                  "prompts": [
-                    {
-                      "identifier": "main",
-                      "name": "Main Prompt",
-                      "role": "system",
-                      "content": "Main",
-                      "custom_prompt_field": "keep-me"
-                    }
-                  ],
-                  "prompt_order": [
-                    {
-                      "character_id": 100001,
-                      "xiaobai_ext": {
-                        "slot": 7
-                      },
-                      "order": [
-                        { "identifier": "main", "enabled": true }
-                      ]
-                    }
-                  ],
-                  "extensions": {
-                    "tavern_helper": {
-                      "enabled": true
-                    }
-                  }
-                }
-            """.trimIndent(),
-            sourceName = "raw-preservation",
-        )
-
-        val exported = Json.parseToJsonElement(
-            SillyTavernPresetExportSerializer.exportToJson(payload.toSillyTavernPreset())
-        ).jsonObject
-
-        assertEquals("false", exported["stream_openai"]?.jsonPrimitive?.content)
-        assertEquals("Mirostat", exported["bias_preset_selected"]?.jsonPrimitive?.content)
-        assertEquals("true", exported["function_calling"]?.jsonPrimitive?.content)
-        assertEquals(
-            "keep-me",
-            exported["prompts"]
-                ?.jsonArray
-                ?.first()
-                ?.jsonObject
-                ?.get("custom_prompt_field")
-                ?.jsonPrimitive
-                ?.content
-        )
-        assertEquals(
-            "7",
-            exported["prompt_order"]
-                ?.jsonArray
-                ?.first()
-                ?.jsonObject
-                ?.get("xiaobai_ext")
-                ?.jsonObject
-                ?.get("slot")
-                ?.jsonPrimitive
-                ?.content
-        )
-        assertEquals(
-            "true",
-            exported["extensions"]
-                ?.jsonObject
-                ?.get("tavern_helper")
-                ?.jsonObject
-                ?.get("enabled")
-                ?.jsonPrimitive
-                ?.content
-        )
     }
 
     @Test
@@ -423,10 +336,10 @@ class SillyTavernExportSerializerTest {
             ?.jsonArray
             .orEmpty()
 
-        assertEquals("7", exportedOrderList?.get("xiaobai_ext")?.jsonObject?.get("slot")?.jsonPrimitive?.content)
+        assertNull(exportedOrderList?.get("xiaobai_ext"))
         assertEquals("jailbreak", exportedOrder[0].jsonObject["identifier"]?.jsonPrimitive?.content)
         assertEquals("true", exportedOrder[0].jsonObject["enabled"]?.jsonPrimitive?.content)
-        assertEquals("keep-me", exportedOrder[0].jsonObject["custom_order_field"]?.jsonPrimitive?.content)
+        assertNull(exportedOrder[0].jsonObject["custom_order_field"])
         assertEquals("main", exportedOrder[1].jsonObject["identifier"]?.jsonPrimitive?.content)
         assertEquals("false", exportedOrder[1].jsonObject["enabled"]?.jsonPrimitive?.content)
     }
@@ -490,7 +403,7 @@ class SillyTavernExportSerializerTest {
 
         assertEquals(1, exportedPrompts.size)
         assertEquals("main", exportedPrompts.first().jsonObject["identifier"]?.jsonPrimitive?.content)
-        assertEquals("keep-me", exportedPrompts.first().jsonObject["custom_prompt_field"]?.jsonPrimitive?.content)
+        assertNull(exportedPrompts.first().jsonObject["custom_prompt_field"])
         assertEquals(1, exportedOrder.size)
         assertEquals("main", exportedOrder.first().jsonObject["identifier"]?.jsonPrimitive?.content)
     }
@@ -540,18 +453,10 @@ class SillyTavernExportSerializerTest {
             )
         )
         val exported = Json.parseToJsonElement(exportedJson).jsonObject
-        val chatSquash = exported["extensions"]
-            ?.jsonObject
-            ?.get("SPreset")
-            ?.jsonObject
-            ?.get("ChatSquash")
-            ?.jsonObject
-
-        assertEquals("false", exported["enable_stop_string"]?.jsonPrimitive?.content)
+        assertNull(exported["enable_stop_string"])
         assertNull(exported["stop_string"])
         assertNull(exported["stop_strings"])
-        assertEquals("false", chatSquash?.get("enable_stop_string")?.jsonPrimitive?.content)
-        assertNull(chatSquash?.get("stop_string"))
+        assertNull(exported["extensions"])
         assertTrue(
             parseAssistantImportFromJson(exportedJson, sourceName = "cleared-stops-roundtrip")
                 .assistant
@@ -637,7 +542,7 @@ class SillyTavernExportSerializerTest {
         assertNull(exported["seed"])
         assertNull(exported["reasoning_effort"])
         assertNull(exported["verbosity"])
-        assertEquals("false", exported["stream_openai"]?.jsonPrimitive?.content)
+        assertNull(exported["stream_openai"])
 
         assertNull(roundTrippedAssistant.temperature)
         assertNull(roundTrippedAssistant.topP)
@@ -699,17 +604,7 @@ class SillyTavernExportSerializerTest {
         )
         val exported = Json.parseToJsonElement(exportedJson).jsonObject
 
-        assertNull(exported["extensions"]?.jsonObject?.get("regex_scripts"))
-        assertEquals(
-            "true",
-            exported["extensions"]
-                ?.jsonObject
-                ?.get("tavern_helper")
-                ?.jsonObject
-                ?.get("enabled")
-                ?.jsonPrimitive
-                ?.content
-        )
+        assertNull(exported["extensions"])
         assertTrue(parseAssistantImportFromJson(exportedJson, sourceName = "cleared-regex-roundtrip").regexes.isEmpty())
     }
 
@@ -763,24 +658,7 @@ class SillyTavernExportSerializerTest {
             preset.copy(regexes = emptyList())
         )
         val exported = Json.parseToJsonElement(exportedJson).jsonObject
-        val sPreset = exported["extensions"]
-            ?.jsonObject
-            ?.get("SPreset")
-            ?.jsonObject
-
-        assertNull(exported["extensions"]?.jsonObject?.get("regex_scripts"))
-        assertNull(sPreset?.get("RegexBinding"))
-        assertEquals("true", sPreset?.get("custom_flag")?.jsonPrimitive?.content)
-        assertEquals(
-            "true",
-            exported["extensions"]
-                ?.jsonObject
-                ?.get("tavern_helper")
-                ?.jsonObject
-                ?.get("enabled")
-                ?.jsonPrimitive
-                ?.content
-        )
+        assertNull(exported["extensions"])
         assertTrue(
             parseAssistantImportFromJson(exportedJson, sourceName = "legacy-regex-binding-roundtrip")
                 .regexes

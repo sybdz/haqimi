@@ -46,7 +46,6 @@ internal fun parsePresetImport(
                 .orEmpty(),
         ),
         presetTemplate = template,
-        presetRawJson = json,
         regexes = regexes,
     )
 }

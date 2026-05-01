@@ -9,7 +9,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import me.rerere.rikkahub.data.model.AssistantRegex
 import me.rerere.rikkahub.data.model.SillyTavernPreset
@@ -18,13 +17,9 @@ import me.rerere.rikkahub.data.model.SillyTavernPromptOrderItem
 import me.rerere.rikkahub.data.model.StPromptInjectionPosition
 import me.rerere.rikkahub.data.model.resolvePromptOrder
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantImportKind
-import me.rerere.rikkahub.ui.pages.assistant.detail.RIKKAHUB_INLINE_PROMPT_REGEXES_KEY
-import me.rerere.rikkahub.ui.pages.assistant.detail.jsonArrayOrNull
-import me.rerere.rikkahub.ui.pages.assistant.detail.jsonObjectOrNull
 import me.rerere.rikkahub.ui.pages.assistant.detail.parseAssistantImportFromJson
 import me.rerere.rikkahub.ui.pages.assistant.detail.toSillyTavernPreset
 import me.rerere.rikkahub.utils.JsonInstantPretty
-import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 
 object SillyTavernPresetExportSerializer : ExportSerializer<SillyTavernPreset> {
     override val type: String = "st_preset"
@@ -61,7 +56,7 @@ private fun buildPresetJson(data: SillyTavernPreset): JsonObject {
         .groupBy { it.sourceRef }
     val scriptRegexes = data.regexes
         .filterNot { it.shouldExportAsInlinePrompt() }
-    val root = LinkedHashMap<String, JsonElement>(data.rawPresetJson)
+    val root = linkedMapOf<String, JsonElement>()
 
     root["name"] = JsonPrimitive(template.sourceName.ifBlank { data.displayName })
     root["scenario_format"] = JsonPrimitive(template.scenarioFormat)
@@ -94,10 +89,6 @@ private fun buildPresetJson(data: SillyTavernPreset): JsonObject {
         root["stop_strings"] = buildJsonArray {
             data.sampling.stopSequences.forEach { add(JsonPrimitive(it)) }
         }
-    } else {
-        root["enable_stop_string"] = JsonPrimitive(false)
-        root.remove("stop_string")
-        root.remove("stop_strings")
     }
     root.putOrRemoveString("reasoning_effort", data.sampling.openAIReasoningEffort)
     root.putOrRemoveString("verbosity", data.sampling.openAIVerbosity)
@@ -108,16 +99,10 @@ private fun buildPresetJson(data: SillyTavernPreset): JsonObject {
         preset = data,
         inlinePromptRegexesByIdentifier = inlinePromptRegexesByIdentifier,
     )
-    root["prompt_order"] = buildPresetPromptOrder(
-        rawPromptOrder = data.rawPresetJson["prompt_order"]?.jsonArrayOrNull(),
-        orderItems = resolvedPromptOrder,
-    )
+    root["prompt_order"] = buildPresetPromptOrder(orderItems = resolvedPromptOrder)
 
     val extensions = buildPresetExtensions(
-        preset = data,
         scriptRegexes = scriptRegexes,
-        hasInlinePromptRegexes = inlinePromptRegexesByIdentifier.isNotEmpty(),
-        hasStopSequences = data.sampling.stopSequences.isNotEmpty(),
     )
     if (extensions != null) {
         root["extensions"] = extensions
@@ -132,27 +117,11 @@ private fun buildPresetPrompts(
     preset: SillyTavernPreset,
     inlinePromptRegexesByIdentifier: Map<String, List<AssistantRegex>>,
 ): JsonArray {
-    val rawPrompts = preset.rawPresetJson["prompts"]
-        ?.jsonArrayOrNull()
-        ?.mapNotNull { it.jsonObjectOrNull() }
-        .orEmpty()
-    val consumedRawPromptIndexes = mutableSetOf<Int>()
-
     return buildJsonArray {
-        preset.template.prompts.forEachIndexed { promptIndex, prompt ->
-            val rawPromptIndex = rawPrompts.indexOfFirstUnusedPrompt(
-                prompt = prompt,
-                promptIndex = promptIndex,
-                consumedIndexes = consumedRawPromptIndexes,
-            )
-            val rawPrompt = rawPrompts.getOrNull(rawPromptIndex)
-            if (rawPromptIndex >= 0) {
-                consumedRawPromptIndexes += rawPromptIndex
-            }
+        preset.template.prompts.forEach { prompt ->
             add(
                 buildPresetPrompt(
                     prompt = prompt,
-                    rawPrompt = rawPrompt,
                     inlineRegexes = inlinePromptRegexesByIdentifier[prompt.identifier].orEmpty(),
                 )
             )
@@ -162,10 +131,9 @@ private fun buildPresetPrompts(
 
 private fun buildPresetPrompt(
     prompt: SillyTavernPromptItem,
-    rawPrompt: JsonObject?,
     inlineRegexes: List<AssistantRegex>,
 ): JsonObject {
-    val updated = LinkedHashMap<String, JsonElement>(rawPrompt ?: emptyMap())
+    val updated = linkedMapOf<String, JsonElement>()
     updated["identifier"] = JsonPrimitive(prompt.identifier)
     updated["name"] = JsonPrimitive(prompt.name)
     updated["role"] = JsonPrimitive(prompt.role.name.lowercase())
@@ -191,28 +159,9 @@ private fun buildPresetPrompt(
 }
 
 private fun buildPresetPromptOrder(
-    rawPromptOrder: JsonArray?,
     orderItems: List<SillyTavernPromptOrderItem>,
 ): JsonArray {
-    val rawOrderLists = rawPromptOrder
-        ?.mapNotNull { it.jsonObjectOrNull() }
-        .orEmpty()
-    if (rawOrderLists.isEmpty()) {
-        return buildCanonicalPromptOrder(orderItems)
-    }
-
-    return JsonArray(
-        rawOrderLists.map { rawOrderList ->
-            val updated = LinkedHashMap<String, JsonElement>(rawOrderList)
-            updated["order"] = buildPromptOrderEntries(
-                rawOrderItems = rawOrderList["order"]?.jsonArrayOrNull()
-                    ?.mapNotNull { it.jsonObjectOrNull() }
-                    .orEmpty(),
-                orderItems = orderItems,
-            )
-            JsonObject(updated)
-        }
-    )
+    return buildCanonicalPromptOrder(orderItems)
 }
 
 private fun buildCanonicalPromptOrder(
@@ -227,25 +176,11 @@ private fun buildCanonicalPromptOrder(
 }
 
 private fun buildPromptOrderEntries(
-    rawOrderItems: List<JsonObject> = emptyList(),
     orderItems: List<SillyTavernPromptOrderItem>,
 ): JsonArray {
-    val consumedRawOrderIndexes = mutableSetOf<Int>()
-
     return buildJsonArray {
-        orderItems.forEachIndexed { orderIndex, item ->
-            val rawOrderIndex = rawOrderItems.indexOfFirstUnusedPromptOrder(
-                identifier = item.identifier,
-                orderIndex = orderIndex,
-                consumedIndexes = consumedRawOrderIndexes,
-            )
-            val rawOrder = rawOrderItems.getOrNull(rawOrderIndex)
-            if (rawOrderIndex >= 0) {
-                consumedRawOrderIndexes += rawOrderIndex
-            }
-
+        orderItems.forEach { item ->
             add(buildJsonObject {
-                (rawOrder ?: emptyMap()).forEach { (key, value) -> put(key, value) }
                 put("identifier", item.identifier)
                 put("enabled", item.enabled)
             })
@@ -253,17 +188,8 @@ private fun buildPromptOrderEntries(
     }
 }
 
-private fun buildPresetExtensions(
-    preset: SillyTavernPreset,
-    scriptRegexes: List<AssistantRegex>,
-    hasInlinePromptRegexes: Boolean,
-    hasStopSequences: Boolean,
-): JsonObject? {
-    val updated = LinkedHashMap<String, JsonElement>(
-        preset.rawPresetJson["extensions"]?.jsonObjectOrNull() ?: emptyMap()
-    )
-
-    updated.clearLegacyRegexBindingRegexes()
+private fun buildPresetExtensions(scriptRegexes: List<AssistantRegex>): JsonObject? {
+    val updated = linkedMapOf<String, JsonElement>()
 
     if (scriptRegexes.isNotEmpty()) {
         updated["regex_scripts"] = buildJsonArray {
@@ -271,93 +197,9 @@ private fun buildPresetExtensions(
                 add(buildRegexScript(regex))
             }
         }
-    } else {
-        updated.remove("regex_scripts")
-    }
-    if (hasInlinePromptRegexes) {
-        updated[RIKKAHUB_INLINE_PROMPT_REGEXES_KEY] = JsonPrimitive(true)
-    } else {
-        updated.remove(RIKKAHUB_INLINE_PROMPT_REGEXES_KEY)
-    }
-    if (!hasStopSequences) {
-        updated.clearChatSquashStopStrings()
     }
 
     return updated.takeIf { it.isNotEmpty() }?.let(::JsonObject)
-}
-
-private fun List<JsonObject>.indexOfFirstUnusedPrompt(
-    prompt: SillyTavernPromptItem,
-    promptIndex: Int,
-    consumedIndexes: Set<Int>,
-): Int {
-    if (prompt.identifier.isNotBlank()) {
-        return indexOfFirst { index, rawPrompt ->
-            index !in consumedIndexes &&
-                rawPrompt["identifier"]?.jsonPrimitiveOrNull?.contentOrNull == prompt.identifier
-        }
-    }
-
-    return indexOfFirst { index, rawPrompt ->
-        index !in consumedIndexes &&
-            rawPrompt["identifier"]?.jsonPrimitiveOrNull?.contentOrNull.isNullOrBlank() &&
-            index >= promptIndex
-    }
-}
-
-private fun List<JsonObject>.indexOfFirstUnusedPromptOrder(
-    identifier: String,
-    orderIndex: Int,
-    consumedIndexes: Set<Int>,
-): Int {
-    if (identifier.isNotBlank()) {
-        return indexOfFirst { index, orderItem ->
-            index !in consumedIndexes &&
-                orderItem["identifier"]?.jsonPrimitiveOrNull?.contentOrNull == identifier
-        }
-    }
-
-    return indexOfFirst { index, orderItem ->
-        index !in consumedIndexes &&
-            orderItem["identifier"]?.jsonPrimitiveOrNull?.contentOrNull.isNullOrBlank() &&
-            index >= orderIndex
-    }
-}
-
-private fun MutableMap<String, JsonElement>.clearChatSquashStopStrings() {
-    val sPreset = this["SPreset"]?.jsonObjectOrNull() ?: return
-    val chatSquash = sPreset["ChatSquash"]?.jsonObjectOrNull() ?: return
-
-    val updatedChatSquash = LinkedHashMap<String, JsonElement>(chatSquash).apply {
-        this["enable_stop_string"] = JsonPrimitive(false)
-        remove("stop_string")
-    }
-    val updatedSPreset = LinkedHashMap<String, JsonElement>(sPreset).apply {
-        this["ChatSquash"] = JsonObject(updatedChatSquash)
-    }
-    this["SPreset"] = JsonObject(updatedSPreset)
-}
-
-private fun MutableMap<String, JsonElement>.clearLegacyRegexBindingRegexes() {
-    val sPreset = this["SPreset"]?.jsonObjectOrNull() ?: return
-    val regexBinding = sPreset["RegexBinding"]?.jsonObjectOrNull() ?: return
-
-    val updatedRegexBinding = LinkedHashMap<String, JsonElement>(regexBinding).apply {
-        remove("regexes")
-    }
-    val updatedSPreset = LinkedHashMap<String, JsonElement>(sPreset).apply {
-        if (updatedRegexBinding.isNotEmpty()) {
-            this["RegexBinding"] = JsonObject(updatedRegexBinding)
-        } else {
-            remove("RegexBinding")
-        }
-    }
-
-    if (updatedSPreset.isNotEmpty()) {
-        this["SPreset"] = JsonObject(updatedSPreset)
-    } else {
-        remove("SPreset")
-    }
 }
 
 private fun MutableMap<String, JsonElement>.putOrRemoveNumber(key: String, value: Number?) {
@@ -374,11 +216,4 @@ private fun MutableMap<String, JsonElement>.putOrRemoveString(key: String, value
     } else {
         remove(key)
     }
-}
-
-private inline fun <T> List<T>.indexOfFirst(predicate: (Int, T) -> Boolean): Int {
-    forEachIndexed { index, item ->
-        if (predicate(index, item)) return index
-    }
-    return -1
 }
