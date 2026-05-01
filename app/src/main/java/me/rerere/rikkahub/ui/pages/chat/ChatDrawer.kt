@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -89,6 +91,11 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
+private val ChatDrawerShape = RoundedCornerShape(
+    topEnd = 28.dp,
+    bottomEnd = 28.dp,
+)
+
 @Composable
 fun ChatDrawerContent(
     navController: Navigator,
@@ -138,10 +145,17 @@ fun ChatDrawerContent(
     var showMenuPopup by remember { mutableStateOf(false) }
 
     ModalDrawerSheet(
-        modifier = Modifier.width(320.dp),
+        modifier = Modifier
+            .width(320.dp)
+            .clip(ChatDrawerShape),
+        drawerShape = ChatDrawerShape,
         drawerContainerColor = Color.Transparent,
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(ChatDrawerShape)
+        ) {
             LuneBackdrop()
             Column(
                 modifier = Modifier.padding(10.dp),
