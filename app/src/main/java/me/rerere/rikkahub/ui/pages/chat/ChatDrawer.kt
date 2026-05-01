@@ -92,6 +92,7 @@ import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
 private val ChatDrawerShape = RoundedCornerShape(
+    topStart = 28.dp,
     topEnd = 28.dp,
     bottomEnd = 28.dp,
 )
