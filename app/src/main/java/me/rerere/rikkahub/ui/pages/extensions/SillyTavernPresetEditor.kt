@@ -890,16 +890,6 @@ private fun StPromptListItem(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    if (prompt.marker) {
-                        Tag(type = TagType.WARNING) {
-                            Text(stringResource(R.string.prompt_page_st_preset_editor_marker_metadata_tag))
-                        }
-                    }
-                    if (prompt.systemPrompt) {
-                        Tag(type = TagType.INFO) {
-                            Text(stringResource(R.string.prompt_page_st_preset_editor_system_prompt_metadata_tag))
-                        }
-                    }
                     if (prompt.injectionPosition == StPromptInjectionPosition.ABSOLUTE) {
                         Tag(type = TagType.WARNING) {
                             Text(stringResource(R.string.prompt_page_st_preset_editor_absolute))
@@ -1142,35 +1132,6 @@ private fun StPromptEditSheet(
                     }
                 }
 
-                if (state.prompt.systemPrompt || state.prompt.marker) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.prompt_page_st_preset_editor_compat_metadata_title),
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            if (state.prompt.systemPrompt) {
-                                Tag(type = TagType.INFO) {
-                                    Text(stringResource(R.string.prompt_page_st_preset_editor_system_prompt_metadata_label))
-                                }
-                            }
-                            if (state.prompt.marker) {
-                                Tag(type = TagType.WARNING) {
-                                    Text(stringResource(R.string.prompt_page_st_preset_editor_marker_metadata_label))
-                                }
-                            }
-                        }
-                        StEditorHint(
-                            text = stringResource(R.string.prompt_page_st_preset_editor_compat_flags_desc)
-                        )
-                    }
-                }
-
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1218,7 +1179,9 @@ private fun StPromptEditSheet(
                                     R.string.prompt_page_st_preset_editor_source_backed_desc,
                                     stringResource(stPromptSourceLabelRes(state.prompt.identifier))
                                 )
-                                state.prompt.marker -> stringResource(R.string.prompt_page_st_preset_editor_marker_preview)
+                                state.prompt.marker -> stringResource(
+                                    R.string.prompt_page_st_preset_editor_no_editable_content
+                                )
                                 else -> stringResource(R.string.prompt_page_st_preset_editor_empty_content_preview)
                             }
                         )
@@ -1500,7 +1463,7 @@ private fun stPromptPreview(prompt: SillyTavernPromptItem): String {
             stringResource(stPromptSourceLabelRes(prompt.identifier))
         )
         prompt.content.isNotBlank() -> prompt.content
-        prompt.marker -> stringResource(R.string.prompt_page_st_preset_editor_marker_preview)
+        prompt.marker -> stringResource(R.string.prompt_page_st_preset_editor_no_editable_content)
         else -> stringResource(R.string.prompt_page_st_preset_editor_empty_content_preview)
     }
 }

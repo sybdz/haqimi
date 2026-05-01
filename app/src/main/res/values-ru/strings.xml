@@ -1442,7 +1442,6 @@
   <string name="prompt_page_st_preset_editor_restore_common">Быстро восстановить стандартные блоки</string>
   <string name="prompt_page_st_preset_editor_empty">Пока нет элементов промпта. Добавьте пользовательский элемент или сначала восстановите стандартный блок.</string>
   <string name="prompt_page_st_preset_editor_add_custom">Добавить пользовательский элемент промпта</string>
-  <string name="prompt_page_st_preset_editor_marker">Метка</string>
   <string name="prompt_page_st_preset_editor_absolute">Абсолютный</string>
   <string name="prompt_page_st_preset_editor_no_override">Без переопределения</string>
   <string name="prompt_page_st_preset_editor_edit_item">Редактировать элемент промпта</string>
@@ -1455,7 +1454,7 @@
   <string name="prompt_page_st_preset_editor_order">Порядок</string>
   <string name="prompt_page_st_preset_editor_prompt_content">Содержимое запроса</string>
   <string name="prompt_page_st_preset_editor_delete_item">Удалить этот элемент</string>
-  <string name="prompt_page_st_preset_editor_marker_preview">Узел-маркер. Текст запроса напрямую не подставляется.</string>
+  <string name="prompt_page_st_preset_editor_no_editable_content">Этот элемент заполняется данными приложения, поэтому здесь нет редактируемого текста промпта.</string>
   <string name="prompt_page_st_preset_editor_empty_content_preview">Нажмите, чтобы отредактировать и заполнить этот запрос.</string>
   <string name="prompt_page_st_preset_editor_custom_prompt_name">Пользовательский запрос %1$d</string>
   <string name="prompt_page_st_preset_editor_depth_value">Глубина %1$d</string>
@@ -1813,12 +1812,6 @@
   <string name="prompt_page_st_preset_editor_role_desc">Поле роли фактически определяет роль сообщения, которое будет подставлено в текущем рантайме приложения.</string>
   <string name="prompt_page_st_preset_editor_group_runtime_desc">Сейчас приложение не предоставляет отдельный поток генерации для групповых чатов. Эти поля сохраняются в основном для совместимости с ST и экспорта и не влияют на обычные чаты здесь.</string>
   <string name="prompt_page_st_preset_editor_impersonation_runtime_desc">В обычном чате и режиме `continue` эти поля не используются. Они применяются только тогда, когда путь совместимости явно входит в режим `impersonate`.</string>
-  <string name="prompt_page_st_preset_editor_compat_metadata_title">Метаданные совместимости</string>
-  <string name="prompt_page_st_preset_editor_system_prompt_metadata_label">Системный промпт (метаданные ST)</string>
-  <string name="prompt_page_st_preset_editor_marker_metadata_label">Маркер (метаданные ST)</string>
-  <string name="prompt_page_st_preset_editor_compat_flags_desc">Эти значения сохраняются для совместимости с ST и экспорта. Здесь они не редактируются как обычные параметры рантайма. В текущем рантайме приложения на поведение реально влияют роль и настройки внедрения.</string>
-  <string name="prompt_page_st_preset_editor_system_prompt_metadata_tag">Сист. мета</string>
-  <string name="prompt_page_st_preset_editor_marker_metadata_tag">Мета маркера</string>
   <string name="setting_mcp_page_stdio">Termux Stdio</string>
   <string name="setting_mcp_page_stdio_command">Команда</string>
   <string name="setting_mcp_page_stdio_command_desc">Имя исполняемого файла или путь для запуска внутри Termux</string>

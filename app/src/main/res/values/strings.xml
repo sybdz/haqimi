@@ -1492,7 +1492,6 @@
   <string name="prompt_page_st_preset_editor_restore_common">Quickly restore common blocks</string>
   <string name="prompt_page_st_preset_editor_empty">No prompt items yet. Add a custom item or restore a default block first.</string>
   <string name="prompt_page_st_preset_editor_add_custom">Add custom prompt item</string>
-  <string name="prompt_page_st_preset_editor_marker">Marker</string>
   <string name="prompt_page_st_preset_editor_absolute">Absolute</string>
   <string name="prompt_page_st_preset_editor_no_override">No override</string>
   <string name="prompt_page_st_preset_editor_edit_item">Edit prompt item</string>
@@ -1506,7 +1505,7 @@
   <string name="prompt_page_st_preset_editor_order">Order</string>
   <string name="prompt_page_st_preset_editor_prompt_content">Prompt content</string>
   <string name="prompt_page_st_preset_editor_delete_item">Delete this item</string>
-  <string name="prompt_page_st_preset_editor_marker_preview">Marker node. No prompt text is injected directly.</string>
+  <string name="prompt_page_st_preset_editor_no_editable_content">This item is filled from app data and has no editable prompt text here.</string>
   <string name="prompt_page_st_preset_editor_empty_content_preview">Tap to edit and fill in this prompt content.</string>
   <string name="prompt_page_st_preset_editor_source_preview">Content comes from: %1$s</string>
   <string name="prompt_page_st_preset_editor_source_backed_desc">This built-in item pulls its content from %1$s. Edit the source page instead of typing prompt text here.</string>
@@ -1528,12 +1527,6 @@
   <string name="prompt_page_st_preset_editor_position_absolute">Absolute</string>
   <string name="prompt_page_st_preset_editor_group_runtime_desc">The app does not currently expose a group-chat generation flow. These fields are kept mainly for ST compatibility and export, and they do not affect normal chats here.</string>
   <string name="prompt_page_st_preset_editor_impersonation_runtime_desc">Regular chat and Continue do not use these fields. They only apply when a compatibility path explicitly enters `impersonate` mode.</string>
-  <string name="prompt_page_st_preset_editor_compat_metadata_title">Compatibility metadata</string>
-  <string name="prompt_page_st_preset_editor_system_prompt_metadata_label">System prompt (ST metadata)</string>
-  <string name="prompt_page_st_preset_editor_marker_metadata_label">Marker (ST metadata)</string>
-  <string name="prompt_page_st_preset_editor_compat_flags_desc">These values are preserved for ST compatibility and export. They are not edited as normal runtime controls here. In the current app runtime, the fields that really affect behavior are role and injection settings.</string>
-  <string name="prompt_page_st_preset_editor_system_prompt_metadata_tag">System meta</string>
-  <string name="prompt_page_st_preset_editor_marker_metadata_tag">Marker meta</string>
   <string name="assistant_page_regex_find_regex_placeholder">e.g. \\b\\w+@\\w+\\.\\w+\\b</string>
   <string name="assistant_page_regex_help_body">Regex rules let you rewrite text before it is displayed, before it is sent to the model, or both.\n\nTypical use cases:\n- Clean up imported SillyTavern formatting.\n- Hide boilerplate in the UI without changing saved messages.\n- Normalize names or punctuation before the model sees them.\n- Apply ST script placements such as user input, AI output, world info, slash commands, or reasoning.\n\nTips:\n- Find Regex is a real regular expression.\n- Replace String supports syntax like $1, ${name}, $&lt;name&gt;, and {{match}}.\n- Trim captured strings removes extra text from captured groups before replacement is written back.\n- RAW and ESCAPED substitution resolve macros like {{char}} and {{user}} inside the regex itself.\n- If ST Placements is not empty, those placements override the generic scopes above.</string>
   <string name="assistant_page_regex_help_title">Regex Guide</string>

@@ -1454,7 +1454,6 @@
   <string name="prompt_page_st_preset_editor_restore_common">快速還原常用區塊</string>
   <string name="prompt_page_st_preset_editor_empty">尚無提示項目。請先新增自訂項目或還原預設區塊。</string>
   <string name="prompt_page_st_preset_editor_add_custom">新增自訂提示項目</string>
-  <string name="prompt_page_st_preset_editor_marker">標記</string>
   <string name="prompt_page_st_preset_editor_absolute">絕對</string>
   <string name="prompt_page_st_preset_editor_no_override">不覆寫</string>
   <string name="prompt_page_st_preset_editor_edit_item">編輯提示項目</string>
@@ -1467,7 +1466,7 @@
   <string name="prompt_page_st_preset_editor_order">順序</string>
   <string name="prompt_page_st_preset_editor_prompt_content">提示內容</string>
   <string name="prompt_page_st_preset_editor_delete_item">刪除此項目</string>
-  <string name="prompt_page_st_preset_editor_marker_preview">標記節點。不會直接插入提示文字。</string>
+  <string name="prompt_page_st_preset_editor_no_editable_content">這個項目的內容來自應用程式資料，這裡沒有可編輯的提示文字。</string>
   <string name="prompt_page_st_preset_editor_empty_content_preview">點一下以編輯並填寫此提示內容。</string>
   <string name="prompt_page_st_preset_editor_custom_prompt_name">自訂提示 %1$d</string>
   <string name="prompt_page_st_preset_editor_depth_value">深度 %1$d</string>

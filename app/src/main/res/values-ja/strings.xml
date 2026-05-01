@@ -1442,7 +1442,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="prompt_page_st_preset_editor_restore_common">共通ブロックをすばやく復元</string>
   <string name="prompt_page_st_preset_editor_empty">プロンプト項目がまだありません。カスタム項目を追加するか、まずデフォルトのブロックを復元してください。</string>
   <string name="prompt_page_st_preset_editor_add_custom">カスタムプロンプト項目を追加</string>
-  <string name="prompt_page_st_preset_editor_marker">マーカー</string>
   <string name="prompt_page_st_preset_editor_absolute">絶対</string>
   <string name="prompt_page_st_preset_editor_no_override">オーバーライドなし</string>
   <string name="prompt_page_st_preset_editor_edit_item">プロンプト項目を編集</string>
@@ -1455,7 +1454,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="prompt_page_st_preset_editor_order">順序</string>
   <string name="prompt_page_st_preset_editor_prompt_content">プロンプト内容</string>
   <string name="prompt_page_st_preset_editor_delete_item">この項目を削除</string>
-  <string name="prompt_page_st_preset_editor_marker_preview">マーカーノード。プロンプト文は直接挿入されません。</string>
+  <string name="prompt_page_st_preset_editor_no_editable_content">この項目はアプリのデータから入力されるため、ここで編集できるプロンプト文はありません。</string>
   <string name="prompt_page_st_preset_editor_empty_content_preview">タップして編集し、このプロンプト内容を入力します。</string>
   <string name="prompt_page_st_preset_editor_custom_prompt_name">カスタム プロンプト %1$d</string>
   <string name="prompt_page_st_preset_editor_depth_value">深さ %1$d</string>
@@ -1813,12 +1812,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="prompt_page_st_preset_editor_role_desc">ロールは、現在のアプリ実行時に挿入されるメッセージの役割を実際に制御する項目です。</string>
   <string name="prompt_page_st_preset_editor_group_runtime_desc">現在のアプリではグループチャット生成フローは公開されていません。これらの項目は主に ST 互換性とエクスポートのために保持されており、ここでの通常チャットには影響しません。</string>
   <string name="prompt_page_st_preset_editor_impersonation_runtime_desc">通常チャットと「続行」ではこれらの項目は使われません。互換パスが明示的に `impersonate` モードに入った場合にのみ適用されます。</string>
-  <string name="prompt_page_st_preset_editor_compat_metadata_title">互換メタデータ</string>
-  <string name="prompt_page_st_preset_editor_system_prompt_metadata_label">システムプロンプト（ST メタデータ）</string>
-  <string name="prompt_page_st_preset_editor_marker_metadata_label">マーカー（ST メタデータ）</string>
-  <string name="prompt_page_st_preset_editor_compat_flags_desc">これらの値は ST 互換性とエクスポートのために保持されます。ここでは通常の実行時コントロールとして編集されません。現在のアプリ実行時で実際に挙動へ影響するのは、ロールと注入設定です。</string>
-  <string name="prompt_page_st_preset_editor_system_prompt_metadata_tag">システムメタ</string>
-  <string name="prompt_page_st_preset_editor_marker_metadata_tag">マーカーメタ</string>
   <string name="setting_mcp_page_stdio">Termux Stdio</string>
   <string name="setting_mcp_page_stdio_command">コマンド</string>
   <string name="setting_mcp_page_stdio_command_desc">Termux 内で起動する実行ファイル名またはパス</string>
