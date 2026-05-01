@@ -197,9 +197,7 @@ object CustomColors {
 
     val scaffoldSurfaceColors: CustomSurfaceColors
         @Composable get() {
-            val containerColor = colorScheme.surfaceColorAtElevation(4.dp).copy(
-                alpha = if (LocalDarkMode.current) 0.76f else 0.92f
-            )
+            val containerColor = colorScheme.surfaceColorAtElevation(4.dp).copy(alpha = 1f)
             return CustomSurfaceColors(
                 containerColor = containerColor,
                 contentColor = resolveContentColor(containerColor = containerColor),
@@ -208,9 +206,7 @@ object CustomColors {
 
     val listItemSurfaceColors: CustomSurfaceColors
         @Composable get() {
-            val containerColor = colorScheme.surfaceColorAtElevation(1.dp).copy(
-                alpha = if (LocalDarkMode.current) 0.72f else 0.88f
-            )
+            val containerColor = colorScheme.surfaceColorAtElevation(1.dp).copy(alpha = 1f)
             return CustomSurfaceColors(
                 containerColor = containerColor,
                 contentColor = resolveContentColor(containerColor = containerColor),
@@ -261,16 +257,12 @@ object CustomColors {
 
     val cardColors: CardColors
         @Composable get() = cardColorsForContainer(
-            containerColor = colorScheme.surfaceColorAtElevation(3.dp).copy(
-                alpha = if (LocalDarkMode.current) 0.76f else 0.94f
-            ),
+            containerColor = colorScheme.surfaceColorAtElevation(3.dp).copy(alpha = 1f),
         )
 
     val cardColorsOnSurfaceContainer: CardColors
         @Composable get() = cardColorsForContainer(
-            containerColor = colorScheme.surfaceColorAtElevation(2.dp).copy(
-                alpha = if (LocalDarkMode.current) 0.72f else 0.92f
-            ),
+            containerColor = colorScheme.surfaceColorAtElevation(2.dp).copy(alpha = 1f),
         )
 
     val listItemCardColors: CardColors
