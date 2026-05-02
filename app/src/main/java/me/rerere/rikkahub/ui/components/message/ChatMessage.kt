@@ -119,7 +119,6 @@ private fun SelectableMarkdownBlock(
     modifier: Modifier = Modifier,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    streaming: Boolean = false,
     onClickCitation: (String) -> Unit = {},
 ) {
     SelectionContainer {
@@ -128,7 +127,6 @@ private fun SelectableMarkdownBlock(
             modifier = modifier,
             messageDepthFromEnd = messageDepthFromEnd,
             animateContent = animateContent,
-            streaming = streaming,
             onClickCitation = onClickCitation,
         )
     }
@@ -537,7 +535,6 @@ private fun MessagePartsBlock(
                                             content = renderedText,
                                             messageDepthFromEnd = messageDepthFromEnd,
                                             animateContent = !loading,
-                                            streaming = false,
                                             onClickCitation = handleClickCitation
                                         )
                                     }
@@ -573,8 +570,7 @@ private fun MessagePartsBlock(
                                         SelectableMarkdownBlock(
                                             content = renderedText,
                                             messageDepthFromEnd = messageDepthFromEnd,
-                                            animateContent = !loading,
-                                            streaming = loading,
+                                            animateContent = true,
                                             onClickCitation = handleClickCitation,
                                         )
                                     }
@@ -583,8 +579,7 @@ private fun MessagePartsBlock(
                                 SelectableMarkdownBlock(
                                     content = renderedText,
                                     messageDepthFromEnd = messageDepthFromEnd,
-                                    animateContent = !loading,
-                                    streaming = loading,
+                                    animateContent = true,
                                     onClickCitation = handleClickCitation,
                                     modifier = Modifier
                                 )

@@ -1,10 +1,6 @@
 package me.rerere.rikkahub.ui.components.richtext
 
 import android.content.Intent
-import android.os.SystemClock
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,7 +23,6 @@ import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -108,8 +103,6 @@ private val parser by lazy {
 
 private val INLINE_LATEX_REGEX = Regex("\\\\\\((.+?)\\\\\\)")
 private val BLOCK_LATEX_REGEX = Regex("\\\\\\[(.+?)\\\\\\]", RegexOption.DOT_MATCHES_ALL)
-private const val STREAMING_FADE_DURATION_MS = 140
-private const val STREAMING_FADE_MIN_INTERVAL_MS = 90L
 private val PROTECTED_MARKDOWN_NODE_TYPES = setOf(
     MarkdownElementTypes.CODE_BLOCK,
     MarkdownElementTypes.CODE_FENCE,
@@ -371,7 +364,6 @@ fun MarkdownBlock(
     headerLevelOffset: Int = 0,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    streaming: Boolean = false,
     onClickCitation: (String) -> Unit = {}
 ) {
     var (data, setData) = remember { mutableStateOf(parseMarkdown(content)) }
@@ -415,7 +407,6 @@ fun MarkdownBlock(
                         onClickCitation = onClickCitation,
                         messageDepthFromEnd = messageDepthFromEnd,
                         animateContent = animateContent,
-                        streaming = streaming,
                     )
                 }
             }
@@ -512,7 +503,6 @@ private fun MarkdownNode(
     listLevel: Int = 0,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    streaming: Boolean = false,
 ) {
     when (node.type) {
         // 文件根节点
@@ -526,7 +516,6 @@ private fun MarkdownNode(
                     onClickCitation = onClickCitation,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    streaming = streaming,
                 )
             }
         }
@@ -541,7 +530,6 @@ private fun MarkdownNode(
                 onClickCitation = onClickCitation,
                 messageDepthFromEnd = messageDepthFromEnd,
                 animateContent = animateContent,
-                streaming = streaming,
             )
         }
 
@@ -571,7 +559,6 @@ private fun MarkdownNode(
                                 trim = true,
                                 messageDepthFromEnd = messageDepthFromEnd,
                                 animateContent = animateContent,
-                                streaming = streaming,
                             )
                         }
                     }
@@ -590,7 +577,6 @@ private fun MarkdownNode(
                 level = listLevel,
                 messageDepthFromEnd = messageDepthFromEnd,
                 animateContent = animateContent,
-                streaming = streaming,
             )
         }
 
@@ -604,7 +590,6 @@ private fun MarkdownNode(
                 level = listLevel,
                 messageDepthFromEnd = messageDepthFromEnd,
                 animateContent = animateContent,
-                streaming = streaming,
             )
         }
 
@@ -658,7 +643,6 @@ private fun MarkdownNode(
                             onClickCitation = onClickCitation,
                             messageDepthFromEnd = messageDepthFromEnd,
                             animateContent = animateContent,
-                            streaming = streaming,
                         )
                     }
                 }
@@ -695,7 +679,6 @@ private fun MarkdownNode(
                         onClickCitation = onClickCitation,
                         messageDepthFromEnd = messageDepthFromEnd,
                         animateContent = animateContent,
-                        streaming = streaming,
                     )
                 }
             }
@@ -712,7 +695,6 @@ private fun MarkdownNode(
                         onClickCitation = onClickCitation,
                         messageDepthFromEnd = messageDepthFromEnd,
                         animateContent = animateContent,
-                        streaming = streaming,
                     )
                 }
             }
@@ -905,7 +887,6 @@ private fun MarkdownNode(
                     onClickCitation = onClickCitation,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    streaming = streaming,
                 )
             }
         }
@@ -922,7 +903,6 @@ private fun UnorderedListNode(
     level: Int = 0,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    streaming: Boolean = false,
 ) {
     val bulletStyle = when (level % 3) {
         0 -> "• "
@@ -944,7 +924,6 @@ private fun UnorderedListNode(
                     level = level,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    streaming = streaming,
                 )
             }
         }
@@ -961,7 +940,6 @@ private fun OrderedListNode(
     level: Int = 0,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    streaming: Boolean = false,
 ) {
     Column(modifier.padding(start = (level * 8).dp)) {
         var index = 1
@@ -978,7 +956,6 @@ private fun OrderedListNode(
                     level = level,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    streaming = streaming,
                 )
                 index++
             }
@@ -996,7 +973,6 @@ private fun ListItemNode(
     level: Int,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    streaming: Boolean = false,
 ) {
     Column {
         // 分离列表项的直接内容和嵌套列表
@@ -1022,7 +998,6 @@ private fun ListItemNode(
                             listLevel = level,
                             messageDepthFromEnd = messageDepthFromEnd,
                             animateContent = animateContent,
-                            streaming = streaming,
                         )
                     }
                 }
@@ -1038,7 +1013,6 @@ private fun ListItemNode(
                 listLevel = level + 1,
                 messageDepthFromEnd = messageDepthFromEnd,
                 animateContent = animateContent,
-                streaming = streaming,
             )
         }
     }
@@ -1072,7 +1046,6 @@ private fun Paragraph(
     modifier: Modifier,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    streaming: Boolean = false,
 ) {
     // dumpAst(node, content)
     if (node.findChildOfTypeRecursive(MarkdownElementTypes.IMAGE, GFMElementTypes.BLOCK_MATH) != null) {
@@ -1085,7 +1058,6 @@ private fun Paragraph(
                     onClickCitation = onClickCitation,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    streaming = streaming,
                 )
             }
         }
@@ -1134,12 +1106,8 @@ private fun Paragraph(
                 }
             }
         }
-        val displayText = rememberStreamingAnnotatedString(
-            annotatedString = annotatedString,
-            streaming = streaming,
-        )
         Text(
-            text = displayText,
+            text = annotatedString,
             modifier = Modifier,
             inlineContent = inlineContents,
             softWrap = true,
@@ -1148,67 +1116,6 @@ private fun Paragraph(
                 lineHeight = if (hasInlineMath && enableLatexRendering) TextUnit.Unspecified else LocalTextStyle.current.lineHeight
             )
         )
-    }
-}
-
-@Composable
-private fun rememberStreamingAnnotatedString(
-    annotatedString: AnnotatedString,
-    streaming: Boolean,
-): AnnotatedString {
-    val tailAlpha = remember { Animatable(1f) }
-    val previousText = remember { mutableStateOf(if (streaming) "" else annotatedString.text) }
-    val tailStart = remember { mutableStateOf(annotatedString.length) }
-    val lastAppendTime = remember { mutableStateOf(0L) }
-
-    LaunchedEffect(annotatedString.text, streaming) {
-        val currentText = annotatedString.text
-        val oldText = previousText.value
-        if (!streaming) {
-            previousText.value = currentText
-            tailStart.value = currentText.length
-            tailAlpha.snapTo(1f)
-            return@LaunchedEffect
-        }
-
-        if (currentText.length > oldText.length && currentText.startsWith(oldText)) {
-            val now = SystemClock.uptimeMillis()
-            val fastAppend = now - lastAppendTime.value < STREAMING_FADE_MIN_INTERVAL_MS
-            lastAppendTime.value = now
-            tailStart.value = oldText.length
-            previousText.value = currentText
-            if (fastAppend) {
-                tailAlpha.snapTo(1f)
-            } else {
-                tailAlpha.snapTo(0.55f)
-                tailAlpha.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(durationMillis = STREAMING_FADE_DURATION_MS, easing = FastOutSlowInEasing),
-                )
-            }
-        } else {
-            previousText.value = currentText
-            tailStart.value = currentText.length
-            tailAlpha.snapTo(1f)
-        }
-    }
-
-    val alpha = tailAlpha.value
-    val start = tailStart.value.coerceIn(0, annotatedString.length)
-    val tailColor = LocalContentColor.current.copy(alpha = alpha)
-    return remember(annotatedString, streaming, start, alpha, tailColor) {
-        if (!streaming || alpha >= 0.99f || start >= annotatedString.length) {
-            annotatedString
-        } else {
-            buildAnnotatedString {
-                append(annotatedString)
-                addStyle(
-                    style = SpanStyle(color = tailColor),
-                    start = start,
-                    end = annotatedString.length,
-                )
-            }
-        }
     }
 }
 
