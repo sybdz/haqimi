@@ -59,6 +59,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -118,6 +119,7 @@ import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
 import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.luneGlassBorderColor
 import me.rerere.rikkahub.ui.components.ui.luneGlassContainerColor
+import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.theme.preferredContentColor
 import me.rerere.rikkahub.utils.plus
 import kotlin.math.roundToInt
@@ -125,16 +127,6 @@ import kotlin.uuid.Uuid
 
 private const val LoadingIndicatorKey = "LoadingIndicator"
 private const val ScrollBottomKey = "ScrollBottomKey"
-
-private fun List<LazyListItemInfo>.isAtBottom(
-    viewportEndOffset: Int,
-    bottomInsetPx: Int,
-): Boolean {
-    val lastItem = lastOrNull() ?: return false
-    val lastPos = lastItem.offset + lastItem.size
-    val inputPos = viewportEndOffset - bottomInsetPx
-    return lastPos <= inputPos - 8
-}
 
 private fun Modifier.clearChatInputFocusOnTap(
     onDismiss: () -> Unit,
@@ -266,6 +258,8 @@ private fun ChatListNormal(
     val scope = rememberCoroutineScope()
     var isRecentScroll by remember { mutableStateOf(false) }
     val density = LocalDensity.current
+    val loadingState by rememberUpdatedState(loading)
+    val conversationUpdated by rememberUpdatedState(conversation)
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val activity = LocalActivity.current as? me.rerere.rikkahub.RouteActivity
@@ -336,27 +330,27 @@ private fun ChatListNormal(
                 keyboardController?.hide()
             }
     ) {
+        // 自动跟随键盘滚动
+        ImeLazyListAutoScroller(lazyListState = state)
+
         // 自动滚动到底部
         if (settings.displaySetting.enableAutoScroll) {
-            LaunchedEffect(state, density, innerPadding, loading) {
-                if (!loading) {
-                    return@LaunchedEffect
-                }
+            fun List<LazyListItemInfo>.isAtBottom(): Boolean {
+                val lastItem = lastOrNull() ?: return false
+                val inputBarHeight = with(density) { innerPadding.calculateBottomPadding().toPx() }
+                val lastPos = lastItem.offset + lastItem.size
+                val inputPos = (state.layoutInfo.viewportEndOffset - inputBarHeight.roundToInt())
+                return lastPos <= inputPos - 8
+            }
 
-                val bottomInsetPx = with(density) {
-                    innerPadding.calculateBottomPadding().toPx().roundToInt()
-                }
-                snapshotFlow { state.layoutInfo.visibleItemsInfo }
-                    .collect { visibleItemsInfo ->
-                        if (!state.isScrollInProgress &&
-                            visibleItemsInfo.isAtBottom(
-                                viewportEndOffset = state.layoutInfo.viewportEndOffset,
-                                bottomInsetPx = bottomInsetPx,
-                            )
-                        ) {
-                            state.requestScrollToItem(state.layoutInfo.totalItemsCount - 1)
+            LaunchedEffect(state) {
+                snapshotFlow { state.layoutInfo.visibleItemsInfo }.collect { visibleItemsInfo ->
+                    if (!state.isScrollInProgress && loadingState) {
+                        if (visibleItemsInfo.isAtBottom()) {
+                            state.requestScrollToItem(conversationUpdated.messageNodes.lastIndex + 10)
                         }
                     }
+                }
             }
         }
 

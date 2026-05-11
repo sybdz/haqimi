@@ -430,7 +430,7 @@ private fun ChatPageContent(
             )
             scope.launch {
                 if (conversation.messageNodes.isNotEmpty()) {
-                    chatListState.requestScrollToItem(conversation.messageNodes.lastIndex + 10)
+                    chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                 }
             }
         }
