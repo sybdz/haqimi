@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.components.message
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -522,6 +523,7 @@ private fun MessagePartsBlock(
                                     )
                                 }
                                 Surface(
+                                    modifier = Modifier.animateContentSize(),
                                     shape = RoundedCornerShape(22.dp),
                                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.24f),
                                     border = BorderStroke(
@@ -559,6 +561,7 @@ private fun MessagePartsBlock(
                             }
                             if (settings.displaySetting.showAssistantBubble) {
                                 Surface(
+                                    modifier = Modifier.animateContentSize(),
                                     shape = RoundedCornerShape(22.dp),
                                     color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp).copy(alpha = 0.78f),
                                     border = BorderStroke(
@@ -582,6 +585,7 @@ private fun MessagePartsBlock(
                                     animateContent = true,
                                     onClickCitation = handleClickCitation,
                                     modifier = Modifier
+                                        .animateContentSize()
                                 )
                             }
                         }
