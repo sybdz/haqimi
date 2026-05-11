@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 22,
-    "identityHash": "c4394ff456c0f2cfcea9196ae0923204",
+    "identityHash": "0ee91a251aa5f72cb4095d0c25c92446",
     "entities": [
       {
         "tableName": "ConversationEntity",
@@ -120,7 +120,7 @@
       },
       {
         "tableName": "GenMediaEntity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `path` TEXT NOT NULL, `model_id` TEXT NOT NULL, `prompt` TEXT NOT NULL, `create_at` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `path` TEXT NOT NULL, `model_id` TEXT NOT NULL, `prompt` TEXT NOT NULL, `create_at` INTEGER NOT NULL, `type` TEXT NOT NULL DEFAULT 'image_generation', `source_paths` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -151,6 +151,18 @@
             "columnName": "create_at",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'image_generation'"
+          },
+          {
+            "fieldPath": "sourcePaths",
+            "columnName": "source_paths",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -515,7 +527,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c4394ff456c0f2cfcea9196ae0923204')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0ee91a251aa5f72cb4095d0c25c92446')"
     ]
   }
 }

@@ -66,6 +66,7 @@ import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.hasBlockingToolsForContinuation
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.mcp.McpTool
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxCommandManager
@@ -147,8 +148,13 @@ data class ChatError(
     val id: Uuid = Uuid.random(),
     val error: Throwable,
     val conversationId: Uuid? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val solution: ChatErrorSolution? = null,
 )
+
+enum class ChatErrorSolution {
+    CheckTitleModelSettings,
+}
 
 data class ScheduledTaskExecutionResult(
     val replyPreview: String,
@@ -202,9 +208,13 @@ class ChatService(
     private val _errors = MutableStateFlow<List<ChatError>>(emptyList())
     val errors: StateFlow<List<ChatError>> = _errors.asStateFlow()
 
-    fun addError(error: Throwable, conversationId: Uuid? = null) {
+    fun addError(
+        error: Throwable,
+        conversationId: Uuid? = null,
+        solution: ChatErrorSolution? = null,
+    ) {
         if (error is CancellationException) return
-        _errors.update { it + ChatError(error = error, conversationId = conversationId) }
+        _errors.update { it + ChatError(error = error, conversationId = conversationId, solution = solution) }
     }
 
     fun dismissError(id: Uuid) {
@@ -676,23 +686,7 @@ class ChatService(
                 addAll(createSearchTools(settings))
             }
             addAll(localTools.getTools(assistant.localTools))
-            mcpTools.forEach { tool ->
-                add(
-                    Tool(
-                        name = "mcp__${tool.name}",
-                        description = tool.description ?: "",
-                        parameters = { tool.inputSchema },
-                        needsApproval = tool.needsApproval,
-                        execute = {
-                            mcpManager.callToolFromServers(
-                                serverIds = assistant.mcpServers,
-                                toolName = tool.name,
-                                args = it.jsonObject,
-                            )
-                        },
-                    )
-                )
-            }
+            addAll(buildMcpTools(mcpTools))
         }
     }
 
@@ -1168,23 +1162,12 @@ class ChatService(
                         overrideTermuxNeedsApproval = task.overrideTermuxNeedsApproval
                     )
                 )
-                mcpManager.getAvailableToolsForServers(mcpServerScope).forEach { tool ->
-                    add(
-                        Tool(
-                            name = "mcp__${tool.name}",
-                            description = tool.description ?: "",
-                            parameters = { tool.inputSchema },
-                            needsApproval = false,
-                            execute = {
-                                mcpManager.callToolFromServers(
-                                    serverIds = mcpServerScope,
-                                    toolName = tool.name,
-                                    args = it.jsonObject
-                                )
-                            },
-                        )
+                addAll(
+                    buildMcpTools(
+                        mcpManager.getAvailableToolsForServers(mcpServerScope),
+                        needsApprovalOverride = false
                     )
-                }
+                )
             },
         ).collect { chunk ->
             when (chunk) {
@@ -1604,8 +1587,10 @@ class ChatService(
 
         runCatching {
             val settings = settingsStore.settingsFlow.first()
-            val model = settings.findModelById(settings.titleModelId) ?: return
-            val provider = model.findProvider(settings.providers) ?: return
+            val model = settings.findModelById(settings.titleModelId)
+                ?: throw IllegalStateException("Title model is not configured")
+            val provider = model.findProvider(settings.providers)
+                ?: throw IllegalStateException("Title model provider is not configured")
 
             val providerHandler = providerManager.getProviderByType(provider)
             val result = providerHandler.generateText(
@@ -1633,7 +1618,11 @@ class ChatService(
             }
         }.onFailure {
             it.printStackTrace()
-            addError(it, conversationId)
+            val solution = when (it) {
+                is IllegalStateException -> ChatErrorSolution.CheckTitleModelSettings
+                else -> null
+            }
+            addError(it, conversationId, solution = solution)
         }
     }
 
@@ -1857,8 +1846,51 @@ class ChatService(
         }
     }
 
+    private fun buildMcpTools(
+        mcpTools: List<Pair<Uuid, McpTool>>,
+        needsApprovalOverride: Boolean? = null,
+    ): List<Tool> {
+        val duplicateToolNames = mcpTools
+            .groupingBy { it.second.name }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
+
+        return mcpTools.map { (serverId, tool) ->
+            val toolName = if (tool.name in duplicateToolNames) {
+                buildUniqueMcpToolName(serverId, tool.name)
+            } else {
+                "mcp__${tool.name}"
+            }
+            Tool(
+                name = toolName,
+                description = tool.description ?: "",
+                parameters = { tool.inputSchema },
+                needsApproval = needsApprovalOverride ?: tool.needsApproval,
+                execute = {
+                    mcpManager.callTool(
+                        serverId = serverId,
+                        toolName = tool.name,
+                        args = it.jsonObject,
+                    )
+                },
+            )
+        }
+    }
+
+    private fun buildUniqueMcpToolName(serverId: Uuid, toolName: String): String {
+        val shortServerId = serverId.toString().replace("-", "").take(8)
+        return "mcp__${shortServerId}__${toolName}"
+    }
+
+    private fun displayToolName(toolName: String): String {
+        val rawName = toolName.removePrefix("mcp__")
+        val parts = rawName.split("__", limit = 2)
+        return if (parts.size == 2 && parts[0].length == 8) parts[1] else rawName
+    }
+
     private fun buildToolApprovalNotificationText(tool: UIMessagePart.Tool): String {
-        val toolLabel = tool.toolName.removePrefix("mcp__").ifBlank { tool.toolName }
+        val toolLabel = displayToolName(tool.toolName)
         val arguments = tool.inputAsJson().jsonObject
         val preview = when (tool.toolName) {
             "termux_exec" -> arguments["command"]?.jsonPrimitive?.contentOrNull
@@ -1894,7 +1926,7 @@ class ChatService(
         return when {
             // 正在执行工具
             lastTool != null && !lastTool.isExecuted -> {
-                val toolName = lastTool.toolName.removePrefix("mcp__")
+                val toolName = displayToolName(lastTool.toolName)
                 Triple(
                     context.getString(R.string.notification_live_update_chip_tool),
                     context.getString(R.string.notification_live_update_tool, toolName),

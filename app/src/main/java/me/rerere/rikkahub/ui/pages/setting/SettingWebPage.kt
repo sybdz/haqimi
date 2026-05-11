@@ -56,6 +56,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.WebServerService
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionLocalNetwork
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -89,9 +90,14 @@ fun SettingWebPage() {
     }
 
     val permissionState = rememberPermissionState(
-        permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) setOf(
-            PermissionNotification
-        ) else emptySet(),
+        permissions = buildSet {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(PermissionNotification)
+            }
+            if (Build.VERSION.SDK_INT >= 37 && !settings.webServerLocalhostOnly) {
+                add(PermissionLocalNetwork)
+            }
+        },
     )
     PermissionManager(permissionState = permissionState)
 

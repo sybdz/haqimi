@@ -19,6 +19,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import me.rerere.asr.ASRProviderSetting
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
@@ -163,6 +164,10 @@ class SettingsStore(
         val TTS_PROVIDERS = stringPreferencesKey("tts_providers")
         val SELECTED_TTS_PROVIDER = stringPreferencesKey("selected_tts_provider")
 
+        // ASR
+        val ASR_PROVIDERS = stringPreferencesKey("asr_providers")
+        val SELECTED_ASR_PROVIDER = stringPreferencesKey("selected_asr_provider")
+
         // Web Server
         val WEB_SERVER_ENABLED = booleanPreferencesKey("web_server_enabled")
         val WEB_SERVER_PORT = intPreferencesKey("web_server_port")
@@ -294,6 +299,10 @@ class SettingsStore(
                 } ?: emptyList(),
                 selectedTTSProviderId = preferences[SELECTED_TTS_PROVIDER]?.let { Uuid.parse(it) }
                     ?: DEFAULT_SYSTEM_TTS_ID,
+                asrProviders = preferences[ASR_PROVIDERS]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
+                selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { Uuid.parse(it) },
                 modeInjections = preferences[MODE_INJECTIONS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -400,6 +409,11 @@ class SettingsStore(
         }
         .map { settings ->
             // 去重并清理无效引用
+            val asrProviders = settings.asrProviders.distinctBy { it.id }
+            val selectedASRProviderId = asrProviders
+                .firstOrNull { it.id == settings.selectedASRProviderId }
+                ?.id
+                ?: asrProviders.firstOrNull()?.id
             val validMcpServerIds = settings.mcpServers.map { it.id }.toSet()
             val validModeInjectionIds = settings.modeInjections.map { it.id }.toSet()
             val validLorebookIds = settings.lorebooks.map { it.id }.toSet()
@@ -458,6 +472,8 @@ class SettingsStore(
                     )
                 },
                 ttsProviders = settings.ttsProviders.distinctBy { it.id },
+                asrProviders = asrProviders,
+                selectedASRProviderId = selectedASRProviderId,
                 favoriteModels = settings.favoriteModels.filter { uuid ->
                     settings.providers.flatMap { it.models }.any { it.id == uuid }
                 },
@@ -506,6 +522,7 @@ class SettingsStore(
         }
         val validLorebookIds = settings.lorebooks.map { it.id }.toSet()
         val normalizedStSettings = settings.normalizeStPresetState()
+        val asrProviders = settings.asrProviders.distinctBy { it.id }
         val normalizedSettings = normalizedStSettings.copy(
             modeInjections = settings.modeInjections.map { it.normalizedForSystemPromptSupplement() },
             lorebookGlobalSettings = settings.lorebookGlobalSettings.normalized(),
@@ -516,6 +533,10 @@ class SettingsStore(
             selectedStPresetId = normalizedStSettings.selectedStPresetId,
             stPresetTemplate = normalizedStSettings.stPresetTemplate,
             regexes = normalizedStSettings.regexes.distinctBy { it.id },
+            asrProviders = asrProviders,
+            selectedASRProviderId = settings.selectedASRProviderId
+                ?.takeIf { selectedId -> asrProviders.any { it.id == selectedId } }
+                ?: asrProviders.firstOrNull()?.id,
         )
         val previousSettings = settingsFlow.value
         if (!previousSettings.init) {
@@ -581,6 +602,10 @@ class SettingsStore(
             preferences[S3_CONFIG] = JsonInstant.encodeToString(normalizedSettings.s3Config)
             preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(normalizedSettings.ttsProviders)
             preferences[SELECTED_TTS_PROVIDER] = normalizedSettings.selectedTTSProviderId.toString()
+            preferences[ASR_PROVIDERS] = JsonInstant.encodeToString(normalizedSettings.asrProviders)
+            normalizedSettings.selectedASRProviderId?.let {
+                preferences[SELECTED_ASR_PROVIDER] = it.toString()
+            } ?: preferences.remove(SELECTED_ASR_PROVIDER)
             preferences[MODE_INJECTIONS] = JsonInstant.encodeToString(normalizedSettings.modeInjections)
             preferences[LOREBOOKS] = JsonInstant.encodeToString(normalizedSettings.lorebooks)
             preferences[GLOBAL_LOREBOOK_IDS] = JsonInstant.encodeToString(normalizedSettings.globalLorebookIds)
@@ -744,6 +769,8 @@ data class Settings(
     val s3Config: S3Config = S3Config(),
     val ttsProviders: List<TTSProviderSetting> = DEFAULT_TTS_PROVIDERS,
     val selectedTTSProviderId: Uuid = DEFAULT_SYSTEM_TTS_ID,
+    val asrProviders: List<ASRProviderSetting> = emptyList(),
+    val selectedASRProviderId: Uuid? = null,
     val modeInjections: List<PromptInjection.ModeInjection> = DEFAULT_MODE_INJECTIONS,
     val lorebooks: List<Lorebook> = emptyList(),
     val globalLorebookIds: Set<Uuid> = emptySet(),
@@ -905,6 +932,12 @@ fun Settings.getQuickMessagesOfAssistant(assistant: Assistant) =
 
 fun Settings.getSelectedTTSProvider(): TTSProviderSetting? {
     return ttsProviders.find { it.id == selectedTTSProviderId } ?: ttsProviders.firstOrNull()
+}
+
+fun Settings.getSelectedASRProvider(): ASRProviderSetting? {
+    return selectedASRProviderId
+        ?.let { selectedId -> asrProviders.find { it.id == selectedId } }
+        ?: asrProviders.firstOrNull()
 }
 
 fun Model.findProvider(providers: List<ProviderSetting>, checkOverwrite: Boolean = true): ProviderSetting? {
