@@ -137,6 +137,7 @@ fun SettingSpeechPage(vm: SettingVM = koinViewModel()) {
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
+        contentColor = CustomColors.scaffoldSurfaceColors.contentColor,
     ) { innerPadding ->
         when (selectedPage) {
             0 -> TTSProviderList(
@@ -638,6 +639,11 @@ private fun TTSProviderItem(
                 MaterialTheme.colorScheme.primaryContainer
             } else {
                 CustomColors.listItemColors.containerColor
+            },
+            contentColor = if (isSelected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                CustomColors.listItemSurfaceColors.contentColor
             }
         )
     ) {
@@ -782,6 +788,11 @@ private fun ASRProviderItem(
                 MaterialTheme.colorScheme.primaryContainer
             } else {
                 CustomColors.listItemColors.containerColor
+            },
+            contentColor = if (isSelected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                CustomColors.listItemSurfaceColors.contentColor
             }
         )
     ) {
