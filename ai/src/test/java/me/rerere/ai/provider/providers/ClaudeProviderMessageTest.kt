@@ -6,6 +6,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.provider.ClaudePromptCacheTtl
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
@@ -42,10 +43,11 @@ class ClaudeProviderMessageTest {
         val method = ClaudeProvider::class.java.getDeclaredMethod(
             "buildMessages",
             List::class.java,
-            java.lang.Boolean.TYPE
+            java.lang.Boolean.TYPE,
+            ClaudePromptCacheTtl::class.java,
         )
         method.isAccessible = true
-        return method.invoke(provider, messages, false) as JsonArray
+        return method.invoke(provider, messages, false, ClaudePromptCacheTtl.FIVE_MINUTES) as JsonArray
     }
 
     private fun invokeBuildRequestBody(params: TextGenerationParams): JsonObject {

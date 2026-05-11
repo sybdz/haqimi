@@ -1885,4 +1885,8 @@
   <string name="setting_asr_configure_volcengine_websocket_desc">Конечная точка потокового ASR Volcengine</string>
   <string name="setting_asr_configure_resource_id">ID ресурса</string>
   <string name="setting_asr_configure_resource_id_desc">X-Api-Resource-Id для биллинга</string>
+  <string name="permission_microphone">Микрофон</string>
+  <string name="permission_microphone_desc">Для распознавания речи требуется разрешение на микрофон</string>
+  <string name="setting_asr_page_default_name">ASR</string>
+  <string name="setting_provider_page_use_service_account">Использовать сервисный аккаунт</string>
 </resources>

@@ -1887,4 +1887,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_asr_configure_volcengine_websocket_desc">Volcengine ストリーミング ASR エンドポイント</string>
   <string name="setting_asr_configure_resource_id">リソースID</string>
   <string name="setting_asr_configure_resource_id_desc">課金用のX-Api-Resource-Id</string>
+  <string name="permission_microphone">マイク</string>
+  <string name="permission_microphone_desc">音声認識にはマイク権限が必要です</string>
 </resources>
