@@ -262,6 +262,7 @@ fun ChatMessage(
                     exit = slideOutVertically { it / 2 } + fadeOut()
                 ) {
                     Column(
+                        modifier = Modifier.animateContentSize(),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         if (showAccessoryRow) {
@@ -463,7 +464,7 @@ private fun MessagePartsBlock(
                 if (block.steps.isNotEmpty()) {
                     val isReasoningOnlyBlock = block.steps.fastAll { it is ThinkingStep.ReasoningStep }
                     ChainOfThought(
-                        modifier = Modifier,
+                        modifier = Modifier.animateContentSize(),
                         steps = block.steps,
                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
                     ) { step ->
@@ -751,7 +752,7 @@ private fun MessagePartsBlock(
     // Annotations (always rendered at the end)
     if (annotations.isNotEmpty()) {
         Column(
-            modifier = Modifier,
+            modifier = Modifier.animateContentSize(),
         ) {
             var expand by remember { mutableStateOf(false) }
             if (expand) {

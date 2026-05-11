@@ -342,15 +342,10 @@ private fun CodeBlockDefault(
 
         // 代码列
         SelectionContainer {
-            val textModifier = if (animateContent) {
-                Modifier.animateContentSize()
-            } else {
-                Modifier
-            }
             HighlightText(
                 code = displayCode,
                 language = language,
-                modifier = textModifier,
+                modifier = Modifier.animateContentSize(),
                 fontSize = textStyle.fontSize,
                 lineHeight = textStyle.lineHeight,
                 colors = colorPalette,
