@@ -29,6 +29,15 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Web UI dependencies
+        working-directory: web-ui
+        run: bun install --frozen-lockfile
+
       - name: Prepare Google Services config
         env:
           PLACEHOLDER_GOOGLE_SERVICES_JSON: |
