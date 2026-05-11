@@ -80,7 +80,6 @@ import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
 import me.rerere.rikkahub.ui.theme.ThemeTokenParseResult
 import me.rerere.rikkahub.ui.theme.ThemeTokenTextScaleGroup
 import me.rerere.rikkahub.ui.theme.applyThemeTokenTextScale
-import me.rerere.rikkahub.ui.theme.luneSizeSpring
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.toDp
 import kotlin.time.Clock
@@ -344,7 +343,7 @@ private fun CodeBlockDefault(
         // 代码列
         SelectionContainer {
             val textModifier = if (animateContent) {
-                Modifier.animateContentSize(animationSpec = luneSizeSpring())
+                Modifier.animateContentSize()
             } else {
                 Modifier
             }

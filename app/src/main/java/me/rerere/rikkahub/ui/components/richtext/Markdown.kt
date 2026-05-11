@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.components.richtext
 
 import android.content.Intent
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -78,7 +77,6 @@ import me.rerere.rikkahub.ui.components.table.DataTable
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
-import me.rerere.rikkahub.ui.theme.luneStreamingTextSizeSpring
 import me.rerere.rikkahub.ui.theme.ThemeTokenTextScaleGroup
 import me.rerere.rikkahub.ui.theme.applyThemeTokenTextScale
 import me.rerere.rikkahub.utils.toDp
@@ -390,15 +388,8 @@ fun MarkdownBlock(
         )
     } else {
         ProvideTextStyle(style) {
-            val contentModifier = if (animateContent) {
-                modifier
-                    .padding(start = 4.dp)
-                    .animateContentSize(animationSpec = luneStreamingTextSizeSpring())
-            } else {
-                modifier.padding(start = 4.dp)
-            }
             Column(
-                modifier = contentModifier
+                modifier = modifier.padding(start = 4.dp)
             ) {
                 data.astTree.children.fastForEach { child ->
                     MarkdownNode(
