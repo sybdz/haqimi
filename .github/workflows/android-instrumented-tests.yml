@@ -122,6 +122,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Assemble instrumented test APKs
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleDebugAndroidTest --max-workers=2
+
       - name: Run instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -135,7 +140,7 @@ jobs:
             while [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do sleep 5; done
             while ! adb shell pm path android >/dev/null 2>&1; do sleep 5; done
             chmod +x gradlew
-            ./gradlew connectedDebugAndroidTest
+            ./gradlew connectedDebugAndroidTest --max-workers=2
 
       - name: Upload instrumented test reports
         uses: actions/upload-artifact@v6
