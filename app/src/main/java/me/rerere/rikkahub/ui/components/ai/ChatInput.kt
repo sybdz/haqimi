@@ -151,7 +151,6 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
-import me.rerere.rikkahub.ui.theme.luneSizeSpring
 import me.rerere.rikkahub.ui.theme.themedRoundedShape
 import me.rerere.rikkahub.ui.components.ui.luneGlassBorderColor
 import me.rerere.rikkahub.ui.components.ui.luneGlassContainerColor
@@ -294,7 +293,7 @@ fun ChatInput(
             ) {
                 Column(
                     modifier = Modifier
-                        .animateContentSize(animationSpec = luneSizeSpring())
+                        .animateContentSize()
                         .padding(horizontal = 6.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
