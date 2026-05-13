@@ -896,19 +896,28 @@ class ChatService(
             parts = resolvedContent,
             commandModeEnabled = commandModeEnabled
         )
-        val processedContent = if (directCommand.isDirect) {
-            preprocessUserInputParts(
-                parts = listOf(UIMessagePart.Text(TermuxDirectCommandParser.toSlashCommandText(directCommand.command))),
-                messageDepthFromEnd = 1,
-                placement = AssistantRegexPlacement.SLASH_COMMAND,
-            )
-        } else {
-            preprocessUserInputParts(resolvedContent, messageDepthFromEnd = 1)
-        }
 
         val job = appScope.launch {
             try {
                 val currentConversation = session.state.value
+                val assistant = currentSettings.getAssistantById(currentConversation.assistantId)
+                    ?: currentSettings.getCurrentAssistant()
+                val processedContent = if (directCommand.isDirect) {
+                    preprocessUserInputParts(
+                        parts = listOf(
+                            UIMessagePart.Text(TermuxDirectCommandParser.toSlashCommandText(directCommand.command))
+                        ),
+                        assistant = assistant,
+                        messageDepthFromEnd = 1,
+                        placement = AssistantRegexPlacement.SLASH_COMMAND,
+                    )
+                } else {
+                    preprocessUserInputParts(
+                        parts = resolvedContent,
+                        assistant = assistant,
+                        messageDepthFromEnd = 1,
+                    )
+                }
 
                 // 添加消息到列表
                 val newConversation = currentConversation.copy(
@@ -1368,9 +1377,9 @@ class ChatService(
         val session = getOrCreateSession(conversationId)
         setConversationStGenerationType(conversationId, stGenerationType)
         val settings = settingsStore.settingsFlow.first()
-        val conversation = getConversationFlow(conversationId).value
+        val initialConversation = getConversationFlow(conversationId).value
         val assistant = settings.applyActiveStPresetSampling(
-            settings.getAssistantById(conversation.assistantId) ?: settings.getCurrentAssistant()
+            settings.getAssistantById(initialConversation.assistantId) ?: settings.getCurrentAssistant()
         )
         val model = assistant.chatModelId?.let { settings.findModelById(it) } ?: settings.getCurrentChatModel() ?: return
         val mcpTools = mcpManager.getAvailableToolsForServers(assistant.mcpServers)
@@ -1383,7 +1392,6 @@ class ChatService(
         val ptySessionsOpenedThisRun = linkedSetOf<String>()
         var latestGeneratedAssistantId: Uuid? = null
         runCatching {
-            val initialConversation = getConversationFlow(conversationId).value
 
             // reset suggestions
             updateConversation(conversationId, initialConversation.copy(chatSuggestions = emptyList()))
@@ -2120,9 +2128,13 @@ class ChatService(
             node.messages.any { it.id == messageId }
         }
         if (targetNodeIndex == -1) return
+        val settings = settingsStore.settingsFlow.first()
+        val assistant = settings.getAssistantById(currentConversation.assistantId)
+            ?: settings.getCurrentAssistant()
 
         val processedParts = preprocessUserInputParts(
             parts = parts,
+            assistant = assistant,
             messageDepthFromEnd = currentConversation.messageNodes.size - targetNodeIndex,
             isEdit = true,
         )

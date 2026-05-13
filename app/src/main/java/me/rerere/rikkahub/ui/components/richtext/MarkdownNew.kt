@@ -203,7 +203,13 @@ private fun HtmlBlockElement(
     listLevel: Int = 0,
 ) {
     when (element.tagName().lowercase()) {
-        "p" -> HtmlParagraph(element = element, onClickCitation = onClickCitation)
+        "p" -> HtmlParagraph(
+            element = element,
+            onClickCitation = onClickCitation,
+            modifier = if (element.nextElementSibling() != null)
+                Modifier.padding(bottom = LocalTextStyle.current.fontSize.toDp())
+            else Modifier,
+        )
 
         "h1", "h2", "h3", "h4", "h5", "h6" -> HtmlHeading(
             element = element,
@@ -288,7 +294,11 @@ private fun HtmlBlockElement(
 // ---- Block renderers ----
 
 @Composable
-private fun HtmlParagraph(element: Element, onClickCitation: (String) -> Unit) {
+private fun HtmlParagraph(
+    element: Element,
+    onClickCitation: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val baseTextStyle = LocalTextStyle.current
     val density = LocalDensity.current
     val paragraphStyle = remember(element.attr("style"), density, baseTextStyle) {
@@ -303,10 +313,10 @@ private fun HtmlParagraph(element: Element, onClickCitation: (String) -> Unit) {
 
     if (paragraphStyle != null) {
         ProvideTextStyle(baseTextStyle.merge(paragraphStyle)) {
-            HtmlParagraphContent(element = element, onClickCitation = onClickCitation, density = density)
+            HtmlParagraphContent(element = element, onClickCitation = onClickCitation, density = density, modifier = modifier)
         }
     } else {
-        HtmlParagraphContent(element = element, onClickCitation = onClickCitation, density = density)
+        HtmlParagraphContent(element = element, onClickCitation = onClickCitation, density = density, modifier = modifier)
     }
 }
 
@@ -315,6 +325,7 @@ private fun HtmlParagraphContent(
     element: Element,
     onClickCitation: (String) -> Unit,
     density: Density,
+    modifier: Modifier = Modifier,
 ) {
     val hasImages = element.select("img").isNotEmpty()
     // A span.math with inline != "true" is a block math element
@@ -323,7 +334,7 @@ private fun HtmlParagraphContent(
     if (hasImages || hasBlockMath) {
         // Mixed block content: render children individually in a FlowRow
         FlowRow(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = modifier.fillMaxWidth(),
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             element.childNodes().fastForEach { child ->
@@ -368,7 +379,7 @@ private fun HtmlParagraphContent(
         inlineContent = inlineContents,
         softWrap = true,
         overflow = TextOverflow.Visible,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         style = textStyle.copy(
             lineHeight = if (hasInlineMath && enableLatexRendering)
                 TextUnit.Unspecified

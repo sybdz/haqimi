@@ -1846,4 +1846,6 @@
   <string name="assistant_page_reasoning_summary_hint">auto / detailed / concise</string>
   <string name="assistant_page_reasoning_summary_off">關閉</string>
   <string name="assistant_page_reasoning_summary_custom">自訂</string>
+  <string name="assistant_page_message_template_missing_message">範本未包含 {{ message }}，使用者訊息將不會被傳送</string>
+  <string name="extension_content_manage">管理</string>
 </resources>

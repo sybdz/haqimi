@@ -119,7 +119,7 @@ fun UpdateCard(vm: ChatVM) {
                     MarkdownBlock(
                         content = info.changelog,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.heightIn(max = 400.dp)
+                        modifier = Modifier.heightIn(max = 200.dp)
                     )
                 }
             }

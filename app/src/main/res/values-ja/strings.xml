@@ -1894,4 +1894,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="assistant_page_reasoning_summary_hint">auto / detailed / concise</string>
   <string name="assistant_page_reasoning_summary_off">オフ</string>
   <string name="assistant_page_reasoning_summary_custom">カスタム</string>
+  <string name="assistant_page_message_template_missing_message">テンプレートに{{ message }}が含まれていないため、ユーザーのメッセージは送信されません</string>
+  <string name="extension_content_manage">管理</string>
 </resources>

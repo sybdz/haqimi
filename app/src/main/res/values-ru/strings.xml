@@ -1894,4 +1894,6 @@
   <string name="assistant_page_reasoning_summary_hint">auto / detailed / concise</string>
   <string name="assistant_page_reasoning_summary_off">Выкл.</string>
   <string name="assistant_page_reasoning_summary_custom">Свое</string>
+  <string name="assistant_page_message_template_missing_message">Шаблон не содержит {{ message }}, сообщения пользователя не будут отправлены</string>
+  <string name="extension_content_manage">Управлять</string>
 </resources>

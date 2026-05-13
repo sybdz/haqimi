@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,7 +26,6 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -525,12 +523,8 @@ private fun MessagePartsBlock(
                                 }
                                 Surface(
                                     modifier = Modifier.animateContentSize(),
-                                    shape = RoundedCornerShape(22.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.24f),
-                                    border = BorderStroke(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-                                    ),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
                                     onClick = { onUserMessageClick?.invoke() },
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -563,12 +557,8 @@ private fun MessagePartsBlock(
                             if (settings.displaySetting.showAssistantBubble) {
                                 Surface(
                                     modifier = Modifier.animateContentSize(),
-                                    shape = RoundedCornerShape(22.dp),
-                                    color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp).copy(alpha = 0.78f),
-                                    border = BorderStroke(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-                                    ),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                                         SelectableMarkdownBlock(
