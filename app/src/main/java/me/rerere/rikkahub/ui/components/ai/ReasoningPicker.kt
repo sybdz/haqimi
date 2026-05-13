@@ -4,16 +4,17 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +53,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Idea
 import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.Tag
+import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.ToggleSurface
 import me.rerere.rikkahub.ui.components.ui.icons.ReasoningHigh
 import me.rerere.rikkahub.ui.components.ui.icons.ReasoningLow
@@ -179,15 +182,16 @@ fun ReasoningPicker(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // 标题
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = stringResource(R.string.reasoning_picker_title),
@@ -202,9 +206,10 @@ fun ReasoningPicker(
             }
 
             // 当前等级展示
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             ) {
                 val iconColor by animateColorAsState(
                     if (reasoningLevel.isEnabled) MaterialTheme.colorScheme.primary
@@ -220,7 +225,7 @@ fun ReasoningPicker(
                         ReasoningLevel.XHIGH -> ReasoningHigh
                     },
                     contentDescription = null,
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(28.dp),
                     tint = iconColor,
                 )
                 Text(
@@ -287,34 +292,53 @@ fun ReasoningPicker(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
-                    modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        text = stringResource(R.string.assistant_page_reasoning_request_params),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        previews.chunked(2).forEach { rowItems ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                rowItems.forEach { preview ->
-                                    ReasoningParamChip(
-                                        label = preview.label,
-                                        value = preview.value,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                }
-                                if (rowItems.size == 1) {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                }
-                            }
+                        Text(
+                            text = stringResource(R.string.assistant_page_reasoning_request_params),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Tag(type = TagType.INFO) {
+                            Text("${previews.size}")
                         }
                     }
+                    ReasoningParamPreviewGrid(previews = previews)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReasoningParamPreviewGrid(
+    previews: List<ReasoningParamPreview>,
+) {
+    val horizontalScrollState = rememberScrollState()
+    val verticalScrollState = rememberScrollState()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 180.dp)
+            .verticalScroll(verticalScrollState)
+            .horizontalScroll(horizontalScrollState),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        previews.chunked(2).forEach { rowItems ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                rowItems.forEach { preview ->
+                    ReasoningParamChip(
+                        label = preview.label,
+                        value = preview.value,
+                        modifier = Modifier.width(210.dp),
+                    )
                 }
             }
         }
@@ -338,9 +362,12 @@ fun ReasoningSummaryPicker(
             text = stringResource(R.string.assistant_page_reasoning_summary),
             style = MaterialTheme.typography.titleSmall,
         )
-        FlowRow(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             reasoningSummaryOptions.forEach { option ->
                 val selected = value == option
@@ -387,7 +414,6 @@ private fun ReasoningParamChip(
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    val valueScrollState = rememberScrollState()
     Surface(
         modifier = modifier,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -405,17 +431,12 @@ private fun ReasoningParamChip(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(valueScrollState),
-            ) {
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodySmall,
-                    softWrap = false,
-                )
-            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
