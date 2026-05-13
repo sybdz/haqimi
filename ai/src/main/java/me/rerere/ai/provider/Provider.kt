@@ -71,6 +71,7 @@ data class TextGenerationParams(
     val customHeaders: List<CustomHeader> = emptyList(),
     val customBody: List<CustomBody> = emptyList(),
     val openAIReasoningEffort: String = "",
+    val reasoningSummary: String = "",
     val openAIVerbosity: String = "",
 )
 

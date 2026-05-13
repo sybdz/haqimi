@@ -1889,4 +1889,9 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_asr_configure_resource_id_desc">課金用のX-Api-Resource-Id</string>
   <string name="permission_microphone">マイク</string>
   <string name="permission_microphone_desc">音声認識にはマイク権限が必要です</string>
+  <string name="assistant_page_reasoning_summary">推論サマリー</string>
+  <string name="assistant_page_reasoning_summary_desc">対応している場合に推論サマリーを要求します。OpenAI Responses は reasoning.summary を送信し、Gemini は includeThoughts を送信します。</string>
+  <string name="assistant_page_reasoning_summary_hint">auto / detailed / concise</string>
+  <string name="assistant_page_reasoning_summary_off">オフ</string>
+  <string name="assistant_page_reasoning_summary_custom">カスタム</string>
 </resources>

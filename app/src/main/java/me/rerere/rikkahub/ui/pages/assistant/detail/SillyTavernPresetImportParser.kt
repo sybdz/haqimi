@@ -41,6 +41,7 @@ internal fun parsePresetImport(
                 ?.takeIf { it >= 0L },
             stopSequences = stopSequences,
             openAIReasoningEffort = preset.reasoningEffort.orEmpty(),
+            reasoningSummary = preset.reasoningSummary.orEmpty(),
             openAIVerbosity = preset.verbosity
                 ?.takeUnless { it.equals("auto", ignoreCase = true) }
                 .orEmpty(),

@@ -33,6 +33,8 @@ enum class ReasoningLevel(
 
 private fun String?.trimToNull(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
 
+fun String?.normalizedReasoningSummaryOrNull(): String? = trimToNull()
+
 fun resolveOpenAIChatCompletionsReasoningEffort(
     thinkingBudget: Int?,
     overrideEffort: String,

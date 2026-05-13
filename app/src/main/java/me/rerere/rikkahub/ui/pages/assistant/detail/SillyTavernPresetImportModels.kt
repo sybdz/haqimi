@@ -31,6 +31,7 @@ internal data class StPresetImport(
     val use_sysprompt: Boolean? = null,
     val squash_system_messages: Boolean? = null,
     val reasoning_effort: String? = null,
+    val reasoning_summary: String? = null,
     val scenario_format: String? = null,
     val personality_format: String? = null,
     val wi_format: String? = null,
@@ -108,6 +109,9 @@ internal data class StPresetImport(
 
     val reasoningEffort: String?
         get() = reasoning_effort
+
+    val reasoningSummary: String?
+        get() = reasoning_summary
 
     val scenarioFormat: String?
         get() = scenario_format

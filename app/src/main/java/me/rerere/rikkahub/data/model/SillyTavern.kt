@@ -31,6 +31,7 @@ data class SillyTavernPresetSampling(
     val seed: Long? = null,
     val stopSequences: List<String> = emptyList(),
     val openAIReasoningEffort: String = "",
+    val reasoningSummary: String = "",
     val openAIVerbosity: String = "",
 )
 
@@ -47,6 +48,7 @@ fun SillyTavernPresetSampling.hasConfiguredValues(): Boolean {
         seed != null ||
         stopSequences.isNotEmpty() ||
         openAIReasoningEffort.isNotBlank() ||
+        reasoningSummary.isNotBlank() ||
         openAIVerbosity.isNotBlank()
 }
 
@@ -64,6 +66,7 @@ fun SillyTavernPresetSampling.configuredValueCount(): Int {
         seed != null,
         stopSequences.isNotEmpty(),
         openAIReasoningEffort.isNotBlank(),
+        reasoningSummary.isNotBlank(),
         openAIVerbosity.isNotBlank(),
     ).count { it }
 }

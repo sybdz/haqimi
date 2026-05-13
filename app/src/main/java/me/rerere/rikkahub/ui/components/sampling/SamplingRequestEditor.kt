@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ai.ReasoningSummaryPicker
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
@@ -70,6 +71,9 @@ internal fun SamplingRequestFieldGroups(
     showReasoningEffort: Boolean = false,
     reasoningEffort: String = "",
     onReasoningEffortChange: (String) -> Unit = {},
+    showReasoningSummary: Boolean = false,
+    reasoningSummary: String = "",
+    onReasoningSummaryChange: (String) -> Unit = {},
     showVerbosity: Boolean = false,
     verbosity: String = "",
     onVerbosityChange: (String) -> Unit = {},
@@ -248,7 +252,14 @@ internal fun SamplingRequestFieldGroups(
             }
         }
 
-        if (showStopSequences || showSeed || showGoogleResponseMimeType || showReasoningEffort || showVerbosity) {
+        if (
+            showStopSequences ||
+            showSeed ||
+            showGoogleResponseMimeType ||
+            showReasoningEffort ||
+            showReasoningSummary ||
+            showVerbosity
+        ) {
             SamplingFieldGroup(
                 title = stringResource(R.string.sampling_editor_group_runtime_title),
                 description = stringResource(R.string.sampling_editor_group_runtime_desc),
@@ -290,6 +301,23 @@ internal fun SamplingRequestFieldGroups(
                         placeholder = stringResource(R.string.assistant_page_openai_reasoning_effort_hint),
                         onValueChange = onReasoningEffortChange,
                     )
+                }
+
+                if (showReasoningSummary) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        ReasoningSummaryPicker(
+                            value = reasoningSummary,
+                            onValueChange = onReasoningSummaryChange,
+                        )
+                        Text(
+                            text = stringResource(R.string.assistant_page_reasoning_summary_desc),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
 
                 if (showVerbosity) {

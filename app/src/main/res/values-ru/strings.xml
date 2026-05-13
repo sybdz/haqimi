@@ -1889,4 +1889,9 @@
   <string name="permission_microphone_desc">Для распознавания речи требуется разрешение на микрофон</string>
   <string name="setting_asr_page_default_name">ASR</string>
   <string name="setting_provider_page_use_service_account">Использовать сервисный аккаунт</string>
+  <string name="assistant_page_reasoning_summary">Сводка рассуждений</string>
+  <string name="assistant_page_reasoning_summary_desc">Запрашивает сводки рассуждений, если они поддерживаются. OpenAI Responses отправляет reasoning.summary; Gemini отправляет includeThoughts.</string>
+  <string name="assistant_page_reasoning_summary_hint">auto / detailed / concise</string>
+  <string name="assistant_page_reasoning_summary_off">Выкл.</string>
+  <string name="assistant_page_reasoning_summary_custom">Свое</string>
 </resources>

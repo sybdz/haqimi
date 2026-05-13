@@ -195,6 +195,10 @@ private fun DefaultTranslationModelSetting(
                         onUpdateReasoningLevel = {
                             vm.updateSettings(settings.copy(translateThinkingBudget = it.budgetTokens))
                         },
+                        reasoningSummary = settings.translateReasoningSummary,
+                        onUpdateReasoningSummary = {
+                            vm.updateSettings(settings.copy(translateReasoningSummary = it))
+                        },
                         model = currentModel,
                         provider = currentProvider,
                     )

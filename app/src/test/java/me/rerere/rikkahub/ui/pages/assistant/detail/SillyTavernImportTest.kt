@@ -121,6 +121,7 @@ class SillyTavernImportTest {
                   "top_a": 0.2,
                   "repetition_penalty": 1.2,
                   "seed": 123,
+                  "reasoning_summary": "detailed",
                   "verbosity": "high",
                   "prompts": [
                     {
@@ -149,6 +150,7 @@ class SillyTavernImportTest {
         assertEquals(0.2f, payload.assistant.topA)
         assertEquals(1.2f, payload.assistant.repetitionPenalty)
         assertEquals(123L, payload.assistant.seed)
+        assertEquals("detailed", payload.assistant.reasoningSummary)
         assertEquals("high", payload.assistant.openAIVerbosity)
     }
 
@@ -222,6 +224,7 @@ class SillyTavernImportTest {
         assertEquals(0f, payload.assistant.topA!!, 0f)
         assertEquals(1f, payload.assistant.repetitionPenalty!!, 0f)
         assertNull(payload.assistant.seed)
+        assertEquals("", payload.assistant.reasoningSummary)
         assertEquals("", payload.assistant.openAIVerbosity)
 
         val importedPreset = payload.toSillyTavernPreset()

@@ -25,6 +25,7 @@ class SillyTavernSettingsTest {
                 seed = 42L,
                 stopSequences = emptyList(),
                 openAIReasoningEffort = "",
+                reasoningSummary = "auto",
                 openAIVerbosity = "low",
             )
         )
@@ -46,6 +47,7 @@ class SillyTavernSettingsTest {
             seed = 999L,
             stopSequences = listOf("User:"),
             openAIReasoningEffort = "high",
+            reasoningSummary = "detailed",
             openAIVerbosity = "high",
         )
 
@@ -63,6 +65,7 @@ class SillyTavernSettingsTest {
         assertEquals(42L, applied.seed)
         assertEquals(emptyList<String>(), applied.stopSequences)
         assertEquals("", applied.openAIReasoningEffort)
+        assertEquals("auto", applied.reasoningSummary)
         assertEquals("low", applied.openAIVerbosity)
     }
 
@@ -108,6 +111,24 @@ class SillyTavernSettingsTest {
         val applied = settings.applyActiveStPresetSampling(assistant)
 
         assertSame(assistant, applied)
+    }
+
+    @Test
+    fun `active st preset sampling should apply reasoning summary only preset`() {
+        val preset = SillyTavernPreset(
+            sampling = SillyTavernPresetSampling(
+                reasoningSummary = "detailed",
+            ),
+        )
+        val settings = Settings(
+            stPresetEnabled = true,
+            stPresets = listOf(preset),
+            selectedStPresetId = preset.id,
+        )
+
+        val applied = settings.applyActiveStPresetSampling(Assistant())
+
+        assertEquals("detailed", applied.reasoningSummary)
     }
 
     @Test

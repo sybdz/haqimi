@@ -1841,4 +1841,9 @@
   <string name="setting_asr_configure_volcengine_websocket_desc">Volcengine 串流語音辨識端點</string>
   <string name="setting_asr_configure_resource_id">資源 ID</string>
   <string name="setting_asr_configure_resource_id_desc">計費用的 X-Api-Resource-Id</string>
+  <string name="assistant_page_reasoning_summary">思維摘要</string>
+  <string name="assistant_page_reasoning_summary_desc">支援時請求返回思維摘要。OpenAI Responses 會傳送 reasoning.summary；Gemini 會傳送 includeThoughts。</string>
+  <string name="assistant_page_reasoning_summary_hint">auto / detailed / concise</string>
+  <string name="assistant_page_reasoning_summary_off">關閉</string>
+  <string name="assistant_page_reasoning_summary_custom">自訂</string>
 </resources>

@@ -48,6 +48,7 @@ class SillyTavernExportSerializerTest {
                 temperature = 0.8f,
                 topP = 0.9f,
                 stopSequences = listOf("</END>"),
+                reasoningSummary = "auto",
             ),
         )
 
@@ -59,6 +60,7 @@ class SillyTavernExportSerializerTest {
         assertEquals("0.8", exported["temperature"]?.jsonPrimitive?.content)
         assertEquals("0.9", exported["top_p"]?.jsonPrimitive?.content)
         assertEquals("</END>", exported["stop_strings"]?.jsonArray?.first()?.jsonPrimitive?.content)
+        assertEquals("auto", exported["reasoning_summary"]?.jsonPrimitive?.content)
         assertTrue(exported["prompts"]?.jsonArray?.isNotEmpty() == true)
         assertTrue(exported["prompt_order"]?.jsonArray?.isNotEmpty() == true)
         assertEquals(
@@ -482,6 +484,7 @@ class SillyTavernExportSerializerTest {
                   "repetition_penalty": 1.1,
                   "seed": 1234,
                   "reasoning_effort": "high",
+                  "reasoning_summary": "auto",
                   "verbosity": "low",
                   "stream_openai": false,
                   "prompts": [
@@ -520,6 +523,7 @@ class SillyTavernExportSerializerTest {
                     repetitionPenalty = null,
                     seed = null,
                     openAIReasoningEffort = "",
+                    reasoningSummary = "",
                     openAIVerbosity = "",
                 )
             )
@@ -541,6 +545,7 @@ class SillyTavernExportSerializerTest {
         assertNull(exported["repetition_penalty"])
         assertNull(exported["seed"])
         assertNull(exported["reasoning_effort"])
+        assertNull(exported["reasoning_summary"])
         assertNull(exported["verbosity"])
         assertNull(exported["stream_openai"])
 
@@ -555,6 +560,7 @@ class SillyTavernExportSerializerTest {
         assertNull(roundTrippedAssistant.repetitionPenalty)
         assertNull(roundTrippedAssistant.seed)
         assertEquals("", roundTrippedAssistant.openAIReasoningEffort)
+        assertEquals("", roundTrippedAssistant.reasoningSummary)
         assertEquals("", roundTrippedAssistant.openAIVerbosity)
     }
 

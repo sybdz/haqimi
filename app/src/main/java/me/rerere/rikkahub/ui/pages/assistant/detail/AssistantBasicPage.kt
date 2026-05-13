@@ -131,6 +131,7 @@ internal fun AssistantBasicContent(
         assistant.stopSequences.isNotEmpty()
     val showSeedField = openAIProvider != null || isGoogleProvider || assistant.seed != null
     val showGoogleResponseMimeTypeField = isGoogleProvider || assistant.googleResponseMimeType.isNotBlank()
+    val showReasoningSummaryField = openAIProvider != null || isGoogleProvider || assistant.reasoningSummary.isNotBlank()
     val showVerbosityField = openAIProvider != null || assistant.openAIVerbosity.isNotBlank()
     val requestParamsDescription = when {
         openAIProvider != null && openAIProvider.useResponseApi ->
@@ -430,6 +431,8 @@ internal fun AssistantBasicContent(
                         onUpdate(assistant.copy(reasoningLevel = level))
                     },
                     openAIReasoningEffort = assistant.openAIReasoningEffort,
+                    reasoningSummary = assistant.reasoningSummary,
+                    onUpdateReasoningSummary = { onUpdate(assistant.copy(reasoningSummary = it)) },
                     model = currentModel,
                     provider = currentProvider,
                 )
@@ -495,6 +498,9 @@ internal fun AssistantBasicContent(
                     showGoogleResponseMimeType = showGoogleResponseMimeTypeField,
                     googleResponseMimeType = assistant.googleResponseMimeType,
                     onGoogleResponseMimeTypeChange = { onUpdate(assistant.copy(googleResponseMimeType = it)) },
+                    showReasoningSummary = showReasoningSummaryField,
+                    reasoningSummary = assistant.reasoningSummary,
+                    onReasoningSummaryChange = { onUpdate(assistant.copy(reasoningSummary = it)) },
                     showVerbosity = showVerbosityField,
                     verbosity = assistant.openAIVerbosity,
                     onVerbosityChange = { onUpdate(assistant.copy(openAIVerbosity = it)) },
@@ -622,5 +628,6 @@ private fun Assistant.hasProviderSpecificRequestParams(): Boolean {
         seed != null ||
         stopSequences.isNotEmpty() ||
         googleResponseMimeType.isNotBlank() ||
+        reasoningSummary.isNotBlank() ||
         openAIVerbosity.isNotBlank()
 }

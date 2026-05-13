@@ -26,6 +26,7 @@ import kotlinx.serialization.json.putJsonObject
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.TokenUsage
+import me.rerere.ai.core.normalizedReasoningSummaryOrNull
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.ImageGenerationParams
 import me.rerere.ai.provider.Modality
@@ -428,7 +429,8 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 }
                 if (params.model.abilities.contains(ModelAbility.REASONING)) {
                     put("thinkingConfig", buildJsonObject {
-                        put("includeThoughts", true)
+                        val includeThoughts = params.reasoningSummary.normalizedReasoningSummaryOrNull() != null
+                        put("includeThoughts", includeThoughts)
 
                         val isGeminiPro =
                             params.model.modelId.contains(Regex("2\\.5.*pro", RegexOption.IGNORE_CASE))
@@ -441,7 +443,6 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                                     put("thinkingLevel", "minimal")
                                 } else if (!isGeminiPro) {
                                     put("thinkingBudget", 0)
-                                    put("includeThoughts", false)
                                 }
                             }
 

@@ -2,12 +2,15 @@ package me.rerere.ai.provider.providers
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -521,6 +524,45 @@ class GoogleProviderMessageTest {
         assertEquals("123", generationConfig?.get("seed")?.jsonPrimitive?.content)
         assertEquals(listOf("User:", "System:"), generationConfig?.get("stopSequences")?.jsonArray?.map { it.jsonPrimitive.content })
         assertEquals("application/json", generationConfig?.get("responseMimeType")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `google request should not include thoughts when reasoning summary is blank`() {
+        val requestBody = invokeBuildRequestBody(
+            TextGenerationParams(
+                model = Model(
+                    modelId = "gemini-test",
+                    displayName = "gemini-test",
+                    abilities = listOf(ModelAbility.REASONING)
+                ),
+                reasoningLevel = ReasoningLevel.AUTO,
+            )
+        )
+
+        val thinkingConfig = requestBody["generationConfig"]!!
+            .jsonObject["thinkingConfig"]!!
+            .jsonObject
+        assertEquals(false, thinkingConfig["includeThoughts"]?.jsonPrimitive?.boolean)
+    }
+
+    @Test
+    fun `google request should include thoughts when reasoning summary is configured`() {
+        val requestBody = invokeBuildRequestBody(
+            TextGenerationParams(
+                model = Model(
+                    modelId = "gemini-test",
+                    displayName = "gemini-test",
+                    abilities = listOf(ModelAbility.REASONING)
+                ),
+                reasoningLevel = ReasoningLevel.AUTO,
+                reasoningSummary = "include",
+            )
+        )
+
+        val thinkingConfig = requestBody["generationConfig"]!!
+            .jsonObject["thinkingConfig"]!!
+            .jsonObject
+        assertEquals(true, thinkingConfig["includeThoughts"]?.jsonPrimitive?.boolean)
     }
 
     // ==================== Helper Functions ====================

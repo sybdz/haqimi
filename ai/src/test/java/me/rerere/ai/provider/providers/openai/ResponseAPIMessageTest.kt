@@ -68,7 +68,8 @@ class ResponseAPIMessageTest {
 
     private fun createReasoningParams(
         reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
-        openAIReasoningEffort: String = ""
+        openAIReasoningEffort: String = "",
+        reasoningSummary: String = "",
     ): TextGenerationParams {
         return TextGenerationParams(
             model = Model(
@@ -77,7 +78,8 @@ class ResponseAPIMessageTest {
                 abilities = listOf(ModelAbility.REASONING)
             ),
             reasoningLevel = reasoningLevel,
-            openAIReasoningEffort = openAIReasoningEffort
+            openAIReasoningEffort = openAIReasoningEffort,
+            reasoningSummary = reasoningSummary,
         )
     }
 
@@ -368,7 +370,7 @@ class ResponseAPIMessageTest {
     }
 
     @Test
-    fun `openai response api should include reasoning summary`() {
+    fun `openai response api should not include reasoning summary by default`() {
         val providerSetting = ProviderSetting.OpenAI(
             baseUrl = "https://api.openai.com/v1"
         )
@@ -379,7 +381,37 @@ class ResponseAPIMessageTest {
 
         val reasoning = requestBody["reasoning"]?.jsonObject
         assertTrue("reasoning should exist", reasoning != null)
-        assertEquals("auto", reasoning!!["summary"]?.jsonPrimitive?.content)
+        assertFalse("reasoning.summary should not be sent by default", reasoning!!.containsKey("summary"))
+    }
+
+    @Test
+    fun `openai response api should include configured reasoning summary`() {
+        val providerSetting = ProviderSetting.OpenAI(
+            baseUrl = "https://api.openai.com/v1"
+        )
+        val requestBody = invokeBuildRequestBody(
+            providerSetting = providerSetting,
+            params = createReasoningParams(reasoningSummary = "detailed")
+        )
+
+        val reasoning = requestBody["reasoning"]?.jsonObject
+        assertTrue("reasoning should exist", reasoning != null)
+        assertEquals("detailed", reasoning!!["summary"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `openai response api should trim blank reasoning summary`() {
+        val providerSetting = ProviderSetting.OpenAI(
+            baseUrl = "https://api.openai.com/v1"
+        )
+        val requestBody = invokeBuildRequestBody(
+            providerSetting = providerSetting,
+            params = createReasoningParams(reasoningSummary = "   ")
+        )
+
+        val reasoning = requestBody["reasoning"]?.jsonObject
+        assertTrue("reasoning should exist", reasoning != null)
+        assertFalse("blank reasoning.summary should not be sent", reasoning!!.containsKey("summary"))
     }
 
     @Test

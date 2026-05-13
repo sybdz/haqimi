@@ -112,6 +112,7 @@ class SettingsStore(
         val TITLE_PROMPT = stringPreferencesKey("title_prompt")
         val TRANSLATION_PROMPT = stringPreferencesKey("translation_prompt")
         val TRANSLATE_THINKING_BUDGET = intPreferencesKey("translate_thinking_budget")
+        val TRANSLATE_REASONING_SUMMARY = stringPreferencesKey("translate_reasoning_summary")
         val SUGGESTION_PROMPT = stringPreferencesKey("suggestion_prompt")
         val OCR_MODEL = stringPreferencesKey("ocr_model")
         val OCR_PROMPT = stringPreferencesKey("ocr_prompt")
@@ -232,6 +233,7 @@ class SettingsStore(
                 titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
                 translatePrompt = preferences[TRANSLATION_PROMPT] ?: DEFAULT_TRANSLATION_PROMPT,
                 translateThinkingBudget = preferences[TRANSLATE_THINKING_BUDGET] ?: 0,
+                translateReasoningSummary = preferences[TRANSLATE_REASONING_SUMMARY] ?: "",
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
                 ocrModelId = preferences[OCR_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
@@ -563,6 +565,7 @@ class SettingsStore(
             preferences[TITLE_PROMPT] = normalizedSettings.titlePrompt
             preferences[TRANSLATION_PROMPT] = normalizedSettings.translatePrompt
             preferences[TRANSLATE_THINKING_BUDGET] = normalizedSettings.translateThinkingBudget
+            preferences[TRANSLATE_REASONING_SUMMARY] = normalizedSettings.translateReasoningSummary
             preferences[SUGGESTION_PROMPT] = normalizedSettings.suggestionPrompt
             preferences[OCR_MODEL] = normalizedSettings.ocrModelId.toString()
             preferences[OCR_PROMPT] = normalizedSettings.ocrPrompt
@@ -733,6 +736,7 @@ data class Settings(
     val translateModeId: Uuid = Uuid.random(),
     val translatePrompt: String = DEFAULT_TRANSLATION_PROMPT,
     val translateThinkingBudget: Int = 0,
+    val translateReasoningSummary: String = "",
     val suggestionModelId: Uuid = Uuid.random(),
     val suggestionPrompt: String = DEFAULT_SUGGESTION_PROMPT,
     val ocrModelId: Uuid = Uuid.random(),

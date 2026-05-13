@@ -128,6 +128,7 @@ fun Settings.applyActiveStPresetSampling(assistant: Assistant): Assistant {
         seed = sampling.seed,
         stopSequences = sampling.stopSequences,
         openAIReasoningEffort = sampling.openAIReasoningEffort,
+        reasoningSummary = sampling.reasoningSummary,
         openAIVerbosity = sampling.openAIVerbosity,
     )
 }

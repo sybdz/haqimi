@@ -1887,4 +1887,9 @@
   <string name="setting_asr_configure_volcengine_websocket_desc">Volcengine streaming ASR endpoint</string>
   <string name="setting_asr_configure_resource_id">Resource ID</string>
   <string name="setting_asr_configure_resource_id_desc">X-Api-Resource-Id for billing</string>
+  <string name="assistant_page_reasoning_summary">Reasoning summary</string>
+  <string name="assistant_page_reasoning_summary_desc">Requests reasoning summaries when supported. OpenAI Responses sends reasoning.summary; Gemini sends includeThoughts.</string>
+  <string name="assistant_page_reasoning_summary_hint">auto / detailed / concise</string>
+  <string name="assistant_page_reasoning_summary_off">Off</string>
+  <string name="assistant_page_reasoning_summary_custom">Custom</string>
 </resources>

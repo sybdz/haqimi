@@ -91,6 +91,7 @@ private fun buildPresetJson(data: SillyTavernPreset): JsonObject {
         }
     }
     root.putOrRemoveString("reasoning_effort", data.sampling.openAIReasoningEffort)
+    root.putOrRemoveString("reasoning_summary", data.sampling.reasoningSummary)
     root.putOrRemoveString("verbosity", data.sampling.openAIVerbosity)
     template.namesBehavior?.let { root["names_behavior"] = JsonPrimitive(it) }
     root["use_sysprompt"] = JsonPrimitive(template.useSystemPrompt)

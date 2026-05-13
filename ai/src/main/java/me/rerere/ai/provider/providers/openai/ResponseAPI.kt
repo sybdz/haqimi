@@ -21,6 +21,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
+import me.rerere.ai.core.normalizedReasoningSummaryOrNull
 import me.rerere.ai.core.resolveOpenAIResponsesReasoningEffort
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
@@ -260,7 +261,9 @@ class ResponseAPI(
             if (params.model.abilities.contains(ModelAbility.REASONING)) {
                 put("reasoning", buildJsonObject {
                     if (capabilities.supportsReasoningSummary) {
-                        put("summary", "auto")
+                        params.reasoningSummary.normalizedReasoningSummaryOrNull()?.let { summary ->
+                            put("summary", summary)
+                        }
                     }
                     resolveOpenAIResponsesReasoningEffort(
                         thinkingBudget = params.reasoningLevel.budgetTokens,

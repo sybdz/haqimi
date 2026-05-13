@@ -444,6 +444,7 @@ class GenerationHandler(
             tools = tools,
             reasoningLevel = assistant.reasoningLevel,
             openAIReasoningEffort = assistant.openAIReasoningEffort,
+            reasoningSummary = assistant.reasoningSummary,
             openAIVerbosity = assistant.openAIVerbosity,
             customHeaders = buildList {
                 addAll(assistant.customHeaders)
@@ -603,6 +604,7 @@ class GenerationHandler(
                 params = TextGenerationParams(
                     model = model,
                     reasoningLevel = ReasoningLevel.fromBudgetTokens(settings.translateThinkingBudget),
+                    reasoningSummary = settings.translateReasoningSummary,
                 ),
             ).collect { chunk ->
                 messages = messages.handleMessageChunk(chunk)

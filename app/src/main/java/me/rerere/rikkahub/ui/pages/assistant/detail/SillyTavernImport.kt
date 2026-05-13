@@ -63,6 +63,7 @@ internal fun AssistantImportPayload.toSillyTavernPreset(): SillyTavernPreset {
             seed = assistant.seed,
             stopSequences = assistant.stopSequences,
             openAIReasoningEffort = assistant.openAIReasoningEffort,
+            reasoningSummary = assistant.reasoningSummary,
             openAIVerbosity = assistant.openAIVerbosity,
         ),
     )

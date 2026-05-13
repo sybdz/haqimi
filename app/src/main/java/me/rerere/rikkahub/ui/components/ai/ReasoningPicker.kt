@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,9 +18,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -58,6 +61,7 @@ import kotlin.math.roundToInt
 
 private val levels = ReasoningLevel.entries
 private val levelCount = levels.size
+private val reasoningSummaryOptions = listOf("", "auto", "detailed", "concise")
 private val siliconflowThinkingModels = setOf(
     "Pro/moonshotai/Kimi-K2.5",
     "Pro/zai-org/GLM-5",
@@ -89,6 +93,8 @@ fun ReasoningButton(
     reasoningLevel: ReasoningLevel,
     onUpdateReasoningLevel: (ReasoningLevel) -> Unit,
     openAIReasoningEffort: String = "",
+    reasoningSummary: String = "",
+    onUpdateReasoningSummary: (String) -> Unit = {},
     model: Model? = null,
     provider: ProviderSetting? = null,
 ) {
@@ -98,10 +104,12 @@ fun ReasoningButton(
         ReasoningPicker(
             reasoningLevel = reasoningLevel,
             openAIReasoningEffort = openAIReasoningEffort,
+            reasoningSummary = reasoningSummary,
             model = model,
             provider = provider,
             onDismissRequest = { showPicker = false },
             onUpdateReasoningLevel = onUpdateReasoningLevel,
+            onUpdateReasoningSummary = onUpdateReasoningSummary,
         )
     }
 
@@ -130,13 +138,17 @@ fun ReasoningButton(
 fun ReasoningPicker(
     reasoningLevel: ReasoningLevel,
     openAIReasoningEffort: String = "",
+    reasoningSummary: String = "",
     model: Model? = null,
     provider: ProviderSetting? = null,
     onDismissRequest: () -> Unit = {},
     onUpdateReasoningLevel: (ReasoningLevel) -> Unit,
+    onUpdateReasoningSummary: (String) -> Unit = {},
 ) {
     val currentIndex = levels.indexOf(reasoningLevel).coerceAtLeast(0)
     val notSent = stringResource(R.string.assistant_page_openai_reasoning_effort_not_sent)
+    val reasoningSummaryValue = reasoningSummary.trim().takeIf { it.isNotEmpty() } ?: notSent
+    val includeThoughtsPreview = reasoningSummary.trim().isNotEmpty().toString()
     val effectiveChatCompletionsEffort = resolveOpenAIChatCompletionsReasoningEffort(
         thinkingBudget = reasoningLevel.budgetTokens,
         overrideEffort = openAIReasoningEffort
@@ -149,6 +161,8 @@ fun ReasoningPicker(
         reasoningLevel = reasoningLevel,
         openAIChatEffort = effectiveChatCompletionsEffort,
         openAIResponsesEffort = effectiveResponsesEffort,
+        reasoningSummary = reasoningSummaryValue,
+        includeThoughts = includeThoughtsPreview,
         provider = provider,
         model = model,
     )
@@ -264,6 +278,11 @@ fun ReasoningPicker(
                 )
             }
 
+            ReasoningSummaryPicker(
+                value = reasoningSummary,
+                onValueChange = onUpdateReasoningSummary,
+            )
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -298,6 +317,66 @@ fun ReasoningPicker(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ReasoningSummaryPicker(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var customExpanded by remember(value) {
+        mutableStateOf(value.isNotBlank() && value !in reasoningSummaryOptions)
+    }
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.assistant_page_reasoning_summary),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            reasoningSummaryOptions.forEach { option ->
+                val selected = value == option
+                FilterChip(
+                    selected = selected,
+                    onClick = {
+                        customExpanded = false
+                        onValueChange(option)
+                    },
+                    label = {
+                        Text(
+                            if (option.isEmpty()) {
+                                stringResource(R.string.assistant_page_reasoning_summary_off)
+                            } else {
+                                option
+                            }
+                        )
+                    },
+                )
+            }
+            FilterChip(
+                selected = customExpanded,
+                onClick = { customExpanded = !customExpanded },
+                label = { Text(stringResource(R.string.assistant_page_reasoning_summary_custom)) },
+            )
+        }
+        if (customExpanded) {
+            OutlinedTextField(
+                value = value.takeIf { it !in reasoningSummaryOptions }.orEmpty(),
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = {
+                    Text(stringResource(R.string.assistant_page_reasoning_summary_hint))
+                },
+            )
         }
     }
 }
@@ -350,6 +429,8 @@ private fun buildReasoningParamPreviews(
     reasoningLevel: ReasoningLevel,
     openAIChatEffort: String,
     openAIResponsesEffort: String,
+    reasoningSummary: String,
+    includeThoughts: String,
     provider: ProviderSetting?,
     model: Model?,
 ): List<ReasoningParamPreview> = buildList {
@@ -360,6 +441,8 @@ private fun buildReasoningParamPreviews(
     )?.let(::add)
     add(ReasoningParamPreview("OpenAI Chat", "reasoning_effort=$openAIChatEffort"))
     add(ReasoningParamPreview("Responses", "reasoning.effort=$openAIResponsesEffort"))
+    add(ReasoningParamPreview("OpenAI Summary", "reasoning.summary=$reasoningSummary"))
+    add(ReasoningParamPreview("Gemini Thoughts", "includeThoughts=$includeThoughts"))
     add(ReasoningParamPreview("Claude", reasoningLevel.toClaudePreview()))
     add(ReasoningParamPreview("Gemini 3", reasoningLevel.toGemini3Preview()))
     add(ReasoningParamPreview("Gemini 2.5 Pro", reasoningLevel.toGemini25ProPreview()))
