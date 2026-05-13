@@ -421,6 +421,23 @@ class ChatCompletionsAPI(
                         }
                     }
 
+                    "integrate.api.nvidia.com" -> {
+                        if ("deepseek-v4" in params.model.modelId.lowercase()) {
+                            if (level != ReasoningLevel.AUTO) {
+                                val effort = when (level) {
+                                    ReasoningLevel.XHIGH -> "max"
+                                    ReasoningLevel.OFF -> "none"
+                                    else -> "high"
+                                }
+                                put("reasoning_effort", effort)
+                            }
+                        } else {
+                            if (level != ReasoningLevel.AUTO) {
+                                put("reasoning_effort", if (level.effort == "none") "low" else level.effort)
+                            }
+                        }
+                    }
+
                     else -> {
                         // OpenAI 官方
                         resolveOpenAIChatCompletionsReasoningEffort(
