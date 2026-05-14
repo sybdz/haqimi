@@ -7,6 +7,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -485,6 +486,87 @@ class MessageTest {
         val image = result.single().parts.single() as UIMessagePart.Image
         assertEquals("data:image/webp;base64,final456", image.url)
         assertEquals("ig_123", image.metadata?.get("response_item_id")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `handleMessageChunk should merge reasoning done by reasoning id after text`() {
+        val base = listOf(
+            UIMessage(role = MessageRole.ASSISTANT, parts = emptyList())
+        )
+        val added = MessageChunk(
+            id = "rs_123",
+            model = "",
+            choices = listOf(
+                UIMessageChoice(
+                    index = 0,
+                    delta = UIMessage(
+                        role = MessageRole.ASSISTANT,
+                        parts = listOf(
+                            UIMessagePart.Reasoning(
+                                reasoning = "",
+                                finishedAt = null,
+                                metadata = buildJsonObject {
+                                    put("reasoning_id", "rs_123")
+                                    put("encrypted_content", "initial")
+                                }
+                            )
+                        )
+                    ),
+                    message = null,
+                    finishReason = null
+                )
+            )
+        )
+        val text = MessageChunk(
+            id = "msg_123",
+            model = "",
+            choices = listOf(
+                UIMessageChoice(
+                    index = 0,
+                    delta = UIMessage.assistant("OK"),
+                    message = null,
+                    finishReason = null
+                )
+            )
+        )
+        val done = MessageChunk(
+            id = "rs_123",
+            model = "",
+            choices = listOf(
+                UIMessageChoice(
+                    index = 0,
+                    delta = UIMessage(
+                        role = MessageRole.ASSISTANT,
+                        parts = listOf(
+                            UIMessagePart.Reasoning(
+                                reasoning = "",
+                                metadata = buildJsonObject {
+                                    put("reasoning_id", "rs_123")
+                                    put("encrypted_content", "final")
+                                }
+                            )
+                        )
+                    ),
+                    message = null,
+                    finishReason = null
+                )
+            )
+        )
+
+        val result = base
+            .handleMessageChunk(added)
+            .handleMessageChunk(text)
+            .handleMessageChunk(done)
+            .single()
+
+        assertEquals(2, result.parts.size)
+        val reasoning = result.parts.filterIsInstance<UIMessagePart.Reasoning>().single()
+        val outputText = result.parts.filterIsInstance<UIMessagePart.Text>().single()
+        assertEquals("", reasoning.reasoning)
+        assertEquals("rs_123", reasoning.metadata?.get("reasoning_id")?.jsonPrimitive?.content)
+        assertEquals("final", reasoning.metadata?.get("encrypted_content")?.jsonPrimitive?.content)
+        assertNotNull(reasoning.finishedAt)
+        assertEquals("OK", outputText.text)
     }
 
     // ==================== migrateToolMessages Tests ====================

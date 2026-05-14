@@ -6,6 +6,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -80,19 +81,27 @@ data class UIMessage(
                         if (deltaPart.reasoning.isEmpty() && deltaPart.metadata == null) {
                             acc
                         } else {
-                            val lastPart = acc.lastOrNull()
-                            if (lastPart is UIMessagePart.Reasoning) {
-                                // Append to the last Reasoning part
-                                acc.dropLast(1) + UIMessagePart.Reasoning(
-                                    reasoning = lastPart.reasoning + deltaPart.reasoning,
-                                    createdAt = lastPart.createdAt,
-                                    finishedAt = null,
-                                ).also {
-                                    it.metadata = deltaPart.metadata ?: lastPart.metadata
+                            val reasoningId = deltaPart.reasoningId()
+                            val existingIndex = reasoningId?.let { id ->
+                                acc.indexOfLast { part ->
+                                    part is UIMessagePart.Reasoning && part.reasoningId() == id
                                 }
+                            } ?: -1
+
+                            if (existingIndex >= 0) {
+                                acc.toMutableList().apply {
+                                    val existingPart = this[existingIndex] as UIMessagePart.Reasoning
+                                    this[existingIndex] = existingPart.merge(deltaPart)
+                                }.toList()
                             } else {
-                                // Create new Reasoning part
-                                acc + deltaPart
+                                val lastPart = acc.lastOrNull()
+                                if (lastPart is UIMessagePart.Reasoning) {
+                                    // Append to the last Reasoning part
+                                    acc.dropLast(1) + lastPart.merge(deltaPart)
+                                } else {
+                                    // Create new Reasoning part
+                                    acc + deltaPart
+                                }
                             }
                         }
                     }
@@ -234,6 +243,24 @@ private fun UIMessagePart.Image.normalize(): UIMessagePart.Image {
     if (url.startsWith("data:")) return this
     val mimeType = metadata.stringValue("mime_type") ?: "image/png"
     return copy(url = "data:$mimeType;base64,$url")
+}
+
+private fun UIMessagePart.Reasoning.reasoningId(): String? {
+    return metadata.stringValue("reasoning_id")
+}
+
+private fun UIMessagePart.Reasoning.merge(delta: UIMessagePart.Reasoning): UIMessagePart.Reasoning {
+    return copy(
+        reasoning = reasoning + delta.reasoning,
+        finishedAt = finishedAt ?: delta.finishedAt,
+        metadata = mergeMetadata(metadata, delta.metadata)
+    )
+}
+
+private fun mergeMetadata(existing: JsonObject?, incoming: JsonObject?): JsonObject? {
+    if (existing == null) return incoming
+    if (incoming == null) return existing
+    return JsonObject(existing + incoming.filterValues { it !is JsonNull })
 }
 
 private fun JsonObject?.stringValue(key: String): String? {

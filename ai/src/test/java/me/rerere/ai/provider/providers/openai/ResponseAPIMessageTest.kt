@@ -148,6 +148,43 @@ class ResponseAPIMessageTest {
     }
 
     @Test
+    fun `buildMessages should not duplicate reasoning items with same response id`() {
+        val assistantMessage = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Reasoning(
+                    reasoning = "",
+                    metadata = buildJsonObject {
+                        put("reasoning_id", "rs_123")
+                        put("encrypted_content", "encrypted")
+                    }
+                ),
+                UIMessagePart.Text("OK"),
+                UIMessagePart.Reasoning(
+                    reasoning = "",
+                    metadata = buildJsonObject {
+                        put("reasoning_id", "rs_123")
+                        put("encrypted_content", "encrypted")
+                    }
+                ),
+            )
+        )
+
+        val result = invokeBuildMessages(listOf(assistantMessage))
+
+        val reasoningItems = result.filter {
+            it.jsonObject["type"]?.jsonPrimitive?.content == "reasoning"
+        }
+        val assistantContentItems = result.filter {
+            it.jsonObject["role"]?.jsonPrimitive?.content == "assistant"
+        }
+        assertEquals(1, reasoningItems.size)
+        assertEquals("rs_123", reasoningItems.single().jsonObject["id"]?.jsonPrimitive?.content)
+        assertEquals(1, assistantContentItems.size)
+        assertEquals("OK", assistantContentItems.single().jsonObject["content"]?.jsonPrimitive?.content)
+    }
+
+    @Test
     fun `request should keep late system messages as user input after instructions`() {
         val request = invokeBuildRequestBody(
             providerSetting = ProviderSetting.OpenAI(),

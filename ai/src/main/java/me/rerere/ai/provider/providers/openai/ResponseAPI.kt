@@ -325,6 +325,7 @@ class ResponseAPI(
     private fun JsonArrayBuilder.addAssistantItems(message: UIMessage) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<UIMessagePart>()
+        val emittedReasoningIds = mutableSetOf<String>()
 
         for (group in groups) {
             when (group) {
@@ -332,6 +333,13 @@ class ResponseAPI(
                     group.parts.forEach { part ->
                         when (part) {
                             is UIMessagePart.Reasoning -> {
+                                val reasoningId = part.metadata?.get("reasoning_id")
+                                    ?.jsonPrimitiveOrNull
+                                    ?.contentOrNull
+                                if (reasoningId != null && !emittedReasoningIds.add(reasoningId)) {
+                                    return@forEach
+                                }
+
                                 // 先输出累积的文本/图片内容
                                 if (contentBuffer.isNotEmpty()) {
                                     addContentItem(MessageRole.ASSISTANT, contentBuffer)
@@ -611,7 +619,7 @@ class ResponseAPI(
                                             UIMessagePart.Reasoning(
                                                 reasoning = "",
                                                 createdAt = Clock.System.now(),
-                                                finishedAt = null,
+                                                finishedAt = Clock.System.now(),
                                                 metadata = buildJsonObject {
                                                     put("encrypted_content", encryptedContent)
                                                     put("reasoning_id", id)
