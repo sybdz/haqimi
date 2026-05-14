@@ -7,6 +7,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +43,8 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -58,6 +62,7 @@ import androidx.compose.ui.util.fastForEachIndexed
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import androidx.core.net.toUri
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -105,6 +110,37 @@ import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
 
+private fun Modifier.openSelectCopyOnLongPress(onLongPress: (() -> Unit)?): Modifier {
+    if (onLongPress == null) {
+        return this
+    }
+
+    return pointerInput(onLongPress) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            val releasedOrMovedBeforeLongPress = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Final)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull true
+                    if (!change.pressed) {
+                        return@withTimeoutOrNull true
+                    }
+                    if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                        return@withTimeoutOrNull true
+                    }
+                }
+            }
+
+            if (releasedOrMovedBeforeLongPress == null) {
+                onLongPress()
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Final)
+                } while (event.changes.any { it.pressed })
+            }
+        }
+    }
+}
+
 internal fun UIMessage.shouldShowPrimaryActions(loading: Boolean): Boolean {
     return !loading && !parts.isEmptyUIMessage()
 }
@@ -120,15 +156,13 @@ private fun SelectableMarkdownBlock(
     animateContent: Boolean = true,
     onClickCitation: (String) -> Unit = {},
 ) {
-    SelectionContainer {
-        MarkdownBlock(
-            content = content,
-            modifier = modifier,
-            messageDepthFromEnd = messageDepthFromEnd,
-            animateContent = animateContent,
-            onClickCitation = onClickCitation,
-        )
-    }
+    MarkdownBlock(
+        content = content,
+        modifier = modifier,
+        messageDepthFromEnd = messageDepthFromEnd,
+        animateContent = animateContent,
+        onClickCitation = onClickCitation,
+    )
 }
 
 private fun String.applyVisualRegexesIfNeeded(
@@ -212,6 +246,7 @@ fun ChatMessage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
+    val hapticFeedback = LocalHapticFeedback.current
     val headerState = message.headerState(
         settings = allSettings,
         showIdentity = showIdentity,
@@ -221,6 +256,10 @@ fun ChatMessage(
     val showPrimaryActions = message.shouldShowPrimaryActions(loading)
     val showAccessoryRow = showPrimaryActions || node.messages.size > 1
     val contentAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start
+    val openSelectCopySheet = {
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+        showSelectCopySheet = true
+    }
 
     @Composable
     fun MessageContentColumn(horizontalAlignment: Alignment.Horizontal) {
@@ -242,6 +281,7 @@ fun ChatMessage(
                     messageDepthFromEnd = messageDepthFromEnd,
                     onToolAnswer = onToolAnswer,
                     onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                    onSelectAndCopy = openSelectCopySheet,
                 )
 
                 message.translation?.let { translation ->
@@ -410,6 +450,7 @@ private fun MessagePartsBlock(
     messageDepthFromEnd: Int? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
+    onSelectAndCopy: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
@@ -522,10 +563,14 @@ private fun MessagePartsBlock(
                                     )
                                 }
                                 Surface(
-                                    modifier = Modifier.animateContentSize(),
+                                    modifier = Modifier
+                                        .animateContentSize()
+                                        .combinedClickable(
+                                            onClick = { onUserMessageClick?.invoke() },
+                                            onLongClick = onSelectAndCopy,
+                                        ),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.primaryContainer,
-                                    onClick = { onUserMessageClick?.invoke() },
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                                         SelectableMarkdownBlock(
@@ -556,7 +601,9 @@ private fun MessagePartsBlock(
                             }
                             if (settings.displaySetting.showAssistantBubble) {
                                 Surface(
-                                    modifier = Modifier.animateContentSize(),
+                                    modifier = Modifier
+                                        .animateContentSize()
+                                        .openSelectCopyOnLongPress(onSelectAndCopy),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 ) {
@@ -577,6 +624,7 @@ private fun MessagePartsBlock(
                                     onClickCitation = handleClickCitation,
                                     modifier = Modifier
                                         .animateContentSize()
+                                        .openSelectCopyOnLongPress(onSelectAndCopy)
                                 )
                             }
                         }
