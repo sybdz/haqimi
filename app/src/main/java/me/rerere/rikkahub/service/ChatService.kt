@@ -1439,6 +1439,7 @@ class ChatService(
                 stMacroState = getConversationStMacroState(conversationId),
                 lorebookRuntimeState = session.getLorebookRuntimeState(),
                 processingStatus = session.processingStatus,
+                conversationSystemPrompt = effectiveConversation.customSystemPrompt,
                 inputTransformers = buildList {
                     addAll(inputTransformers)
                     add(RegexPromptOnlyTransformer)
@@ -2193,6 +2194,7 @@ class ChatService(
             assistantId = currentConversation.assistantId,
             messageNodes = copiedNodes,
             stLocalVariables = currentConversation.stLocalVariables,
+            customSystemPrompt = currentConversation.customSystemPrompt,
         )
 
         saveConversation(forkConversation.id, forkConversation)

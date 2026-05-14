@@ -119,6 +119,7 @@ class GenerationHandler(
         stMacroState: StMacroState? = null,
         lorebookRuntimeState: LorebookRuntimeState? = null,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
+        conversationSystemPrompt: String? = null,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -204,6 +205,7 @@ class GenerationHandler(
                     stMacroState = stMacroState,
                     lorebookRuntimeState = lorebookRuntimeState,
                     processingStatus = processingStatus,
+                    conversationSystemPrompt = conversationSystemPrompt,
                 )
                 messages = messages.onGenerationFinish(
                     transformers = outputTransformers,
@@ -411,6 +413,7 @@ class GenerationHandler(
         stMacroState: StMacroState?,
         lorebookRuntimeState: LorebookRuntimeState?,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
+        conversationSystemPrompt: String? = null,
     ) {
         val internalMessages = prepareInternalMessages(
             assistant = assistant,
@@ -424,6 +427,7 @@ class GenerationHandler(
             stMacroState = stMacroState,
             lorebookRuntimeState = lorebookRuntimeState,
             processingStatus = processingStatus,
+            conversationSystemPrompt = conversationSystemPrompt,
         )
 
         var messages: List<UIMessage> = messages
@@ -524,6 +528,7 @@ class GenerationHandler(
         lorebookRuntimeState: LorebookRuntimeState?,
         dryRun: Boolean = false,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
+        conversationSystemPrompt: String? = null,
     ): List<UIMessage> {
         val preparedMessages = messages.prepareMessagesForGeneration(
             contextMessageSize = assistant.contextMessageSize,
@@ -532,8 +537,14 @@ class GenerationHandler(
 
         return buildList {
             val system = buildString {
-                if (assistant.systemPrompt.isNotBlank()) {
-                    append(assistant.systemPrompt)
+                val effectiveSystemPrompt =
+                    if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
+                        conversationSystemPrompt
+                    } else {
+                        assistant.systemPrompt
+                    }
+                if (effectiveSystemPrompt.isNotBlank()) {
+                    append(effectiveSystemPrompt)
                 }
 
                 if (assistant.enableMemory) {

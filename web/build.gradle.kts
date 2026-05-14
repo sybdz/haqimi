@@ -10,11 +10,11 @@ val buildWebUi = tasks.register<Exec>("buildWebUi") {
     description = "Build web-ui and copy its static output into the web module resources."
 
     workingDir = webUiDir.asFile
-    commandLine("bun", "run", "build")
+    commandLine("pnpm", "run", "build")
 
     inputs.files(
         webUiDir.file("package.json"),
-        webUiDir.file("bun.lock"),
+        webUiDir.file("pnpm-lock.yaml"),
         webUiDir.file("components.json"),
         webUiDir.file("copy.ts"),
         webUiDir.file("react-router.config.ts"),

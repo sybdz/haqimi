@@ -11,9 +11,10 @@ import me.rerere.rikkahub.data.db.migrations.Migration_19_20
 import me.rerere.rikkahub.data.db.migrations.Migration_20_21
 import me.rerere.rikkahub.data.db.migrations.Migration_21_22
 import me.rerere.rikkahub.data.db.migrations.Migration_22_23
+import me.rerere.rikkahub.data.db.migrations.Migration_23_24
 import me.rerere.rikkahub.data.db.migrations.Migration_6_7
 
-const val APP_DATABASE_VERSION = 23
+const val APP_DATABASE_VERSION = 24
 
 val APP_DATABASE_MANUAL_MIGRATIONS: Array<Migration> = arrayOf(
     Migration_6_7,
@@ -26,5 +27,6 @@ val APP_DATABASE_MANUAL_MIGRATIONS: Array<Migration> = arrayOf(
     Migration_19_20,
     Migration_20_21,
     Migration_21_22,
-    Migration_22_23
+    Migration_22_23,
+    Migration_23_24
 )

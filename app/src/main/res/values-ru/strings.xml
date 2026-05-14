@@ -145,7 +145,7 @@
   <string name="backup_page_export_desc">Экспортировать данные приложения в файл</string>
   <string name="backup_page_exporting">Экспорт…</string>
   <string name="backup_page_files">Файлы</string>
-  <string name="backup_page_import_chatbox_desc">Импортировать конфигурации поставщика ChatBox</string>
+  <string name="backup_page_import_chatbox_desc">Импортировать конфигурации поставщика ChatBox и полную историю чатов</string>
   <string name="backup_page_import_cherry_studio_desc">Импортировать конфигурации поставщика Cherry Studio</string>
   <string name="backup_page_import_desc">Импортировать локальный файл резервной копии</string>
   <string name="backup_page_import_export">Локальный</string>
@@ -1896,4 +1896,10 @@
   <string name="assistant_page_reasoning_summary_custom">Свое</string>
   <string name="assistant_page_message_template_missing_message">Шаблон не содержит {{ message }}, сообщения пользователя не будут отправлены</string>
   <string name="extension_content_manage">Управлять</string>
+  <string name="assistant_page_allow_conversation_system_prompt">Системный промпт для каждой беседы</string>
+  <string name="assistant_page_allow_conversation_system_prompt_desc">Разрешить каждому разговору переопределять системный запрос ассистента</string>
+  <string name="chat_page_conversation_system_prompt">Системный запрос для беседы</string>
+  <string name="chat_page_conversation_system_prompt_hint">Переопределить системный промпт ассистента для этого разговора</string>
+  <string name="chat_page_conversation_system_prompt_clear">Очистить</string>
+  <string name="chat_page_conversation_system_prompt_save">Сохранить</string>
 </resources>

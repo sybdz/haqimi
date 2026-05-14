@@ -177,6 +177,7 @@ fun ChatList(
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
+    onConversationSystemPromptChange: ((String?) -> Unit)? = null,
     showSuggestions: State<Boolean>,
 ) {
     AnimatedContent(
@@ -221,6 +222,7 @@ fun ChatList(
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
                 onToggleFavorite = onToggleFavorite,
+                onConversationSystemPromptChange = onConversationSystemPromptChange,
                 showSuggestions = showSuggestions,
             )
         }
@@ -253,6 +255,7 @@ private fun ChatListNormal(
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
+    onConversationSystemPromptChange: ((String?) -> Unit)? = null,
     showSuggestions: State<Boolean>,
 ) {
     val scope = rememberCoroutineScope()
@@ -464,6 +467,15 @@ private fun ChatListNormal(
                             messageDepthFromEnd = conversation.messageNodes.size - index,
                         )
                     }
+                }
+            }
+
+            if (!loading && assistant?.allowConversationSystemPrompt == true && onConversationSystemPromptChange != null) {
+                item(key = "ConversationSystemPrompt") {
+                    ConversationSystemPromptButton(
+                        customSystemPrompt = conversation.customSystemPrompt,
+                        onSystemPromptChange = onConversationSystemPromptChange,
+                    )
                 }
             }
 

@@ -317,7 +317,8 @@ class ConversationRepository(
             updateAt = conversation.updateAt.toEpochMilli(),
             assistantId = conversation.assistantId.toString(),
             chatSuggestions = JsonInstant.encodeToString(conversation.chatSuggestions),
-            isPinned = conversation.isPinned
+            isPinned = conversation.isPinned,
+            customSystemPrompt = conversation.customSystemPrompt ?: "",
         )
     }
 
@@ -335,6 +336,7 @@ class ConversationRepository(
             assistantId = Uuid.parse(conversationEntity.assistantId),
             chatSuggestions = JsonInstant.decodeFromString(conversationEntity.chatSuggestions),
             isPinned = conversationEntity.isPinned,
+            customSystemPrompt = conversationEntity.customSystemPrompt.ifEmpty { null },
         )
     }
 
