@@ -21,18 +21,25 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
         with:
-          bun-version: latest
+          version: 11.1.2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: web-ui/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: web-ui
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Format check
         working-directory: web-ui
-        run: bun run fmt:check
+        run: pnpm run fmt:check
 
       - name: Lint
         working-directory: web-ui
@@ -40,12 +47,12 @@ jobs:
 
       - name: Typecheck
         working-directory: web-ui
-        run: bun run typecheck
+        run: pnpm run typecheck
 
       - name: Test
         working-directory: web-ui
-        run: bun run test:ci
+        run: pnpm run test:ci
 
       - name: Build
         working-directory: web-ui
-        run: bun run build
+        run: pnpm run build

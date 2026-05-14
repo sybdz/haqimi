@@ -1902,4 +1902,6 @@
   <string name="chat_page_conversation_system_prompt_hint">Переопределить системный промпт ассистента для этого разговора</string>
   <string name="chat_page_conversation_system_prompt_clear">Очистить</string>
   <string name="chat_page_conversation_system_prompt_save">Сохранить</string>
+  <string name="assistant_page_message_template">Шаблон содержимого сообщения</string>
+  <string name="assistant_page_message_template_desc">Управляет форматом содержимого сообщений чата перед отправкой в LLM; обычно менять не нужно</string>
 </resources>

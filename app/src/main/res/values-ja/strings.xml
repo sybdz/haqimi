@@ -1902,4 +1902,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="chat_page_conversation_system_prompt_hint">この会話でアシスタントのシステムプロンプトを上書き</string>
   <string name="chat_page_conversation_system_prompt_clear">クリア</string>
   <string name="chat_page_conversation_system_prompt_save">保存</string>
+  <string name="assistant_page_message_template">メッセージ内容テンプレート</string>
+  <string name="assistant_page_message_template_desc">チャットメッセージを LLM に送信する前の内容形式を制御します。通常は変更不要です</string>
 </resources>

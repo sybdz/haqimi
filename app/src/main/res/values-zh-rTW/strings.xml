@@ -1854,4 +1854,6 @@
   <string name="chat_page_conversation_system_prompt_hint">覆蓋此對話的助理系統提示</string>
   <string name="chat_page_conversation_system_prompt_clear">清除</string>
   <string name="chat_page_conversation_system_prompt_save">儲存</string>
+  <string name="assistant_page_message_template">訊息內容範本</string>
+  <string name="assistant_page_message_template_desc">控制聊天訊息傳送至 LLM 前的內容格式，通常無需修改</string>
 </resources>
