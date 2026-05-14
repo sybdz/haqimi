@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.components.message
 
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -7,7 +9,9 @@ import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.UserPersonaProfile
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -41,6 +45,42 @@ class ChatMessageBehaviorTest {
         )
 
         assertFalse(message.shouldShowPrimaryActions(loading = false))
+    }
+
+    @Test
+    fun `message grouping should skip blank reasoning metadata parts`() {
+        val textPart = UIMessagePart.Text("hello")
+        val parts = listOf(
+            UIMessagePart.Reasoning(
+                reasoning = "",
+                metadata = buildJsonObject {
+                    put("reasoning_id", "rs_123")
+                    put("encrypted_content", "encrypted")
+                }
+            ),
+            textPart,
+        )
+
+        val blocks = parts.groupMessageParts()
+
+        assertEquals(1, blocks.size)
+        val contentBlock = blocks.single() as MessagePartBlock.ContentBlock
+        assertSame(textPart, contentBlock.part)
+    }
+
+    @Test
+    fun `message grouping should keep visible reasoning parts`() {
+        val reasoningPart = UIMessagePart.Reasoning(reasoning = "thinking")
+        val textPart = UIMessagePart.Text("hello")
+        val parts = listOf(reasoningPart, textPart)
+
+        val blocks = parts.groupMessageParts()
+
+        assertEquals(2, blocks.size)
+        val thinkingBlock = blocks[0] as MessagePartBlock.ThinkingBlock
+        assertEquals(listOf(ThinkingStep.ReasoningStep(reasoningPart)), thinkingBlock.steps)
+        val contentBlock = blocks[1] as MessagePartBlock.ContentBlock
+        assertSame(textPart, contentBlock.part)
     }
 
     @Test
