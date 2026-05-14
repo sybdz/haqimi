@@ -9,6 +9,7 @@ buildscript {
                 "org.bitbucket.b_c:jose4j:0.9.6",
                 "org.jdom:jdom2:2.0.6.1",
                 "org.apache.commons:commons-lang3:3.20.0",
+                "org.apache.httpcomponents:httpclient:4.5.14",
             )
         }
     }
@@ -33,11 +34,22 @@ subprojects {
                 "com.fasterxml.jackson.core:jackson-core" -> useVersion("2.21.3")
                 "com.fasterxml.jackson.core:jackson-databind" -> useVersion("2.21.3")
                 "com.google.guava:guava" -> useVersion("33.6.0-android")
-                "io.netty:netty-codec" -> useVersion("4.1.132.Final")
-                "io.netty:netty-codec-http" -> useVersion("4.1.132.Final")
-                "io.netty:netty-codec-http2" -> useVersion("4.1.132.Final")
-                "io.netty:netty-common" -> useVersion("4.1.132.Final")
-                "io.netty:netty-handler" -> useVersion("4.1.132.Final")
+                "io.netty:netty-buffer" -> useVersion("4.1.133.Final")
+                "io.netty:netty-codec" -> useVersion("4.1.133.Final")
+                "io.netty:netty-codec-http" -> useVersion("4.1.133.Final")
+                "io.netty:netty-codec-http2" -> useVersion("4.1.133.Final")
+                "io.netty:netty-codec-socks" -> useVersion("4.1.133.Final")
+                "io.netty:netty-common" -> useVersion("4.1.133.Final")
+                "io.netty:netty-handler" -> useVersion("4.1.133.Final")
+                "io.netty:netty-handler-proxy" -> useVersion("4.1.133.Final")
+                "io.netty:netty-resolver" -> useVersion("4.1.133.Final")
+                "io.netty:netty-transport" -> useVersion("4.1.133.Final")
+                "io.netty:netty-transport-native-unix-common" -> useVersion("4.1.133.Final")
+                "org.apache.commons:commons-lang3" -> useVersion("3.20.0")
+                "org.apache.httpcomponents:httpclient" -> useVersion("4.5.14")
+                "org.bouncycastle:bcpkix-jdk18on" -> useVersion("1.84")
+                "org.bouncycastle:bcprov-jdk18on" -> useVersion("1.84")
+                "org.bouncycastle:bcutil-jdk18on" -> useVersion("1.84")
             }
         }
     }
