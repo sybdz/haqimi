@@ -46,6 +46,7 @@ fun ViewText(
     text: CharSequence,
     modifier: Modifier = Modifier,
     style: TextStyle = LocalTextStyle.current,
+    selectable: Boolean = false,
 ) {
     val density = LocalDensity.current
     val mergedStyle = style.merge(LocalContentColor.current)
@@ -56,15 +57,28 @@ fun ViewText(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
-                movementMethod = LinkMovementMethod.getInstance()
+                if (!selectable) {
+                    movementMethod = LinkMovementMethod.getInstance()
+                }
+                setTextIsSelectable(selectable)
                 setText(text)
+                tag = text
                 setComposeTextStyle(density, mergedStyle)
             }
         },
         modifier = modifier,
         update = { view ->
             view.setComposeTextStyle(density, mergedStyle)
-            view.text = text
+            if (view.isTextSelectable != selectable) {
+                view.setTextIsSelectable(selectable)
+            }
+            if (!selectable && view.movementMethod !is LinkMovementMethod) {
+                view.movementMethod = LinkMovementMethod.getInstance()
+            }
+            if (view.tag !== text) {
+                view.text = text
+                view.tag = text
+            }
         }
     )
 }

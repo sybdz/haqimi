@@ -1,6 +1,16 @@
 package me.rerere.rikkahub.ui.components.richtext
 
 import android.content.Intent
+import android.graphics.Typeface
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.AbsoluteSizeSpan
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.StrikethroughSpan
+import android.text.style.StyleSpan
+import android.text.style.TypefaceSpan
+import android.text.style.UnderlineSpan
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,13 +27,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -36,7 +44,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +52,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
@@ -53,13 +60,11 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
@@ -69,6 +74,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.core.net.toUri
@@ -81,6 +87,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.rikkahub.data.datastore.shouldRenderCodeBlock
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.ui.components.table.DataTable
+import me.rerere.rikkahub.ui.components.ui.ViewText
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
@@ -370,7 +377,7 @@ fun MarkdownBlock(
     headerLevelOffset: Int = 0,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    preferTextFieldSelection: Boolean = false,
+    preferNativeTextSelection: Boolean = false,
     onClickCitation: (String) -> Unit = {}
 ) {
     var (data, setData) = remember { mutableStateOf(parseMarkdown(content)) }
@@ -407,7 +414,7 @@ fun MarkdownBlock(
                         onClickCitation = onClickCitation,
                         messageDepthFromEnd = messageDepthFromEnd,
                         animateContent = animateContent,
-                        preferTextFieldSelection = preferTextFieldSelection,
+                        preferNativeTextSelection = preferNativeTextSelection,
                     )
                 }
             }
@@ -504,7 +511,7 @@ private fun MarkdownNode(
     listLevel: Int = 0,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    preferTextFieldSelection: Boolean = false,
+    preferNativeTextSelection: Boolean = false,
 ) {
     when (node.type) {
         // 文件根节点
@@ -518,7 +525,7 @@ private fun MarkdownNode(
                     onClickCitation = onClickCitation,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    preferTextFieldSelection = preferTextFieldSelection,
+                    preferNativeTextSelection = preferNativeTextSelection,
                 )
             }
         }
@@ -533,7 +540,7 @@ private fun MarkdownNode(
                 onClickCitation = onClickCitation,
                 messageDepthFromEnd = messageDepthFromEnd,
                 animateContent = animateContent,
-                preferTextFieldSelection = preferTextFieldSelection,
+                preferNativeTextSelection = preferNativeTextSelection,
             )
         }
 
@@ -563,7 +570,7 @@ private fun MarkdownNode(
                                 trim = true,
                                 messageDepthFromEnd = messageDepthFromEnd,
                                 animateContent = animateContent,
-                                preferTextFieldSelection = preferTextFieldSelection,
+                                preferNativeTextSelection = preferNativeTextSelection,
                             )
                         }
                     }
@@ -582,7 +589,7 @@ private fun MarkdownNode(
                 level = listLevel,
                 messageDepthFromEnd = messageDepthFromEnd,
                 animateContent = animateContent,
-                preferTextFieldSelection = preferTextFieldSelection,
+                preferNativeTextSelection = preferNativeTextSelection,
             )
         }
 
@@ -596,7 +603,7 @@ private fun MarkdownNode(
                 level = listLevel,
                 messageDepthFromEnd = messageDepthFromEnd,
                 animateContent = animateContent,
-                preferTextFieldSelection = preferTextFieldSelection,
+                preferNativeTextSelection = preferNativeTextSelection,
             )
         }
 
@@ -650,7 +657,7 @@ private fun MarkdownNode(
                             onClickCitation = onClickCitation,
                             messageDepthFromEnd = messageDepthFromEnd,
                             animateContent = animateContent,
-                            preferTextFieldSelection = preferTextFieldSelection,
+                            preferNativeTextSelection = preferNativeTextSelection,
                         )
                     }
                 }
@@ -687,7 +694,7 @@ private fun MarkdownNode(
                         onClickCitation = onClickCitation,
                         messageDepthFromEnd = messageDepthFromEnd,
                         animateContent = animateContent,
-                        preferTextFieldSelection = preferTextFieldSelection,
+                        preferNativeTextSelection = preferNativeTextSelection,
                     )
                 }
             }
@@ -704,7 +711,7 @@ private fun MarkdownNode(
                         onClickCitation = onClickCitation,
                         messageDepthFromEnd = messageDepthFromEnd,
                         animateContent = animateContent,
-                        preferTextFieldSelection = preferTextFieldSelection,
+                        preferNativeTextSelection = preferNativeTextSelection,
                     )
                 }
             }
@@ -897,7 +904,7 @@ private fun MarkdownNode(
                     onClickCitation = onClickCitation,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    preferTextFieldSelection = preferTextFieldSelection,
+                    preferNativeTextSelection = preferNativeTextSelection,
                 )
             }
         }
@@ -914,7 +921,7 @@ private fun UnorderedListNode(
     level: Int = 0,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    preferTextFieldSelection: Boolean = false,
+    preferNativeTextSelection: Boolean = false,
 ) {
     val bulletStyle = when (level % 3) {
         0 -> "• "
@@ -936,7 +943,7 @@ private fun UnorderedListNode(
                     level = level,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    preferTextFieldSelection = preferTextFieldSelection,
+                    preferNativeTextSelection = preferNativeTextSelection,
                 )
             }
         }
@@ -953,7 +960,7 @@ private fun OrderedListNode(
     level: Int = 0,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    preferTextFieldSelection: Boolean = false,
+    preferNativeTextSelection: Boolean = false,
 ) {
     Column(modifier.padding(start = (level * 8).dp)) {
         var index = 1
@@ -970,7 +977,7 @@ private fun OrderedListNode(
                     level = level,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    preferTextFieldSelection = preferTextFieldSelection,
+                    preferNativeTextSelection = preferNativeTextSelection,
                 )
                 index++
             }
@@ -988,7 +995,7 @@ private fun ListItemNode(
     level: Int,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    preferTextFieldSelection: Boolean = false,
+    preferNativeTextSelection: Boolean = false,
 ) {
     Column {
         // 分离列表项的直接内容和嵌套列表
@@ -1014,7 +1021,7 @@ private fun ListItemNode(
                             listLevel = level,
                             messageDepthFromEnd = messageDepthFromEnd,
                             animateContent = animateContent,
-                            preferTextFieldSelection = preferTextFieldSelection,
+                            preferNativeTextSelection = preferNativeTextSelection,
                         )
                     }
                 }
@@ -1030,7 +1037,7 @@ private fun ListItemNode(
                 listLevel = level + 1,
                 messageDepthFromEnd = messageDepthFromEnd,
                 animateContent = animateContent,
-                preferTextFieldSelection = preferTextFieldSelection,
+                preferNativeTextSelection = preferNativeTextSelection,
             )
         }
     }
@@ -1064,7 +1071,7 @@ private fun Paragraph(
     modifier: Modifier,
     messageDepthFromEnd: Int? = null,
     animateContent: Boolean = true,
-    preferTextFieldSelection: Boolean = false,
+    preferNativeTextSelection: Boolean = false,
 ) {
     // dumpAst(node, content)
     if (node.findChildOfTypeRecursive(MarkdownElementTypes.IMAGE, GFMElementTypes.BLOCK_MATH) != null) {
@@ -1077,7 +1084,7 @@ private fun Paragraph(
                     onClickCitation = onClickCitation,
                     messageDepthFromEnd = messageDepthFromEnd,
                     animateContent = animateContent,
-                    preferTextFieldSelection = preferTextFieldSelection,
+                    preferNativeTextSelection = preferNativeTextSelection,
                 )
             }
         }
@@ -1129,11 +1136,19 @@ private fun Paragraph(
         val paragraphStyle = LocalTextStyle.current.copy(
             lineHeight = if (hasInlineMath && enableLatexRendering) TextUnit.Unspecified else LocalTextStyle.current.lineHeight
         )
-        if (preferTextFieldSelection && inlineContents.isEmpty()) {
-            ReadOnlySelectableTextField(
-                text = annotatedString,
+        if (
+            preferNativeTextSelection &&
+            inlineContents.isEmpty() &&
+            !annotatedString.hasLinkAnnotations(0, annotatedString.length)
+        ) {
+            val nativeText = remember(annotatedString, density) {
+                annotatedString.toAndroidSpannable(density)
+            }
+            ViewText(
+                text = nativeText,
                 modifier = Modifier,
                 style = paragraphStyle,
+                selectable = true,
             )
         } else {
             Text(
@@ -1148,31 +1163,56 @@ private fun Paragraph(
     }
 }
 
-@Composable
-private fun ReadOnlySelectableTextField(
-    text: AnnotatedString,
-    modifier: Modifier = Modifier,
-    style: TextStyle = LocalTextStyle.current,
-) {
-    var fieldValue by remember(text) {
-        mutableStateOf(TextFieldValue(annotatedString = text, selection = TextRange.Zero))
-    }
-    val contentColor = LocalContentColor.current
+private fun AnnotatedString.toAndroidSpannable(density: Density): CharSequence {
+    val spannable = SpannableStringBuilder(text)
+    spanStyles.forEach { range ->
+        val start = range.start.coerceIn(0, text.length)
+        val end = range.end.coerceIn(start, text.length)
+        if (start == end) return@forEach
 
-    BasicTextField(
-        value = fieldValue,
-        onValueChange = { next ->
-            fieldValue = TextFieldValue(
-                annotatedString = text,
-                selection = next.selection,
-                composition = next.composition,
-            )
-        },
-        modifier = modifier,
-        readOnly = true,
-        textStyle = style.merge(color = contentColor),
-        cursorBrush = SolidColor(Color.Transparent),
-    )
+        val style = range.item
+        val fontWeight = style.fontWeight
+        val fontStyle = style.fontStyle
+        val typefaceStyle = when {
+            fontWeight != null && fontWeight >= FontWeight.SemiBold && fontStyle == FontStyle.Italic ->
+                Typeface.BOLD_ITALIC
+            fontWeight != null && fontWeight >= FontWeight.SemiBold -> Typeface.BOLD
+            fontStyle == FontStyle.Italic -> Typeface.ITALIC
+            else -> Typeface.NORMAL
+        }
+        if (typefaceStyle != Typeface.NORMAL) {
+            spannable.setSpan(StyleSpan(typefaceStyle), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+        if (style.fontFamily == FontFamily.Monospace) {
+            spannable.setSpan(TypefaceSpan("monospace"), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+        if (style.fontSize.isSpecified) {
+            val sizePx = with(density) { style.fontSize.toPx().toInt() }
+            if (sizePx > 0) {
+                spannable.setSpan(AbsoluteSizeSpan(sizePx), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        }
+
+        if (style.color != Color.Unspecified) {
+            spannable.setSpan(ForegroundColorSpan(style.color.toArgb()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+        if (style.background != Color.Unspecified) {
+            spannable.setSpan(BackgroundColorSpan(style.background.toArgb()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+        style.textDecoration?.let { decoration ->
+            if (decoration.contains(TextDecoration.Underline)) {
+                spannable.setSpan(UnderlineSpan(), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            if (decoration.contains(TextDecoration.LineThrough)) {
+                spannable.setSpan(StrikethroughSpan(), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        }
+    }
+    return spannable
 }
 
 internal fun shouldRenderParagraphWithSimpleHtml(node: ASTNode): Boolean {
