@@ -82,7 +82,7 @@ fun ColumnScope.ChatMessageActionButtons(
     var showRegenerateConfirm by remember { mutableStateOf(false) }
 
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         if (showPrimaryActions) {
@@ -92,8 +92,8 @@ fun ColumnScope.ChatMessageActionButtons(
                 modifier = Modifier
                     .clip(CircleShape)
                     .clickable { context.copyMessageToClipboard(message) }
-                    .padding(4.dp)
-                    .size(14.dp),
+                    .padding(8.dp)
+                    .size(16.dp),
             )
 
             Icon(
@@ -108,8 +108,8 @@ fun ColumnScope.ChatMessageActionButtons(
                             onRegenerate()
                         }
                     }
-                    .padding(4.dp)
-                    .size(14.dp)
+                    .padding(8.dp)
+                    .size(16.dp)
             )
 
             if (message.role == MessageRole.ASSISTANT) {
@@ -119,8 +119,8 @@ fun ColumnScope.ChatMessageActionButtons(
                     modifier = Modifier
                         .clip(CircleShape)
                         .clickable { onContinue() }
-                        .padding(4.dp)
-                        .size(14.dp)
+                        .padding(8.dp)
+                        .size(16.dp)
                 )
 
                 val tts = LocalTTSState.current
@@ -150,8 +150,8 @@ fun ColumnScope.ChatMessageActionButtons(
                                 }
                             }
                         )
-                        .padding(4.dp)
-                        .size(14.dp),
+                        .padding(8.dp)
+                        .size(16.dp),
                     tint = if (isAvailable) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
                 )
 
@@ -168,8 +168,8 @@ fun ColumnScope.ChatMessageActionButtons(
                                     showTranslateDialog = true
                                 }
                             )
-                            .padding(4.dp)
-                            .size(14.dp)
+                            .padding(8.dp)
+                            .size(16.dp)
                     )
                 }
             }
@@ -186,8 +186,8 @@ fun ColumnScope.ChatMessageActionButtons(
                             onOpenActionSheet()
                         }
                     )
-                    .padding(4.dp)
-                    .size(14.dp)
+                    .padding(8.dp)
+                    .size(16.dp)
             )
         }
 

@@ -463,7 +463,7 @@ private fun ChatListNormal(
                             onToolApproval = onToolApproval,
                             onToolAnswer = onToolAnswer,
                             showIdentity = !groupedWithPrevious,
-                            showMetadata = index == conversation.messageNodes.lastIndex,
+                            showMetadata = true,
                             messageDepthFromEnd = conversation.messageNodes.size - index,
                         )
                     }
