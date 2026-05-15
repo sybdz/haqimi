@@ -125,7 +125,7 @@ private fun SelectableMarkdownBlock(
         messageDepthFromEnd = messageDepthFromEnd,
         animateContent = animateContent,
         onClickCitation = onClickCitation,
-        preferTextFieldSelection = true,
+        preferNativeTextSelection = true,
     )
 }
 
