@@ -1,9 +1,5 @@
 package me.rerere.rikkahub.ui.components.message
 
-import android.util.TypedValue
-import android.view.ViewGroup
-import android.widget.ScrollView
-import android.widget.TextView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,16 +22,13 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isSpecified
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.util.fastForEach
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Copy01
@@ -93,9 +89,10 @@ fun ChatMessageCopySheet(
             }
 
             // Content
-            val textContent = message.toText()
+            val textParts =
+                message.parts.filterIsInstance<UIMessagePart.Text>().filter { it.text.isNotBlank() }
 
-            if (textContent.isBlank()) {
+            if (textParts.isEmpty()) {
                 // No text content available
                 Column(
                     modifier = Modifier
@@ -112,73 +109,22 @@ fun ChatMessageCopySheet(
                     )
                 }
             } else {
-                NativeSelectableText(
-                    text = textContent,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun NativeSelectableText(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    val density = LocalDensity.current
-    val color = MaterialTheme.colorScheme.onSurface
-    val textStyle = MaterialTheme.typography.bodyMedium
-
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            ScrollView(context).apply {
-                isFillViewport = true
-                addView(
-                    TextView(context).apply {
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        )
-                        setTextIsSelectable(true)
-                        setOnLongClickListener {
-                            requestFocus()
-                            false
+                SelectionContainer {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        textParts.fastForEach { textPart ->
+                            Text(
+                                text = textPart.text,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                         }
                     }
-                )
+                }
             }
-        },
-        update = { scrollView ->
-            val textView = scrollView.getChildAt(0) as TextView
-            textView.applySelectableTextStyle(
-                text = text,
-                style = textStyle,
-                density = density,
-                color = color.toArgb(),
-            )
-        }
-    )
-}
-
-private fun TextView.applySelectableTextStyle(
-    text: String,
-    style: TextStyle,
-    density: androidx.compose.ui.unit.Density,
-    color: Int,
-) {
-    if (this.text.toString() != text) {
-        setText(text)
-    }
-    setTextColor(color)
-    with(density) {
-        setTextSize(TypedValue.COMPLEX_UNIT_PX, style.fontSize.toPx())
-        if (style.lineHeight.isSpecified) {
-            val lineSpacingExtra = (style.lineHeight.toPx() - textSize).coerceAtLeast(0f)
-            setLineSpacing(lineSpacingExtra, 1f)
         }
     }
 }

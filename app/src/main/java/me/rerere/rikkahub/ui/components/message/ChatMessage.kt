@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -110,24 +111,6 @@ internal fun UIMessage.shouldShowPrimaryActions(loading: Boolean): Boolean {
 
 internal fun userRegexRenderCacheKey(settings: Settings) =
     settings.selectedUserPersonaProfile() to settings.displaySetting.userNickname.trim()
-
-@Composable
-private fun SelectableMarkdownBlock(
-    content: String,
-    modifier: Modifier = Modifier,
-    messageDepthFromEnd: Int? = null,
-    animateContent: Boolean = true,
-    onClickCitation: (String) -> Unit = {},
-) {
-    MarkdownBlock(
-        content = content,
-        modifier = modifier,
-        messageDepthFromEnd = messageDepthFromEnd,
-        animateContent = animateContent,
-        onClickCitation = onClickCitation,
-        preferNativeTextSelection = true,
-    )
-}
 
 private fun String.applyVisualRegexesIfNeeded(
     assistant: Assistant?,
@@ -495,13 +478,47 @@ private fun MessagePartsBlock(
             is MessagePartBlock.ContentBlock -> key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
-                        if (role == MessageRole.USER) {
-                            val shellOutput = TermuxUserShellCommandCodec.extractOutput(role, part)
-                            if (shellOutput != null) {
-                                UserShellCommandCard(
-                                    output = shellOutput,
-                                    modifier = Modifier
-                                )
+                        SelectionContainer {
+                            if (role == MessageRole.USER) {
+                                val shellOutput = TermuxUserShellCommandCodec.extractOutput(role, part)
+                                if (shellOutput != null) {
+                                    UserShellCommandCard(
+                                        output = shellOutput,
+                                        modifier = Modifier
+                                    )
+                                } else {
+                                    val renderedText = remember(
+                                        part.text,
+                                        assistant,
+                                        settings,
+                                        loading,
+                                        messageDepthFromEnd,
+                                        regexRenderCacheKey,
+                                    ) {
+                                        part.text.applyVisualRegexesIfNeeded(
+                                            assistant = assistant,
+                                            settings = settings,
+                                            scope = AssistantAffectScope.USER,
+                                            messageDepthFromEnd = messageDepthFromEnd,
+                                            placement = AssistantRegexPlacement.USER_INPUT,
+                                        )
+                                    }
+                                    Surface(
+                                        modifier = Modifier.animateContentSize(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        onClick = { onUserMessageClick?.invoke() },
+                                    ) {
+                                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                            MarkdownBlock(
+                                                content = renderedText,
+                                                messageDepthFromEnd = messageDepthFromEnd,
+                                                animateContent = !loading,
+                                                onClickCitation = handleClickCitation
+                                            )
+                                        }
+                                    }
+                                }
                             } else {
                                 val renderedText = remember(
                                     part.text,
@@ -514,68 +531,36 @@ private fun MessagePartsBlock(
                                     part.text.applyVisualRegexesIfNeeded(
                                         assistant = assistant,
                                         settings = settings,
-                                        scope = AssistantAffectScope.USER,
+                                        scope = AssistantAffectScope.ASSISTANT,
                                         messageDepthFromEnd = messageDepthFromEnd,
-                                        placement = AssistantRegexPlacement.USER_INPUT,
+                                        placement = AssistantRegexPlacement.AI_OUTPUT,
                                     )
                                 }
-                                Surface(
-                                    modifier = Modifier.animateContentSize(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    onClick = { onUserMessageClick?.invoke() },
-                                ) {
-                                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                        SelectableMarkdownBlock(
-                                            content = renderedText,
-                                            messageDepthFromEnd = messageDepthFromEnd,
-                                            animateContent = !loading,
-                                            onClickCitation = handleClickCitation
-                                        )
+                                if (settings.displaySetting.showAssistantBubble) {
+                                    Surface(
+                                        modifier = Modifier.animateContentSize(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    ) {
+                                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                            MarkdownBlock(
+                                                content = renderedText,
+                                                messageDepthFromEnd = messageDepthFromEnd,
+                                                animateContent = true,
+                                                onClickCitation = handleClickCitation,
+                                            )
+                                        }
                                     }
+                                } else {
+                                    MarkdownBlock(
+                                        content = renderedText,
+                                        messageDepthFromEnd = messageDepthFromEnd,
+                                        animateContent = true,
+                                        onClickCitation = handleClickCitation,
+                                        modifier = Modifier
+                                            .animateContentSize()
+                                    )
                                 }
-                            }
-                        } else {
-                            val renderedText = remember(
-                                part.text,
-                                assistant,
-                                settings,
-                                loading,
-                                messageDepthFromEnd,
-                                regexRenderCacheKey,
-                            ) {
-                                part.text.applyVisualRegexesIfNeeded(
-                                    assistant = assistant,
-                                    settings = settings,
-                                    scope = AssistantAffectScope.ASSISTANT,
-                                    messageDepthFromEnd = messageDepthFromEnd,
-                                    placement = AssistantRegexPlacement.AI_OUTPUT,
-                                )
-                            }
-                            if (settings.displaySetting.showAssistantBubble) {
-                                Surface(
-                                    modifier = Modifier.animateContentSize(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                ) {
-                                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                        SelectableMarkdownBlock(
-                                            content = renderedText,
-                                            messageDepthFromEnd = messageDepthFromEnd,
-                                            animateContent = true,
-                                            onClickCitation = handleClickCitation,
-                                        )
-                                    }
-                                }
-                            } else {
-                                SelectableMarkdownBlock(
-                                    content = renderedText,
-                                    messageDepthFromEnd = messageDepthFromEnd,
-                                    animateContent = true,
-                                    onClickCitation = handleClickCitation,
-                                    modifier = Modifier
-                                        .animateContentSize()
-                                )
                             }
                         }
                     }
