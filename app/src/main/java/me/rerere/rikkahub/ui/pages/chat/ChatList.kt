@@ -93,6 +93,7 @@ import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
@@ -136,8 +137,13 @@ private fun Modifier.clearChatInputFocusOnTap(
             requireUnconsumed = false,
             pass = PointerEventPass.Initial,
         )
-        if (waitForUpOrCancellation(pass = PointerEventPass.Initial) != null) {
+        val upBeforeLongPress = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+            waitForUpOrCancellation(pass = PointerEventPass.Initial)
+        }
+        if (upBeforeLongPress != null) {
             onDismiss()
+        } else {
+            waitForUpOrCancellation(pass = PointerEventPass.Initial)
         }
     }
 }
