@@ -115,7 +115,8 @@ fun SettingSearchDetailPage(
             )
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = CustomColors.topBarColors.containerColor
+        containerColor = CustomColors.topBarColors.containerColor,
+        contentColor = MaterialTheme.colorScheme.onSurface
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -127,7 +128,8 @@ fun SettingSearchDetailPage(
             item("config") {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = CustomColors.listItemColors.containerColor
+                        containerColor = CustomColors.listItemColors.containerColor,
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     )
                 ) {
                     Column(
@@ -235,7 +237,8 @@ private fun SearchTestSection(
 
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = CustomColors.listItemColors.containerColor
+            containerColor = CustomColors.listItemColors.containerColor,
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(
@@ -305,7 +308,8 @@ private fun SearchTestSection(
                     searchResult.items.forEachIndexed { index, item ->
                         Card(
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                contentColor = MaterialTheme.colorScheme.onSurface
                             )
                         ) {
                             Column(
