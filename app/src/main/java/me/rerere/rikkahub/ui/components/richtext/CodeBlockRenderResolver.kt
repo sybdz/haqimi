@@ -284,7 +284,7 @@ internal object CodeBlockRenderResolver {
         return buildString {
             append(viewportMeta)
             append(style)
-            append(createBridgeScript())
+            append(createBridgeScript(scrollMode))
         }
     }
 
@@ -322,15 +322,19 @@ internal object CodeBlockRenderResolver {
         return """
             <style>
             :root{--TH-viewport-height:100vh;}
+            *,*::before,*::after{box-sizing:border-box;}
             html,body{$overflowRule}
             </style>
         """.trimIndent()
     }
 
-    private fun createBridgeScript(): String {
+    private fun createBridgeScript(scrollMode: CodeBlockRenderScrollMode): String {
+        val lockViewportHeight = scrollMode == CodeBlockRenderScrollMode.AUTO_HEIGHT
         return """
             <script>
             (function() {
+              var lockViewportHeight = $lockViewportHeight;
+
               function getActionBridge() {
                 return window.$CODE_BLOCK_ACTION_BRIDGE_NAME;
               }
@@ -1514,7 +1518,16 @@ internal object CodeBlockRenderResolver {
               }
 
               function updateViewportHeight() {
-                document.documentElement.style.setProperty('--TH-viewport-height', window.innerHeight + 'px');
+                var nextHeight = window.innerHeight;
+                if (lockViewportHeight) {
+                  var cachedHeight = window.__RH_AUTO_HEIGHT_VIEWPORT_HEIGHT__;
+                  if (!Number.isFinite(cachedHeight) || cachedHeight <= 0) {
+                    cachedHeight = nextHeight;
+                    window.__RH_AUTO_HEIGHT_VIEWPORT_HEIGHT__ = cachedHeight;
+                  }
+                  nextHeight = cachedHeight;
+                }
+                document.documentElement.style.setProperty('--TH-viewport-height', nextHeight + 'px');
               }
 
               function reportHeight() {

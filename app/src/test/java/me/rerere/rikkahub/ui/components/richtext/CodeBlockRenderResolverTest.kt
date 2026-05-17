@@ -245,6 +245,38 @@ class CodeBlockRenderResolverTest {
     }
 
     @Test
+    fun build_html_for_complete_document_stabilizes_auto_height_vh_pages() {
+        val target = CodeBlockRenderTarget(
+            normalizedLanguage = "html",
+            renderType = CodeBlockRenderType.HTML
+        )
+        val code = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { min-height: 100vh; padding: 20px; }
+              </style>
+            </head>
+            <body>
+              <main>hello</main>
+            </body>
+            </html>
+        """.trimIndent()
+
+        val html = CodeBlockRenderResolver.buildHtmlForWebView(
+            target = target,
+            code = code,
+            scrollMode = CodeBlockRenderScrollMode.AUTO_HEIGHT,
+        )
+
+        assertTrue(html.contains("min-height: var(--TH-viewport-height)"))
+        assertTrue(html.contains("*,*::before,*::after{box-sizing:border-box;}"))
+        assertTrue(html.contains("var lockViewportHeight = true;"))
+        assertTrue(html.contains("__RH_AUTO_HEIGHT_VIEWPORT_HEIGHT__"))
+    }
+
+    @Test
     fun build_html_scrollable_mode_enables_vertical_scroll() {
         val target = CodeBlockRenderTarget(
             normalizedLanguage = "html",
@@ -258,5 +290,6 @@ class CodeBlockRenderResolverTest {
         )
 
         assertTrue(html.contains("overflow-y:auto!important"))
+        assertTrue(html.contains("var lockViewportHeight = false;"))
     }
 }
