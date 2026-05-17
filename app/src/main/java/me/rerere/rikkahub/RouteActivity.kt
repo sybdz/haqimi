@@ -114,6 +114,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
+import me.rerere.rikkahub.ui.pages.setting.SettingSearchDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingScheduledTaskPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSpeechPage
@@ -562,6 +563,11 @@ class RouteActivity : ComponentActivity() {
                                 SettingSearchPage()
                             }
 
+                            entry<Screen.SettingSearchDetail> { key ->
+                                val id = Uuid.parse(key.serviceId)
+                                SettingSearchDetailPage(id)
+                            }
+
                             entry<Screen.SettingAndroidIntegration> {
                                 SettingAndroidIntegrationPage()
                             }
@@ -782,6 +788,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingSearch : Screen
+
+    @Serializable
+    data class SettingSearchDetail(val serviceId: String) : Screen
 
     @Serializable
     data object SettingAndroidIntegration : Screen

@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.remoteConfigSettings
+import com.whl.quickjs.android.QuickJSLoader
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -67,6 +68,9 @@ class RikkaHubApp : Application() {
 
         // install crash handler
         CrashHandler.install(this)
+
+        // Init QuickJS native library
+        QuickJSLoader.init()
 
         // delete temp files
         deleteTempFiles()
