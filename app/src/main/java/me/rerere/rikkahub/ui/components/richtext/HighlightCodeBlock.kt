@@ -76,10 +76,6 @@ import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
 import me.rerere.rikkahub.ui.theme.AtomOneLightPalette
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
-import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
-import me.rerere.rikkahub.ui.theme.ThemeTokenParseResult
-import me.rerere.rikkahub.ui.theme.ThemeTokenTextScaleGroup
-import me.rerere.rikkahub.ui.theme.applyThemeTokenTextScale
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.toDp
 import kotlin.time.Clock
@@ -114,7 +110,6 @@ fun HighlightCodeBlock(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val settings = LocalSettings.current
-    val themeTokens = LocalThemeTokenOverrides.current
 
     var isExpanded by remember(settings.displaySetting.codeBlockAutoCollapse) {
         mutableStateOf(!settings.displaySetting.codeBlockAutoCollapse)
@@ -157,7 +152,6 @@ fun HighlightCodeBlock(
                 code = code,
                 createDocumentLauncher = createDocumentLauncher,
                 navController = navController,
-                themeTokens = themeTokens,
                 completeCodeBlock = completeCodeBlock,
             )
         }
@@ -176,12 +170,9 @@ fun HighlightCodeBlock(
                     )
                 }
                 else -> {
-                    val baseCodeStyle = remember(style, themeTokens) {
-                        themeTokens.applyThemeTokenTextScale(
-                            style = (style ?: TextStyle(fontSize = 12.sp, lineHeight = 16.sp)).copy(
-                                fontFamily = JetbrainsMono,
-                            ),
-                            group = ThemeTokenTextScaleGroup.BODY,
+                    val baseCodeStyle = remember(style) {
+                        (style ?: TextStyle(fontSize = 12.sp, lineHeight = 16.sp)).copy(
+                            fontFamily = JetbrainsMono,
                         )
                     }
                     val textStyle = LocalTextStyle.current.merge(baseCodeStyle)
@@ -365,7 +356,6 @@ private fun HighlightCodeActions(
     code: String,
     createDocumentLauncher: ManagedActivityResultLauncher<String, Uri?>,
     navController: Navigator,
-    themeTokens: ThemeTokenParseResult,
     completeCodeBlock: Boolean = true,
 ) {
     val previewTarget = remember(language, code, completeCodeBlock) {
@@ -375,11 +365,8 @@ private fun HighlightCodeActions(
             null
         }
     }
-    val actionTextStyle = remember(themeTokens) {
-        themeTokens.applyThemeTokenTextScale(
-            style = TextStyle(fontSize = 12.sp, lineHeight = 12.sp),
-            group = ThemeTokenTextScaleGroup.LABEL,
-        )
+    val actionTextStyle = remember {
+        TextStyle(fontSize = 12.sp, lineHeight = 12.sp)
     }
     Row(
         modifier = Modifier.fillMaxWidth(),

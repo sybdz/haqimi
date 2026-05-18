@@ -150,8 +150,6 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
-import me.rerere.rikkahub.ui.theme.themedRoundedShape
 import me.rerere.rikkahub.ui.components.ui.luneGlassBorderColor
 import me.rerere.rikkahub.ui.components.ui.luneGlassContainerColor
 import org.koin.compose.koinInject
@@ -216,11 +214,7 @@ fun ChatInput(
         showInjectionSheet = false
         showCompressDialog = false
     }
-    val themeTokens = LocalThemeTokenOverrides.current
-    val composerShape = themeTokens.themedRoundedShape(
-        tokenKey = "shapeLarge",
-        fallback = 24.dp,
-    )
+    val composerShape = RoundedCornerShape(24.dp)
     val hasMessageContent = !state.isEmpty() || state.messageContent.isNotEmpty()
     val enableHazeEffect = settings.displaySetting.enableBlurEffect && hazeState != null
     val composerHazeModifier = if (enableHazeEffect) {
@@ -753,7 +747,6 @@ private fun MediaFileInputRow(
         state.messageContent.fastForEach { part ->
             when (part) {
                 is UIMessagePart.Image -> {
-                    val themeTokens = LocalThemeTokenOverrides.current
                     AttachmentChip(
                         title = attachmentNameFromUrl(
                             url = part.url,
@@ -764,10 +757,7 @@ private fun MediaFileInputRow(
                         leading = {
                             Surface(
                                 modifier = Modifier.size(34.dp),
-                                shape = themeTokens.themedRoundedShape(
-                                    tokenKey = "shapeSmall",
-                                    fallback = 10.dp,
-                                ),
+                                shape = RoundedCornerShape(10.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             ) {
                                 AsyncImage(
@@ -833,12 +823,8 @@ private fun AttachmentChip(
     leading: @Composable () -> Unit,
     onRemove: () -> Unit,
 ) {
-    val themeTokens = LocalThemeTokenOverrides.current
     Surface(
-        shape = themeTokens.themedRoundedShape(
-            tokenKey = "shapeLarge",
-            fallback = 18.dp,
-        ),
+        shape = RoundedCornerShape(18.dp),
         tonalElevation = 1.dp,
         shadowElevation = 0.dp,
         color = luneGlassContainerColor(),
@@ -882,13 +868,9 @@ private fun AttachmentChip(
 private fun AttachmentLeadingIcon(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
 ) {
-    val themeTokens = LocalThemeTokenOverrides.current
     Surface(
         modifier = Modifier.size(34.dp),
-        shape = themeTokens.themedRoundedShape(
-            tokenKey = "shapeSmall",
-            fallback = 10.dp,
-        ),
+        shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Box(

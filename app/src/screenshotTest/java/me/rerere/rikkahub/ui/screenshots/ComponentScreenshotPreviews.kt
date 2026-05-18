@@ -26,8 +26,6 @@ import me.rerere.rikkahub.ui.theme.AppShapes
 import me.rerere.rikkahub.ui.theme.LocalAmoledDarkMode
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.LocalExtendColors
-import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
-import me.rerere.rikkahub.ui.theme.ThemeTokenParseResult
 import me.rerere.rikkahub.ui.theme.Typography
 import me.rerere.rikkahub.ui.theme.darkExtendColors
 import me.rerere.rikkahub.ui.theme.findPresetTheme
@@ -43,7 +41,6 @@ private fun ScreenshotTheme(
         LocalDarkMode provides darkTheme,
         LocalAmoledDarkMode provides false,
         LocalExtendColors provides if (darkTheme) darkExtendColors() else lightExtendColors(),
-        LocalThemeTokenOverrides provides ThemeTokenParseResult(overrides = emptyMap()),
         LocalOverscrollFactory provides null,
     ) {
         MaterialExpressiveTheme(

@@ -97,7 +97,6 @@ class SettingsStore(
         // UI设置
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val THEME_ID = stringPreferencesKey("theme_id")
-        val CUSTOM_THEME_SETTING = stringPreferencesKey("custom_theme_setting")
         val DISPLAY_SETTING = stringPreferencesKey("display_setting")
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
 
@@ -253,9 +252,6 @@ class SettingsStore(
                 assistants = JsonInstant.decodeFromString(preferences[ASSISTANTS] ?: "[]"),
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
-                customThemeSetting = preferences[CUSTOM_THEME_SETTING]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: CustomThemeSetting(),
                 developerMode = preferences[DEVELOPER_MODE] == true,
                 displaySetting = JsonInstant.decodeFromString(preferences[DISPLAY_SETTING] ?: "{}"),
                 scheduledTasks = preferences[SCHEDULED_TASKS]?.let {
@@ -551,7 +547,6 @@ class SettingsStore(
         dataStore.edit { preferences ->
             preferences[DYNAMIC_COLOR] = normalizedSettings.dynamicColor
             preferences[THEME_ID] = normalizedSettings.themeId
-            preferences[CUSTOM_THEME_SETTING] = JsonInstant.encodeToString(normalizedSettings.customThemeSetting)
             preferences[DEVELOPER_MODE] = normalizedSettings.developerMode
             preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(normalizedSettings.displaySetting)
 
@@ -724,7 +719,6 @@ data class Settings(
     val init: Boolean = false,
     val dynamicColor: Boolean = true,
     val themeId: String = PresetThemes[0].id,
-    val customThemeSetting: CustomThemeSetting = CustomThemeSetting(),
     val developerMode: Boolean = false,
     val displaySetting: DisplaySetting = DisplaySetting(),
     val enableWebSearch: Boolean = false,

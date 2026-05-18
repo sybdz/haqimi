@@ -78,9 +78,6 @@ import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.ui.components.table.DataTable
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
-import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
-import me.rerere.rikkahub.ui.theme.ThemeTokenTextScaleGroup
-import me.rerere.rikkahub.ui.theme.applyThemeTokenTextScale
 import me.rerere.rikkahub.utils.toDp
 import org.intellij.markdown.IElementType
 import org.intellij.markdown.MarkdownElementTypes
@@ -418,47 +415,45 @@ private fun dumpAst(node: ASTNode, text: String, indent: String = "") {
 
 @Composable
 private fun markdownHeaderStyle(type: IElementType): TextStyle {
-    val themeTokens = LocalThemeTokenOverrides.current
-    val (baseStyle, scaleGroup) = when (type) {
+    return when (type) {
         MarkdownElementTypes.ATX_1 -> TextStyle(
             fontStyle = FontStyle.Normal,
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp,
-        ) to ThemeTokenTextScaleGroup.HEADLINE
+        )
 
         MarkdownElementTypes.ATX_2 -> TextStyle(
             fontStyle = FontStyle.Normal,
             fontWeight = FontWeight.Bold,
             fontSize = 22.sp,
-        ) to ThemeTokenTextScaleGroup.HEADLINE
+        )
 
         MarkdownElementTypes.ATX_3 -> TextStyle(
             fontStyle = FontStyle.Normal,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
-        ) to ThemeTokenTextScaleGroup.HEADLINE
+        )
 
         MarkdownElementTypes.ATX_4 -> TextStyle(
             fontStyle = FontStyle.Normal,
             fontWeight = FontWeight.Bold,
             fontSize = 18.sp,
-        ) to ThemeTokenTextScaleGroup.TITLE
+        )
 
         MarkdownElementTypes.ATX_5 -> TextStyle(
             fontStyle = FontStyle.Normal,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
-        ) to ThemeTokenTextScaleGroup.TITLE
+        )
 
         MarkdownElementTypes.ATX_6 -> TextStyle(
             fontStyle = FontStyle.Normal,
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp,
-        ) to ThemeTokenTextScaleGroup.TITLE
+        )
 
         else -> error("Unknown header type: $type")
     }
-    return themeTokens.applyThemeTokenTextScale(baseStyle, scaleGroup)
 }
 
 private fun demotedHeaderType(

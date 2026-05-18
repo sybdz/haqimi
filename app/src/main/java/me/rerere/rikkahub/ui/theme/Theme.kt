@@ -31,7 +31,6 @@ val LocalExtendColors = compositionLocalOf { ExtendLightColors }
 
 val LocalDarkMode = compositionLocalOf { false }
 val LocalAmoledDarkMode = compositionLocalOf { false }
-val LocalThemeTokenOverrides = compositionLocalOf { ThemeTokenParseResult(overrides = emptyMap()) }
 
 private val AMOLED_DARK_BACKGROUND = Color(0xFF000000)
 
@@ -64,40 +63,12 @@ fun RikkahubTheme(
         darkTheme -> findPresetTheme(settings.themeId).getColorScheme(dark = true)
         else -> findPresetTheme(settings.themeId).getColorScheme(dark = false)
     }
-    val themeTokenSource = remember(
-        darkTheme,
-        settings.customThemeSetting.enabled,
-        settings.customThemeSetting.light,
-        settings.customThemeSetting.dark,
-    ) {
-        if (!settings.customThemeSetting.enabled) {
-            ""
-        } else if (darkTheme) {
-            settings.customThemeSetting.dark
-        } else {
-            settings.customThemeSetting.light
-        }
-    }
-    val parsedThemeTokens = remember(themeTokenSource) {
-        parseThemeTokenSource(themeTokenSource)
-    }
-    val effectiveThemeTokens = remember(
-        baseColorScheme,
-        parsedThemeTokens,
-        settings.customThemeSetting.autoGenerateOnColors,
-    ) {
-        parsedThemeTokens.withAccessibleContentColors(
-            baseScheme = baseColorScheme,
-            autoGenerateContentColors = settings.customThemeSetting.autoGenerateOnColors,
-        )
-    }
     val colorSchemeConverted = remember(
         darkTheme,
         amoledDarkMode,
         baseColorScheme,
-        effectiveThemeTokens,
     ) {
-        val amoledAdjusted = if (darkTheme && amoledDarkMode) {
+        if (darkTheme && amoledDarkMode) {
             baseColorScheme.copy(
                 background = AMOLED_DARK_BACKGROUND,
                 surface = AMOLED_DARK_BACKGROUND,
@@ -105,14 +76,6 @@ fun RikkahubTheme(
         } else {
             baseColorScheme
         }
-
-        amoledAdjusted.applyThemeTokenOverrides(effectiveThemeTokens)
-    }
-    val themeShapes = remember(parsedThemeTokens) {
-        AppShapes.applyThemeTokenOverrides(parsedThemeTokens)
-    }
-    val themeTypography = remember(parsedThemeTokens) {
-        Typography.applyThemeTokenOverrides(parsedThemeTokens)
     }
     val extendColors = if (darkTheme) ExtendDarkColors else ExtendLightColors
 
@@ -132,25 +95,14 @@ fun RikkahubTheme(
         LocalDarkMode provides darkTheme,
         LocalAmoledDarkMode provides (darkTheme && amoledDarkMode),
         LocalExtendColors provides extendColors,
-        LocalThemeTokenOverrides provides effectiveThemeTokens,
         LocalOverscrollFactory provides null
     ) {
-        if (parsedThemeTokens.shapeOverrides.isEmpty()) {
-            MaterialExpressiveTheme(
-                colorScheme = colorSchemeConverted,
-                typography = themeTypography,
-                content = content,
-                motionScheme = MotionScheme.expressive()
-            )
-        } else {
-            MaterialExpressiveTheme(
-                colorScheme = colorSchemeConverted,
-                shapes = themeShapes,
-                typography = themeTypography,
-                content = content,
-                motionScheme = MotionScheme.expressive()
-            )
-        }
+        MaterialExpressiveTheme(
+            colorScheme = colorSchemeConverted,
+            typography = Typography,
+            content = content,
+            motionScheme = MotionScheme.expressive()
+        )
     }
 }
 

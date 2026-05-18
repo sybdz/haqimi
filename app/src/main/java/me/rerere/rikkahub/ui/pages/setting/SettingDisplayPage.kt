@@ -31,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -48,46 +47,19 @@ import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberCommitOnFinishSliderState
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
-import me.rerere.rikkahub.ui.pages.setting.components.CustomThemeSection
 import me.rerere.rikkahub.ui.pages.setting.components.PresetThemeButtonGroup
-import me.rerere.rikkahub.ui.theme.findPresetTheme
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.ui.theme.LocalThemeTokenOverrides
-import me.rerere.rikkahub.ui.theme.themedRoundedShape
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.ui.graphics.Color
 import kotlin.math.roundToInt
 
 private const val MAX_CODE_BLOCK_RENDER_DEPTH = 100
-private val AmoledBackground = Color(0xFF000000)
 
 @Composable
 fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val displaySetting = settings.displaySetting
     var amoledDarkMode by rememberAmoledDarkMode()
-    val context = LocalContext.current
-
-    val defaultLightScheme = when {
-        settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicLightColorScheme(context)
-        else -> findPresetTheme(settings.themeId).getColorScheme(dark = false)
-    }
-    val defaultDarkScheme = when {
-        settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicDarkColorScheme(context)
-        else -> findPresetTheme(settings.themeId).getColorScheme(dark = true)
-    }.let { scheme ->
-        if (amoledDarkMode) {
-            scheme.copy(
-                background = AmoledBackground,
-                surface = AmoledBackground,
-            )
-        } else {
-            scheme
-        }
-    }
 
     fun updateDisplaySetting(setting: DisplaySetting) {
         vm.updateDisplaySetting(setting)
@@ -100,11 +72,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
             PermissionNotification
         ) else emptySet(),
     )
-    val themeTokens = LocalThemeTokenOverrides.current
-    val settingsPanelShape = themeTokens.themedRoundedShape(
-        tokenKey = "shapeLarge",
-        fallback = 20.dp,
-    )
+    val settingsPanelShape = RoundedCornerShape(20.dp)
     val settingsPanelInnerCorner = 12.dp
     PermissionManager(permissionState = permissionState)
 
@@ -204,18 +172,6 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         colors = CustomColors.listItemColors,
                     )
                 }
-            }
-
-            item {
-                CustomThemeSection(
-                    value = settings.customThemeSetting,
-                    defaultLightScheme = defaultLightScheme,
-                    defaultDarkScheme = defaultDarkScheme,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    onUpdate = { customThemeSetting ->
-                        vm.updateSettings(settings.copy(customThemeSetting = customThemeSetting))
-                    },
-                )
             }
 
             item(
