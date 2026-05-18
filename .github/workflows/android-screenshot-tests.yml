@@ -14,12 +14,14 @@ on:
       - "tts/**"
       - "web/**"
       - "web-ui/**"
+      - "material3/**"
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle.properties"
       - "gradle/**"
       - "gradlew"
       - "gradlew.bat"
+      - ".gitmodules"
       - ".github/workflows/android-screenshot-tests.yml"
   pull_request:
     paths:
@@ -32,12 +34,14 @@ on:
       - "tts/**"
       - "web/**"
       - "web-ui/**"
+      - "material3/**"
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle.properties"
       - "gradle/**"
       - "gradlew"
       - "gradlew.bat"
+      - ".gitmodules"
       - ".github/workflows/android-screenshot-tests.yml"
   workflow_dispatch:
 
@@ -54,6 +58,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Set up JDK
         uses: actions/setup-java@v5
