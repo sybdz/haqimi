@@ -1839,4 +1839,26 @@
   <string name="skills_page_skill_content_label">Содержимое SKILL.md</string>
   <string name="skills_page_skill_name">Название навыка: %s</string>
   <string name="skills_page_title">Навыки агента</string>
+
+  <string name="assistant_page_allow_conversation_prompt_injection">Промпт-инъекции для каждой беседы</string>
+  <string name="assistant_page_allow_conversation_prompt_injection_desc">Разрешить каждой беседе привязывать собственные промпт-инъекции и лорбуки</string>
+  <string name="setting_page_theme_setting_desc">Настроить цветовую схему приложения</string>
+  <string name="setting_theme_page_preset_themes">Предустановленные темы</string>
+  <string name="setting_theme_page_custom_themes">Пользовательские темы</string>
+  <string name="setting_theme_page_add_theme">Создать</string>
+  <string name="setting_theme_page_no_custom_themes">Пользовательских тем ещё нет</string>
+  <string name="setting_theme_page_create_theme">Создать тему</string>
+  <string name="setting_theme_page_edit_theme">Редактировать тему</string>
+  <string name="setting_theme_page_theme_name">Название темы</string>
+  <string name="setting_theme_page_primary_color">Основной цвет</string>
+  <string name="setting_theme_page_secondary_color">Вторичный цвет</string>
+  <string name="setting_theme_page_tertiary_color">Третичный цвет</string>
+  <string name="setting_theme_page_preview">Предпросмотр</string>
+  <string name="setting_theme_page_save">Сохранить</string>
+  <string name="setting_theme_page_dynamic_color_hint">Динамический цвет включён. Отключите его в настройках отображения для использования пользовательских тем.</string>
+  <string name="setting_theme_page_import_theme">Импорт</string>
+  <string name="setting_theme_page_export_success">JSON темы скопирован в буфер обмена</string>
+  <string name="setting_theme_page_import_success">Тема успешно импортирована</string>
+  <string name="setting_theme_page_delete_theme_title">Удалить тему</string>
+  <string name="setting_theme_page_delete_theme_message">Вы уверены, что хотите удалить эту тему?</string>
 </resources>

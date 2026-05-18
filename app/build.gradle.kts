@@ -39,8 +39,8 @@ android {
         applicationId = "me.rerere.rikkahub.ywxk"
         minSdk = 26
         targetSdk = 37
-        versionCode = 148
-        versionName = "1.0.0-pre.1"
+        versionCode = 160
+        versionName = "2.2.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -303,6 +303,7 @@ dependencies {
     implementation(project(":search"))
     implementation(project(":speech"))
     implementation(project(":common"))
+    implementation(project(":material3"))
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
     implementation(kotlin("reflect"))
     baselineProfile(project(":app:baselineprofile"))

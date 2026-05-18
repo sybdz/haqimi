@@ -1793,4 +1793,26 @@
   <string name="skills_page_skill_content_label">SKILL.md內容</string>
   <string name="skills_page_skill_name">技能名稱：%s</string>
   <string name="skills_page_title">代理人技能</string>
+
+  <string name="assistant_page_allow_conversation_prompt_injection">獨立對話提示詞注入</string>
+  <string name="assistant_page_allow_conversation_prompt_injection_desc">允許每個對話單獨綁定提示詞注入和世界書</string>
+  <string name="setting_page_theme_setting_desc">自訂應用配色方案</string>
+  <string name="setting_theme_page_preset_themes">預設主題</string>
+  <string name="setting_theme_page_custom_themes">自訂主題</string>
+  <string name="setting_theme_page_add_theme">新增</string>
+  <string name="setting_theme_page_no_custom_themes">尚無自訂主題</string>
+  <string name="setting_theme_page_create_theme">建立主題</string>
+  <string name="setting_theme_page_edit_theme">編輯主題</string>
+  <string name="setting_theme_page_theme_name">主題名稱</string>
+  <string name="setting_theme_page_primary_color">主色</string>
+  <string name="setting_theme_page_secondary_color">輔色</string>
+  <string name="setting_theme_page_tertiary_color">第三色</string>
+  <string name="setting_theme_page_preview">預覽</string>
+  <string name="setting_theme_page_save">儲存</string>
+  <string name="setting_theme_page_dynamic_color_hint">動態顏色已開啟，請在顯示設定中關閉以使用自訂主題。</string>
+  <string name="setting_theme_page_import_theme">匯入</string>
+  <string name="setting_theme_page_export_success">主題 JSON 已複製到剪貼簿</string>
+  <string name="setting_theme_page_import_success">主題匯入成功</string>
+  <string name="setting_theme_page_delete_theme_title">刪除主題</string>
+  <string name="setting_theme_page_delete_theme_message">確定要刪除此主題嗎？</string>
 </resources>

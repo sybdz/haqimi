@@ -28,6 +28,7 @@ class PromptInjectionTransformerTest {
         modeInjectionIds: Set<Uuid> = emptySet(),
         lorebookIds: Set<Uuid> = emptySet(),
         stCharacterData: SillyTavernCharacterData? = null,
+        allowConversationPromptInjection: Boolean = false,
     ) = Assistant(
         id = id,
         name = name,
@@ -35,6 +36,7 @@ class PromptInjectionTransformerTest {
         modeInjectionIds = modeInjectionIds,
         lorebookIds = lorebookIds,
         stCharacterData = stCharacterData,
+        allowConversationPromptInjection = allowConversationPromptInjection,
     )
 
     private fun createModeInjection(
@@ -261,6 +263,148 @@ class PromptInjectionTransformerTest {
 
         assertEquals(1, injections.size)
         assertEquals("Regex injected content", injections.single().content)
+    }
+
+    @Test
+    fun `conversation mode injection should apply only when assistant allows it`() {
+        val injectionId = Uuid.random()
+        val injection = createModeInjection(
+            id = injectionId,
+            content = "Conversation content"
+        )
+        val messages = listOf(
+            UIMessage.system("System prompt"),
+            UIMessage.user("Hello")
+        )
+
+        val disabledResult = transformMessages(
+            messages = messages,
+            assistant = createAssistant(allowConversationPromptInjection = false),
+            modeInjections = listOf(injection),
+            lorebooks = emptyList(),
+            conversationModeInjectionIds = setOf(injectionId)
+        )
+        val enabledResult = transformMessages(
+            messages = messages,
+            assistant = createAssistant(allowConversationPromptInjection = true),
+            modeInjections = listOf(injection),
+            lorebooks = emptyList(),
+            conversationModeInjectionIds = setOf(injectionId)
+        )
+
+        assertEquals(messages, disabledResult)
+        assertTrue(getMessageText(enabledResult.first()).contains("Conversation content"))
+    }
+
+    @Test
+    fun `assistant mode injection should be ignored when conversation injection is allowed`() {
+        val assistantInjectionId = Uuid.random()
+        val conversationInjectionId = Uuid.random()
+        val assistantInjection = createModeInjection(
+            id = assistantInjectionId,
+            content = "Assistant content"
+        )
+        val conversationInjection = createModeInjection(
+            id = conversationInjectionId,
+            content = "Conversation content"
+        )
+        val messages = listOf(
+            UIMessage.system("System prompt"),
+            UIMessage.user("Hello")
+        )
+
+        val result = transformMessages(
+            messages = messages,
+            assistant = createAssistant(
+                modeInjectionIds = setOf(assistantInjectionId),
+                allowConversationPromptInjection = true
+            ),
+            modeInjections = listOf(assistantInjection, conversationInjection),
+            lorebooks = emptyList(),
+            conversationModeInjectionIds = setOf(conversationInjectionId)
+        )
+        val systemText = getMessageText(result.first())
+
+        assertFalse(systemText.contains("Assistant content"))
+        assertTrue(systemText.contains("Conversation content"))
+    }
+
+    @Test
+    fun `conversation lorebook should apply only when assistant allows it`() {
+        val lorebookId = Uuid.random()
+        val entry = createRegexInjection(
+            keywords = listOf("Hello"),
+            content = "Conversation lorebook content"
+        )
+        val lorebook = createLorebook(
+            id = lorebookId,
+            entries = listOf(entry)
+        )
+        val messages = listOf(
+            UIMessage.system("System prompt"),
+            UIMessage.user("Hello")
+        )
+
+        val disabledResult = transformMessages(
+            messages = messages,
+            assistant = createAssistant(allowConversationPromptInjection = false),
+            modeInjections = emptyList(),
+            lorebooks = listOf(lorebook),
+            conversationLorebookIds = setOf(lorebookId)
+        )
+        val enabledResult = transformMessages(
+            messages = messages,
+            assistant = createAssistant(allowConversationPromptInjection = true),
+            modeInjections = emptyList(),
+            lorebooks = listOf(lorebook),
+            conversationLorebookIds = setOf(lorebookId)
+        )
+
+        assertEquals(messages, disabledResult)
+        assertTrue(getMessageText(enabledResult.first()).contains("Conversation lorebook content"))
+    }
+
+    @Test
+    fun `assistant lorebook should be ignored when conversation injection is allowed`() {
+        val assistantLorebookId = Uuid.random()
+        val conversationLorebookId = Uuid.random()
+        val assistantLorebook = createLorebook(
+            id = assistantLorebookId,
+            entries = listOf(
+                createRegexInjection(
+                    keywords = listOf("Hello"),
+                    content = "Assistant lorebook content"
+                )
+            )
+        )
+        val conversationLorebook = createLorebook(
+            id = conversationLorebookId,
+            entries = listOf(
+                createRegexInjection(
+                    keywords = listOf("Hello"),
+                    content = "Conversation lorebook content"
+                )
+            )
+        )
+        val messages = listOf(
+            UIMessage.system("System prompt"),
+            UIMessage.user("Hello")
+        )
+
+        val result = transformMessages(
+            messages = messages,
+            assistant = createAssistant(
+                lorebookIds = setOf(assistantLorebookId),
+                allowConversationPromptInjection = true
+            ),
+            modeInjections = emptyList(),
+            lorebooks = listOf(assistantLorebook, conversationLorebook),
+            conversationLorebookIds = setOf(conversationLorebookId)
+        )
+        val systemText = getMessageText(result.first())
+
+        assertFalse(systemText.contains("Assistant lorebook content"))
+        assertTrue(systemText.contains("Conversation lorebook content"))
     }
     // endregion
 

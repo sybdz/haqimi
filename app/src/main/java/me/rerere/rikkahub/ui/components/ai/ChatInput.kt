@@ -69,6 +69,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,9 +81,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -112,6 +115,7 @@ import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.asr.ASRStatus
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -145,13 +149,16 @@ import me.rerere.rikkahub.ui.components.ui.InjectionSelector
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
+import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.components.ui.luneGlassBorderColor
 import me.rerere.rikkahub.ui.components.ui.luneGlassContainerColor
+import me.rerere.rikkahub.utils.SoundEffectPlayer
 import org.koin.compose.koinInject
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
@@ -174,6 +181,7 @@ fun ChatInput(
     modifier: Modifier = Modifier,
     onUpdateChatModel: (Model) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateConversation: (Conversation) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     onCompressContext: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -> Job,
     onCancelClick: () -> Unit,
@@ -185,6 +193,37 @@ fun ChatInput(
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
     val hazeTintColor = luneGlassContainerColor()
+    val asr = LocalASRState.current
+    val asrState by asr.state.collectAsState()
+    val hapticFeedback = LocalHapticFeedback.current
+    val soundEffectPlayer: SoundEffectPlayer = koinInject()
+
+    LaunchedEffect(Unit) {
+        soundEffectPlayer.preload(R.raw.asr_start, R.raw.asr_stop)
+    }
+    val asrPermission = rememberPermissionState(PermissionRecordAudio)
+    PermissionManager(permissionState = asrPermission)
+    var asrBaseText by remember { mutableStateOf("") }
+    LaunchedEffect(asrState.status) {
+        when (asrState.status) {
+            ASRStatus.Listening -> {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                soundEffectPlayer.play(R.raw.asr_start)
+            }
+
+            ASRStatus.Stopping -> {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                soundEffectPlayer.play(R.raw.asr_stop)
+            }
+
+            else -> Unit
+        }
+    }
+    LaunchedEffect(asrState.errorMessage) {
+        asrState.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
+            toaster.show(message = message, type = ToastType.Error)
+        }
+    }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -326,6 +365,31 @@ fun ChatInput(
                             Icon(
                                 if (showControls) HugeIcons.Cancel01 else HugeIcons.Add01,
                                 stringResource(R.string.more_options)
+                            )
+                        }
+
+                        if (asrState.isAvailable || asrState.isRecording) {
+                            AsrButton(
+                                state = asrState,
+                                onClick = {
+                                    when (asrState.status) {
+                                        ASRStatus.Listening -> asr.stop()
+                                        ASRStatus.Idle, ASRStatus.Error -> {
+                                            if (!asrPermission.allRequiredPermissionsGranted) {
+                                                asrPermission.requestPermissions()
+                                            } else {
+                                                asrBaseText = state.textContent.text.toString()
+                                                asr.start { transcript ->
+                                                    val spacer =
+                                                        if (asrBaseText.isBlank() || transcript.isBlank()) "" else " "
+                                                    state.setMessageText(asrBaseText + spacer + transcript)
+                                                }
+                                            }
+                                        }
+
+                                        ASRStatus.Connecting, ASRStatus.Stopping -> Unit
+                                    }
+                                }
                             )
                         }
 
@@ -514,6 +578,7 @@ fun ChatInput(
                     assistant = assistant,
                     onCompressContext = onCompressContext,
                     onUpdateAssistant = onUpdateAssistant,
+                    onUpdateConversation = onUpdateConversation,
                     showInjectionSheet = showInjectionSheet,
                     onShowInjectionSheetChange = { showInjectionSheet = it },
                     showCompressDialog = showCompressDialog,
@@ -916,6 +981,7 @@ private fun FilesPicker(
     state: ChatInputState,
     onCompressContext: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -> Job,
     onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateConversation: (Conversation) -> Unit,
     showInjectionSheet: Boolean,
     onShowInjectionSheetChange: (Boolean) -> Unit,
     showCompressDialog: Boolean,
@@ -980,7 +1046,11 @@ private fun FilesPicker(
 
         // Prompt Injections
         if (settings.modeInjections.isNotEmpty() || settings.lorebooks.isNotEmpty()) {
-            val activeCount = assistant.modeInjectionIds.size + assistant.lorebookIds.size
+            val activeCount = if (assistant.allowConversationPromptInjection) {
+                conversation.modeInjectionIds.size + conversation.lorebookIds.size
+            } else {
+                assistant.modeInjectionIds.size + assistant.lorebookIds.size
+            }
             ListItem(
                 leadingContent = {
                     Icon(
@@ -1087,9 +1157,11 @@ private fun FilesPicker(
     // Injection Bottom Sheet
     if (showInjectionSheet) {
         InjectionQuickConfigSheet(
+            conversation = conversation,
             assistant = assistant,
             settings = settings,
             onUpdateAssistant = onUpdateAssistant,
+            onUpdateConversation = onUpdateConversation,
             onDismiss = { onShowInjectionSheetChange(false) }
         )
     }
@@ -1557,9 +1629,11 @@ private fun BigIconTextButton(
 
 @Composable
 private fun InjectionQuickConfigSheet(
+    conversation: Conversation,
     assistant: Assistant,
     settings: Settings,
     onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateConversation: (Conversation) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1580,6 +1654,8 @@ private fun InjectionQuickConfigSheet(
                 assistant = assistant,
                 settings = settings,
                 onUpdate = onUpdateAssistant,
+                conversation = conversation,
+                onUpdateConversation = onUpdateConversation,
                 modifier = Modifier.weight(1f),
                 onNavigateToPrompts = {
                     scope.launch {

@@ -55,6 +55,7 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
 import kotlin.time.Clock
+import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
 
@@ -120,6 +121,8 @@ class GenerationHandler(
         lorebookRuntimeState: LorebookRuntimeState? = null,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         conversationSystemPrompt: String? = null,
+        conversationModeInjectionIds: Set<Uuid> = emptySet(),
+        conversationLorebookIds: Set<Uuid> = emptySet(),
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -206,6 +209,8 @@ class GenerationHandler(
                     lorebookRuntimeState = lorebookRuntimeState,
                     processingStatus = processingStatus,
                     conversationSystemPrompt = conversationSystemPrompt,
+                    conversationModeInjectionIds = conversationModeInjectionIds,
+                    conversationLorebookIds = conversationLorebookIds,
                 )
                 messages = messages.onGenerationFinish(
                     transformers = outputTransformers,
@@ -414,6 +419,8 @@ class GenerationHandler(
         lorebookRuntimeState: LorebookRuntimeState?,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         conversationSystemPrompt: String? = null,
+        conversationModeInjectionIds: Set<Uuid> = emptySet(),
+        conversationLorebookIds: Set<Uuid> = emptySet(),
     ) {
         val internalMessages = prepareInternalMessages(
             assistant = assistant,
@@ -426,6 +433,8 @@ class GenerationHandler(
             stGenerationType = stGenerationType,
             stMacroState = stMacroState,
             lorebookRuntimeState = lorebookRuntimeState,
+            conversationModeInjectionIds = conversationModeInjectionIds,
+            conversationLorebookIds = conversationLorebookIds,
             processingStatus = processingStatus,
             conversationSystemPrompt = conversationSystemPrompt,
         )
@@ -529,6 +538,8 @@ class GenerationHandler(
         dryRun: Boolean = false,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         conversationSystemPrompt: String? = null,
+        conversationModeInjectionIds: Set<Uuid> = emptySet(),
+        conversationLorebookIds: Set<Uuid> = emptySet(),
     ): List<UIMessage> {
         val preparedMessages = messages.prepareMessagesForGeneration(
             contextMessageSize = assistant.contextMessageSize,
@@ -582,6 +593,8 @@ class GenerationHandler(
             stMacroState = stMacroState,
             lorebookRuntimeState = lorebookRuntimeState,
             dryRun = dryRun,
+            conversationModeInjectionIds = conversationModeInjectionIds,
+            conversationLorebookIds = conversationLorebookIds,
             processingStatus = processingStatus,
         )
     }

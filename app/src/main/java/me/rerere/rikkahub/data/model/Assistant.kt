@@ -74,6 +74,7 @@ data class Assistant(
     val reasoningSummary: String = "",
     val openAIVerbosity: String = "",
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt
+    val allowConversationPromptInjection: Boolean = false, // 允许对话单独绑定提示词注入
     val stCharacterData: SillyTavernCharacterData? = null,
 )
 

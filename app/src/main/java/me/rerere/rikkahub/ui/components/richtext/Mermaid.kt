@@ -6,7 +6,6 @@ import android.webkit.JavascriptInterface
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -138,7 +137,7 @@ fun Mermaid(
     )
 
     var preview by remember { mutableStateOf(false) }
-    Box(
+    Column(
         modifier = modifier
     ) {
         WebView(
@@ -152,12 +151,11 @@ fun Mermaid(
             }
         )
 
-        // 导出图片按钮
         if (activity != null) {
             Row(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp),
+                    .align(Alignment.End)
+                    .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 IconButton(

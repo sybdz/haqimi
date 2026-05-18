@@ -118,6 +118,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingSearchDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingScheduledTaskPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSpeechPage
+import me.rerere.rikkahub.ui.pages.setting.SettingThemePage
 import me.rerere.rikkahub.ui.pages.setting.SettingTermuxPage
 import me.rerere.rikkahub.ui.pages.setting.SettingWebPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
@@ -538,6 +539,10 @@ class RouteActivity : ComponentActivity() {
                                 WebViewPage(key.url, key.content)
                             }
 
+                            entry<Screen.SettingTheme> {
+                                SettingThemePage()
+                            }
+
                             entry<Screen.SettingDisplay> {
                                 SettingDisplayPage()
                             }
@@ -770,6 +775,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data class WebView(val url: String = "", val content: String = "") : Screen
+
+    @Serializable
+    data object SettingTheme : Screen
 
     @Serializable
     data object SettingDisplay : Screen

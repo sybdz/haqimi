@@ -623,6 +623,10 @@ private fun ChatPageContent(
                                 )
                             )
                         },
+                        onUpdateConversation = {
+                            vm.updateConversation(it)
+                            vm.saveConversationAsync()
+                        },
                         onUpdateSearchService = { index ->
                             vm.updateSettings(
                                 setting.copy(

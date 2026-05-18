@@ -39,7 +39,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 private val CardGroupCorner = 24.dp
 private val CardGroupInnerCorner = 10.dp
 
-data class CardGroupItem(
+private data class CardGroupItem(
     val onClick: (() -> Unit)?,
     val modifier: Modifier,
     val overlineContent: (@Composable () -> Unit)?,
@@ -50,9 +50,11 @@ data class CardGroupItem(
     val colors: ListItemColors?,
 )
 
-class CardGroupScope {
-    internal val items = mutableListOf<CardGroupItem>()
+@DslMarker
+private annotation class CardGroupDsl
 
+@CardGroupDsl
+interface CardGroupScope {
     fun item(
         onClick: (() -> Unit)? = null,
         modifier: Modifier = Modifier,
@@ -61,6 +63,21 @@ class CardGroupScope {
         leadingContent: (@Composable () -> Unit)? = null,
         trailingContent: (@Composable () -> Unit)? = null,
         colors: ListItemColors? = null,
+        headlineContent: @Composable () -> Unit,
+    )
+}
+
+private class CardGroupScopeImpl : CardGroupScope {
+    val items = mutableListOf<CardGroupItem>()
+
+    override fun item(
+        onClick: (() -> Unit)?,
+        modifier: Modifier,
+        overlineContent: (@Composable () -> Unit)?,
+        supportingContent: (@Composable () -> Unit)?,
+        leadingContent: (@Composable () -> Unit)?,
+        trailingContent: (@Composable () -> Unit)?,
+        colors: ListItemColors?,
         headlineContent: @Composable () -> Unit,
     ) {
         items.add(
@@ -132,9 +149,9 @@ private fun CardGroupListItem(
 fun CardGroup(
     modifier: Modifier = Modifier,
     title: (@Composable () -> Unit)? = null,
-    content: @Composable CardGroupScope.() -> Unit,
+    content: CardGroupScope.() -> Unit,
 ) {
-    val scope = CardGroupScope()
+    val scope = CardGroupScopeImpl()
     scope.content()
 
     Column(modifier = modifier) {

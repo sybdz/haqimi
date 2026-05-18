@@ -31,6 +31,7 @@ import me.rerere.hugeicons.stroke.Link01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -41,6 +42,8 @@ fun InjectionSelector(
     assistant: Assistant,
     settings: Settings,
     onUpdate: (Assistant) -> Unit,
+    conversation: Conversation? = null,
+    onUpdateConversation: ((Conversation) -> Unit)? = null,
     onNavigateToPrompts: () -> Unit = {},
 ) {
     if (settings.modeInjections.isEmpty() && settings.lorebooks.isEmpty()) {
@@ -53,6 +56,18 @@ fun InjectionSelector(
 
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
+    val useConversationInjections =
+        assistant.allowConversationPromptInjection && conversation != null && onUpdateConversation != null
+    val selectedModeInjectionIds = if (useConversationInjections) {
+        conversation.modeInjectionIds
+    } else {
+        assistant.modeInjectionIds
+    }
+    val selectedLorebookIds = if (useConversationInjections) {
+        conversation.lorebookIds
+    } else {
+        assistant.lorebookIds
+    }
 
     Column(
         modifier = modifier
@@ -105,14 +120,18 @@ fun InjectionSelector(
                     if (settings.modeInjections.isNotEmpty()) {
                         ModeInjectionsSection(
                             modeInjections = settings.modeInjections,
-                            selectedIds = assistant.modeInjectionIds,
+                            selectedIds = selectedModeInjectionIds,
                             onToggle = { id, checked ->
                                 val newIds = if (checked) {
-                                    assistant.modeInjectionIds + id
+                                    selectedModeInjectionIds + id
                                 } else {
-                                    assistant.modeInjectionIds - id
+                                    selectedModeInjectionIds - id
                                 }
-                                onUpdate(assistant.copy(modeInjectionIds = newIds))
+                                if (useConversationInjections) {
+                                    onUpdateConversation(conversation.copy(modeInjectionIds = newIds))
+                                } else {
+                                    onUpdate(assistant.copy(modeInjectionIds = newIds))
+                                }
                             },
                         )
                     } else {
@@ -124,14 +143,18 @@ fun InjectionSelector(
                     if (settings.lorebooks.isNotEmpty()) {
                         LorebooksSection(
                             lorebooks = settings.lorebooks,
-                            selectedIds = assistant.lorebookIds,
+                            selectedIds = selectedLorebookIds,
                             onToggle = { id, checked ->
                                 val newIds = if (checked) {
-                                    assistant.lorebookIds + id
+                                    selectedLorebookIds + id
                                 } else {
-                                    assistant.lorebookIds - id
+                                    selectedLorebookIds - id
                                 }
-                                onUpdate(assistant.copy(lorebookIds = newIds))
+                                if (useConversationInjections) {
+                                    onUpdateConversation(conversation.copy(lorebookIds = newIds))
+                                } else {
+                                    onUpdate(assistant.copy(lorebookIds = newIds))
+                                }
                             },
                         )
                     } else {

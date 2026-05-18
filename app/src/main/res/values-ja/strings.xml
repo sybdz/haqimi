@@ -1839,4 +1839,26 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="skills_page_skill_content_label">SKILL.mdコンテンツ</string>
   <string name="skills_page_skill_name">スキル名: %s</string>
   <string name="skills_page_title">エージェントスキル</string>
+
+  <string name="assistant_page_allow_conversation_prompt_injection">会話別プロンプトインジェクション</string>
+  <string name="assistant_page_allow_conversation_prompt_injection_desc">会話ごとにプロンプトインジェクションとロアブックを個別にバインド可能にする</string>
+  <string name="setting_page_theme_setting_desc">アプリの配色をカスタマイズ</string>
+  <string name="setting_theme_page_preset_themes">プリセットテーマ</string>
+  <string name="setting_theme_page_custom_themes">カスタムテーマ</string>
+  <string name="setting_theme_page_add_theme">新規</string>
+  <string name="setting_theme_page_no_custom_themes">カスタムテーマはまだありません</string>
+  <string name="setting_theme_page_create_theme">テーマを作成</string>
+  <string name="setting_theme_page_edit_theme">テーマを編集</string>
+  <string name="setting_theme_page_theme_name">テーマ名</string>
+  <string name="setting_theme_page_primary_color">プライマリカラー</string>
+  <string name="setting_theme_page_secondary_color">セカンダリカラー</string>
+  <string name="setting_theme_page_tertiary_color">ターシャリカラー</string>
+  <string name="setting_theme_page_preview">プレビュー</string>
+  <string name="setting_theme_page_save">保存</string>
+  <string name="setting_theme_page_dynamic_color_hint">ダイナミックカラーが有効です。カスタムテーマを使用するには、表示設定で無効にしてください。</string>
+  <string name="setting_theme_page_import_theme">インポート</string>
+  <string name="setting_theme_page_export_success">テーマJSONがクリップボードにコピーされました</string>
+  <string name="setting_theme_page_import_success">テーマが正常にインポートされました</string>
+  <string name="setting_theme_page_delete_theme_title">テーマを削除</string>
+  <string name="setting_theme_page_delete_theme_message">このテーマを削除してもよろしいですか？</string>
 </resources>

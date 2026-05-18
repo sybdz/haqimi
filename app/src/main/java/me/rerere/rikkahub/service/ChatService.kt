@@ -1440,6 +1440,8 @@ class ChatService(
                 lorebookRuntimeState = session.getLorebookRuntimeState(),
                 processingStatus = session.processingStatus,
                 conversationSystemPrompt = effectiveConversation.customSystemPrompt,
+                conversationModeInjectionIds = effectiveConversation.modeInjectionIds,
+                conversationLorebookIds = effectiveConversation.lorebookIds,
                 inputTransformers = buildList {
                     addAll(inputTransformers)
                     add(RegexPromptOnlyTransformer)
@@ -2195,6 +2197,8 @@ class ChatService(
             messageNodes = copiedNodes,
             stLocalVariables = currentConversation.stLocalVariables,
             customSystemPrompt = currentConversation.customSystemPrompt,
+            modeInjectionIds = currentConversation.modeInjectionIds,
+            lorebookIds = currentConversation.lorebookIds,
         )
 
         saveConversation(forkConversation.id, forkConversation)

@@ -8,6 +8,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.activeStPresetTemplate
+import kotlin.uuid.Uuid
 
 class TransformerContext(
     val context: Context,
@@ -18,6 +19,8 @@ class TransformerContext(
     val stMacroState: StMacroState? = null,
     val lorebookRuntimeState: LorebookRuntimeState? = null,
     val dryRun: Boolean = false,
+    val conversationModeInjectionIds: Set<Uuid> = emptySet(),
+    val conversationLorebookIds: Set<Uuid> = emptySet(),
     val processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
 )
 
@@ -73,6 +76,8 @@ suspend fun List<UIMessage>.transforms(
     stMacroState: StMacroState? = null,
     lorebookRuntimeState: LorebookRuntimeState? = null,
     dryRun: Boolean = false,
+    conversationModeInjectionIds: Set<Uuid> = emptySet(),
+    conversationLorebookIds: Set<Uuid> = emptySet(),
     processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
 ): List<UIMessage> {
     val ctx = TransformerContext(
@@ -84,6 +89,8 @@ suspend fun List<UIMessage>.transforms(
         stMacroState = stMacroState,
         lorebookRuntimeState = lorebookRuntimeState,
         dryRun = dryRun,
+        conversationModeInjectionIds = conversationModeInjectionIds,
+        conversationLorebookIds = conversationLorebookIds,
         processingStatus = processingStatus,
     )
     val transformedMessages = transformers.fold(this) { acc, transformer ->

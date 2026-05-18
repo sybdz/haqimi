@@ -12,6 +12,7 @@ import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.activeStPresetTemplate
 import me.rerere.rikkahub.data.model.effectiveUserPersona
 import me.rerere.rikkahub.data.model.normalizedForSystemPromptSupplement
+import kotlin.uuid.Uuid
 
 internal const val DEFAULT_ST_AUTHOR_NOTE_DEPTH = 4
 
@@ -35,6 +36,8 @@ object PromptInjectionTransformer : InputMessageTransformer {
             stPromptTemplateActive = ctx.settings.stPresetEnabled && ctx.settings.activeStPresetTemplate() != null,
             generationType = ctx.stGenerationType,
             runtimeState = ctx.lorebookRuntimeState,
+            conversationModeInjectionIds = ctx.conversationModeInjectionIds,
+            conversationLorebookIds = ctx.conversationLorebookIds,
         )
     }
 }
@@ -52,6 +55,8 @@ internal fun transformMessages(
     stPromptTemplateActive: Boolean = false,
     generationType: String = "normal",
     runtimeState: LorebookRuntimeState? = null,
+    conversationModeInjectionIds: Set<Uuid> = emptySet(),
+    conversationLorebookIds: Set<Uuid> = emptySet(),
 ): List<UIMessage> {
     // 收集所有需要注入的内容
     val injections = collectInjections(
@@ -64,6 +69,8 @@ internal fun transformMessages(
         stPromptTemplateActive = stPromptTemplateActive,
         generationType = generationType,
         runtimeState = runtimeState,
+        conversationModeInjectionIds = conversationModeInjectionIds,
+        conversationLorebookIds = conversationLorebookIds,
     )
 
     if (injections.isEmpty()) {
@@ -92,13 +99,23 @@ internal fun collectInjections(
     stPromptTemplateActive: Boolean = false,
     generationType: String = "normal",
     runtimeState: LorebookRuntimeState? = null,
+    conversationModeInjectionIds: Set<Uuid> = emptySet(),
+    conversationLorebookIds: Set<Uuid> = emptySet(),
 ): List<PromptInjection> {
     val injections = mutableListOf<PromptInjection>()
-    val characterData = assistant.stCharacterData
+    val effectiveAssistant = if (assistant.allowConversationPromptInjection) {
+        assistant.copy(
+            modeInjectionIds = conversationModeInjectionIds,
+            lorebookIds = conversationLorebookIds,
+        )
+    } else {
+        assistant
+    }
+    val characterData = effectiveAssistant.stCharacterData
 
     // 1. 获取关联的 ModeInjection
     modeInjections
-        .filter { it.enabled && assistant.modeInjectionIds.contains(it.id) }
+        .filter { it.enabled && effectiveAssistant.modeInjectionIds.contains(it.id) }
         .map { it.normalizedForSystemPromptSupplement() }
         .forEach { injections.add(it) }
 
@@ -106,7 +123,7 @@ internal fun collectInjections(
     if (lorebooks.any { it.enabled } && !stPromptTemplateActive) {
         injections += collectTriggeredLorebookEntries(
             historyMessages = messages,
-            assistant = assistant,
+            assistant = effectiveAssistant,
             lorebooks = lorebooks,
             triggerContext = LorebookTriggerContext(
                 characterDescription = characterData?.description.orEmpty(),

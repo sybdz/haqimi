@@ -319,6 +319,8 @@ class ConversationRepository(
             chatSuggestions = JsonInstant.encodeToString(conversation.chatSuggestions),
             isPinned = conversation.isPinned,
             customSystemPrompt = conversation.customSystemPrompt ?: "",
+            modeInjectionIds = JsonInstant.encodeToString(conversation.modeInjectionIds),
+            lorebookIds = JsonInstant.encodeToString(conversation.lorebookIds),
         )
     }
 
@@ -337,6 +339,8 @@ class ConversationRepository(
             chatSuggestions = JsonInstant.decodeFromString(conversationEntity.chatSuggestions),
             isPinned = conversationEntity.isPinned,
             customSystemPrompt = conversationEntity.customSystemPrompt.ifEmpty { null },
+            modeInjectionIds = JsonInstant.decodeFromString(conversationEntity.modeInjectionIds),
+            lorebookIds = JsonInstant.decodeFromString(conversationEntity.lorebookIds),
         )
     }
 
