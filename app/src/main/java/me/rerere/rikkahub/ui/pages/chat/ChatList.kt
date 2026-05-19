@@ -108,7 +108,6 @@ import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.termux.TermuxUserShellCommandCodec
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
@@ -278,7 +277,7 @@ private fun ChatListNormal(
     val assistant = remember(settings.assistants, conversation.assistantId) {
         settings.getAssistantById(conversation.assistantId)
     }
-    val modelsById = remember(settings.providers) {
+    val modelById = remember(settings.providers) {
         buildMap {
             settings.providers.forEach { provider ->
                 provider.models.forEach { model ->
@@ -287,6 +286,7 @@ private fun ChatListNormal(
             }
         }
     }
+    val lastMessageIndex = conversation.messageNodes.lastIndex
     DisposableEffect(
         activity,
         state,
@@ -433,9 +433,9 @@ private fun ChatListNormal(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .widthIn(max = 760.dp),
-                            model = node.currentMessage.modelId?.let(modelsById::get),
+                            model = node.currentMessage.modelId?.let(modelById::get),
                             assistant = assistant,
-                            loading = loading && index == conversation.messageNodes.lastIndex,
+                            loading = loading && index == lastMessageIndex,
                             onRegenerate = {
                                 onRegenerate(node.currentMessage)
                             },

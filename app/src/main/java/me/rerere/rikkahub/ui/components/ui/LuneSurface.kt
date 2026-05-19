@@ -16,8 +16,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.blur.blurEffect
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.materials.HazeMaterials
 import me.rerere.rikkahub.ui.theme.LocalAmoledDarkMode
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import kotlin.math.min
@@ -145,18 +146,21 @@ fun LuneTopBarSurface(
     border: BorderStroke? = BorderStroke(1.dp, luneGlassBorderColor()),
     content: @Composable () -> Unit,
 ) {
+    val containerColor = luneGlassContainerColor()
+    val hazeStyle = HazeMaterials.thin(containerColor = containerColor)
     val hazeModifier = if (hazeState != null) {
-        Modifier.hazeEffect(
-            state = hazeState,
-            style = HazeMaterials.thin(containerColor = luneGlassContainerColor()),
-        )
+        Modifier.hazeEffect(state = hazeState) {
+            blurEffect {
+                style = hazeStyle
+            }
+        }
     } else {
         Modifier
     }
     Surface(
         modifier = modifier.then(hazeModifier),
         shape = RoundedCornerShape(24.dp),
-        color = luneGlassContainerColor(),
+        color = containerColor,
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = border,
         tonalElevation = 0.dp,

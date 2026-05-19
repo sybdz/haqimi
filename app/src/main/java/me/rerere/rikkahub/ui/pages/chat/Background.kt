@@ -18,13 +18,13 @@ import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.ui.components.ui.LuneBackdrop
 
 @Composable
-fun AssistantBackground(setting: Settings) {
+fun AssistantBackground(setting: Settings, modifier: Modifier = Modifier) {
     val assistant = setting.getCurrentAssistant()
     val backgroundColor = MaterialTheme.colorScheme.background
     val backgroundOpacity = assistant.backgroundOpacity.coerceIn(0f, 1f)
     val backgroundBlur = assistant.backgroundBlur.coerceIn(0f, 40f)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         LuneBackdrop(modifier = Modifier.fillMaxSize())
 
         if (assistant.background != null) {

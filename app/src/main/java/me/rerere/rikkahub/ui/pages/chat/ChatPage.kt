@@ -72,9 +72,11 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.dokar.sonner.ToastType
-import dev.chrisbanes.haze.rememberHazeState
+import dev.chrisbanes.haze.blur.blurEffect
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -525,7 +527,7 @@ private fun ChatPageContent(
         color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize()
     ) {
-        AssistantBackground(setting = setting)
+        AssistantBackground(setting = setting, modifier = Modifier.hazeSource(hazeState))
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 topBar = {
@@ -733,6 +735,9 @@ private fun ChatPageContent(
                 enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
             ) {
+                val collapsedTopBarContainerColor = luneGlassContainerColor()
+                val collapsedTopBarBorderColor = luneGlassBorderColor()
+                val collapsedTopBarHazeStyle = HazeMaterials.thin(containerColor = collapsedTopBarContainerColor)
                 Surface(
                     onClick = {
                         topBarVisible = true
@@ -741,10 +746,11 @@ private fun ChatPageContent(
                         .size(width = 56.dp, height = 24.dp)
                         .then(
                             if (activeHazeState != null) {
-                                Modifier.hazeEffect(
-                                    state = activeHazeState,
-                                    style = HazeMaterials.thin(containerColor = luneGlassContainerColor())
-                                )
+                                Modifier.hazeEffect(state = activeHazeState) {
+                                    blurEffect {
+                                        style = collapsedTopBarHazeStyle
+                                    }
+                                }
                             } else {
                                 Modifier
                             }
@@ -755,10 +761,10 @@ private fun ChatPageContent(
                         bottomStart = 16.dp,
                         bottomEnd = 16.dp,
                     ),
-                    color = if (activeHazeState != null) Color.Transparent else luneGlassContainerColor(),
+                    color = if (activeHazeState != null) Color.Transparent else collapsedTopBarContainerColor,
                     border = androidx.compose.foundation.BorderStroke(
                         width = 1.dp,
-                        color = luneGlassBorderColor()
+                        color = collapsedTopBarBorderColor
                     ),
                 ) {
                     Box(
