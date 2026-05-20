@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.files.FileFolders
+import me.rerere.rikkahub.data.files.SkillPaths
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
@@ -155,6 +156,30 @@ class S3Sync(
                     Log.w(TAG, "prepareBackupFile: Upload folder does not exist or is not a directory")
                 }
 
+                val skillsFolder = File(context.filesDir, FileFolders.SKILLS)
+                if (skillsFolder.exists() && skillsFolder.isDirectory) {
+                    Log.i(TAG, "prepareBackupFile: Backing up skills from ${skillsFolder.absolutePath}")
+                    addDirectoryToZip(
+                        zipOut = zipOut,
+                        rootDir = skillsFolder,
+                        currentDir = skillsFolder,
+                        entryPrefix = "${FileFolders.SKILLS}/"
+                    )
+                } else {
+                    Log.w(TAG, "prepareBackupFile: Skills folder does not exist or is not a directory")
+                }
+
+                val fontsFolder = File(context.filesDir, FileFolders.FONTS)
+                if (fontsFolder.exists() && fontsFolder.isDirectory) {
+                    Log.i(TAG, "prepareBackupFile: Backing up fonts from ${fontsFolder.absolutePath}")
+                    fontsFolder.listFiles()?.forEach { file ->
+                        if (file.isFile) {
+                            addFileToZip(zipOut, file, "${FileFolders.FONTS}/${file.name}")
+                        }
+                    }
+                } else {
+                    Log.w(TAG, "prepareBackupFile: Fonts folder does not exist or is not a directory")
+                }
             }
         }
 
@@ -254,6 +279,25 @@ class S3Sync(
                                         throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
                                     }
                                 }
+                            } else if (config.items.contains(S3Config.BackupItem.FILES) &&
+                                zipEntry.name.startsWith("${FileFolders.SKILLS}/")
+                            ) {
+                                restoreSkillEntry(zipIn, zipEntry.name)
+                            } else if (config.items.contains(S3Config.BackupItem.FILES) &&
+                                zipEntry.name.startsWith("${FileFolders.FONTS}/")
+                            ) {
+                                val fileName = zipEntry.name.substringAfter("${FileFolders.FONTS}/")
+                                if (fileName.isNotEmpty() && !fileName.contains('/')) {
+                                    val fontsFolder = File(context.filesDir, FileFolders.FONTS).apply { mkdirs() }
+                                    val targetFile = File(fontsFolder, fileName)
+                                    FileOutputStream(targetFile).use { outputStream ->
+                                        zipIn.copyTo(outputStream)
+                                    }
+                                    Log.i(
+                                        TAG,
+                                        "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
+                                    )
+                                }
                             } else {
                                 Log.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
                             }
@@ -296,6 +340,36 @@ class S3Sync(
                 val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
                 addFileToZip(zipOut, file, "$entryPrefix$relativePath")
             }
+        }
+    }
+
+    private fun restoreSkillEntry(zipIn: ZipInputStream, entryName: String) {
+        val relativePath = entryName.substringAfter("${FileFolders.SKILLS}/")
+        val skillName = relativePath.substringBefore('/', missingDelimiterValue = "")
+        val skillRelativePath = relativePath.substringAfter('/', missingDelimiterValue = "")
+
+        if (skillName.isBlank() || skillRelativePath.isBlank()) {
+            Log.w(TAG, "restoreFromBackupFile: Invalid skill entry $entryName")
+            return
+        }
+
+        val skillsRoot = File(context.filesDir, FileFolders.SKILLS).apply { mkdirs() }
+        val skillDir = SkillPaths.resolveSkillDir(skillsRoot, skillName)
+            ?: throw Exception("Invalid skill directory: $entryName")
+        val targetFile = SkillPaths.resolveSkillFile(skillDir, skillRelativePath)
+            ?: throw Exception("Invalid skill file path: $entryName")
+
+        skillDir.mkdirs()
+        targetFile.parentFile?.mkdirs()
+
+        try {
+            FileOutputStream(targetFile).use { outputStream ->
+                zipIn.copyTo(outputStream)
+            }
+            Log.i(TAG, "restoreFromBackupFile: Restored skill file $entryName (${targetFile.length()} bytes)")
+        } catch (e: Exception) {
+            Log.e(TAG, "restoreFromBackupFile: Failed to restore skill file $entryName", e)
+            throw Exception("Failed to restore skill file $entryName: ${e.message}")
         }
     }
 

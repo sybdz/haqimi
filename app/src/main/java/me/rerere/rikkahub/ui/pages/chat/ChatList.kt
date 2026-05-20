@@ -120,6 +120,7 @@ import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.luneGlassBorderColor
 import me.rerere.rikkahub.ui.components.ui.luneGlassContainerColor
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
+import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.ui.theme.preferredContentColor
 import me.rerere.rikkahub.utils.plus
 import kotlin.math.roundToInt
@@ -375,29 +376,30 @@ private fun ChatListNormal(
             }
         }
 
-        LazyColumn(
-            state = state,
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                top = 12.dp + innerPadding.calculateTopPadding(),
-                end = 16.dp,
-                bottom = 18.dp + innerPadding.calculateBottomPadding(),
-            ),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxSize()
-                .chatFadingEdges(
-                    topEdgeHeight = topFadeHeight,
-                    bottomEdgeHeight = bottomFadeHeight,
-                )
-                .then(
-                    if (enableGlassBlur) {
-                        Modifier.hazeSource(state = hazeState)
-                    } else {
-                        Modifier
-                    }
-                )
-        ) {
+        ChatFontProvider(displaySetting = settings.displaySetting) {
+            LazyColumn(
+                state = state,
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    top = 12.dp + innerPadding.calculateTopPadding(),
+                    end = 16.dp,
+                    bottom = 18.dp + innerPadding.calculateBottomPadding(),
+                ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .chatFadingEdges(
+                        topEdgeHeight = topFadeHeight,
+                        bottomEdgeHeight = bottomFadeHeight,
+                    )
+                    .then(
+                        if (enableGlassBlur) {
+                            Modifier.hazeSource(state = hazeState)
+                        } else {
+                            Modifier
+                        }
+                    )
+            ) {
             itemsIndexed(
                 items = conversation.messageNodes,
                 key = { index, item -> item.id },
@@ -518,6 +520,7 @@ private fun ChatListNormal(
                         .fillMaxWidth()
                         .height(5.dp)
                 )
+            }
             }
         }
 

@@ -1,6 +1,11 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.content.Context
+import android.graphics.Typeface
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,49 +18,61 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dokar.sonner.ToastType
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.Delete02
+import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.files.FileFolders
+import me.rerere.rikkahub.data.files.FileUtils
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberCommitOnFinishSliderState
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import java.io.File
 import kotlin.math.roundToInt
 
 private const val MAX_CODE_BLOCK_RENDER_DEPTH = 100
@@ -65,9 +82,39 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val displaySetting = settings.displaySetting
     var amoledDarkMode by rememberAmoledDarkMode()
+    val context = LocalContext.current
+    val toaster = LocalToaster.current
+    val scope = rememberCoroutineScope()
+    val chatFontFamily = rememberChatFontFamily(displaySetting)
 
     fun updateDisplaySetting(setting: DisplaySetting) {
         vm.updateDisplaySetting(setting)
+    }
+
+    val importSuccessMsg = stringResource(R.string.setting_display_page_custom_font_import_success)
+    val importFailedMsg = stringResource(R.string.setting_display_page_custom_font_import_failed)
+    val fontPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    importCustomChatFont(context, uri)
+                }
+            }.onSuccess { importedFont ->
+                updateDisplaySetting(
+                    displaySetting.copy(
+                        chatFontFamily = ChatFontFamily.CUSTOM,
+                        chatCustomFontPath = importedFont.relativePath,
+                        chatCustomFontName = importedFont.displayName,
+                    )
+                )
+                toaster.show(importSuccessMsg, type = ToastType.Success)
+            }.onFailure { error ->
+                toaster.show(importFailedMsg.format(error.message.orEmpty()), type = ToastType.Error)
+            }
+        }
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -375,11 +422,6 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             },
                         )
                     }
-                    val chatFontFamilyOptions = listOf(
-                        ChatFontFamily.DEFAULT to stringResource(R.string.setting_display_page_chat_font_family_default),
-                        ChatFontFamily.SERIF to stringResource(R.string.setting_display_page_chat_font_family_serif),
-                        ChatFontFamily.MONOSPACE to stringResource(R.string.setting_display_page_chat_font_family_monospace),
-                    )
                     Column(
                         modifier = Modifier
                             .padding(horizontal = 8.dp)
@@ -389,78 +431,120 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                     ) {
                         ListItem(
                             headlineContent = { Text(stringResource(R.string.setting_display_page_chat_font_family_title)) },
-                            colors = CustomColors.listItemColors,
-                        )
-                        SingleChoiceSegmentedButtonRow(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                .fillMaxWidth()
-                        ) {
-                            chatFontFamilyOptions.forEachIndexed { index, (family, label) ->
-                                SegmentedButton(
-                                    selected = displaySetting.chatFontFamily == family,
-                                    onClick = { updateDisplaySetting(displaySetting.copy(chatFontFamily = family)) },
-                                    shape = SegmentedButtonDefaults.itemShape(
-                                        index,
-                                        chatFontFamilyOptions.size
-                                    ),
-                                ) {
-                                    Text(
-                                        text = label,
-                                        fontFamily = when (family) {
-                                            ChatFontFamily.DEFAULT -> FontFamily.Default
-                                            ChatFontFamily.SERIF -> FontFamily.Serif
-                                            ChatFontFamily.MONOSPACE -> FontFamily.Monospace
+                            supportingContent = {
+                                Select(
+                                    options = ChatFontFamily.entries,
+                                    selectedOption = displaySetting.chatFontFamily,
+                                    onOptionSelected = { family ->
+                                        if (family == ChatFontFamily.CUSTOM && displaySetting.chatCustomFontPath.isBlank()) {
+                                            fontPickerLauncher.launch(CustomFontMimeTypes)
+                                        } else {
+                                            updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
                                         }
-                                    )
-                                }
-                            }
-                        }
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_font_size_title)) },
-                        colors = CustomColors.listItemColors,
-                    )
-                    val fontSizeSliderState = rememberCommitOnFinishSliderState(displaySetting.fontSizeRatio)
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Slider(
-                            value = fontSizeSliderState.value,
-                            onValueChange = fontSizeSliderState::onValueChange,
-                            onValueChangeFinished = {
-                                fontSizeSliderState.onValueChangeFinished(
-                                    externalValue = displaySetting.fontSizeRatio,
-                                    onValueCommitted = {
-                                        updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
+                                    },
+                                    modifier = Modifier
+                                        .padding(top = 4.dp)
+                                        .fillMaxWidth(),
+                                    optionToString = { it.label() },
+                                    optionLeading = { family ->
+                                        Text(
+                                            text = "Aa",
+                                            fontFamily = family.toFontFamily(chatFontFamily),
+                                        )
                                     }
                                 )
                             },
-                            valueRange = 0.5f..2f,
-                            steps = 11,
-                            modifier = Modifier.weight(1f)
+                            colors = CustomColors.listItemColors,
                         )
-                        Text(
-                            text = "${(fontSizeSliderState.value * 100).toInt()}%",
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_custom_font_title)) },
+                            supportingContent = {
+                                Text(
+                                    if (displaySetting.chatCustomFontName.isNotBlank()) {
+                                        displaySetting.chatCustomFontName
+                                    } else {
+                                        stringResource(R.string.setting_display_page_custom_font_not_imported)
+                                    }
+                                )
+                            },
+                            trailingContent = {
+                                Row {
+                                    IconButton(
+                                        onClick = { fontPickerLauncher.launch(CustomFontMimeTypes) }
+                                    ) {
+                                        Icon(
+                                            HugeIcons.FileImport,
+                                            contentDescription = stringResource(
+                                                R.string.setting_display_page_custom_font_import
+                                            )
+                                        )
+                                    }
+                                    if (displaySetting.chatCustomFontPath.isNotBlank()) {
+                                        IconButton(
+                                            onClick = {
+                                                deleteCustomChatFont(context, displaySetting.chatCustomFontPath)
+                                                updateDisplaySetting(
+                                                    displaySetting.copy(
+                                                        chatFontFamily = ChatFontFamily.DEFAULT,
+                                                        chatCustomFontPath = "",
+                                                        chatCustomFontName = "",
+                                                    )
+                                                )
+                                            }
+                                        ) {
+                                            Icon(
+                                                HugeIcons.Delete02,
+                                                contentDescription = stringResource(
+                                                    R.string.setting_display_page_custom_font_remove
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            colors = CustomColors.listItemColors,
+                        )
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_font_size_title)) },
+                            colors = CustomColors.listItemColors,
+                        )
+                        val fontSizeSliderState = rememberCommitOnFinishSliderState(displaySetting.fontSizeRatio)
+                        Row(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Slider(
+                                value = fontSizeSliderState.value,
+                                onValueChange = fontSizeSliderState::onValueChange,
+                                onValueChangeFinished = {
+                                    fontSizeSliderState.onValueChangeFinished(
+                                        externalValue = displaySetting.fontSizeRatio,
+                                        onValueCommitted = {
+                                            updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
+                                        }
+                                    )
+                                },
+                                valueRange = 0.5f..2f,
+                                steps = 11,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = "${(fontSizeSliderState.value * 100).toInt()}%",
+                            )
+                        }
+                        MarkdownBlock(
+                            content = stringResource(R.string.setting_display_page_font_size_preview),
+                            modifier = Modifier.padding(8.dp),
+                            style = LocalTextStyle.current.copy(
+                                fontSize = LocalTextStyle.current.fontSize * fontSizeSliderState.value,
+                                lineHeight = LocalTextStyle.current.lineHeight * fontSizeSliderState.value,
+                                fontFamily = chatFontFamily
+                            )
                         )
                     }
-                    MarkdownBlock(
-                        content = stringResource(R.string.setting_display_page_font_size_preview),
-                        modifier = Modifier.padding(8.dp),
-                        style = LocalTextStyle.current.copy(
-                            fontSize = LocalTextStyle.current.fontSize * fontSizeSliderState.value,
-                            lineHeight = LocalTextStyle.current.lineHeight * fontSizeSliderState.value,
-                            fontFamily = when (displaySetting.chatFontFamily) {
-                                ChatFontFamily.DEFAULT -> FontFamily.Default
-                                ChatFontFamily.SERIF -> FontFamily.Serif
-                                ChatFontFamily.MONOSPACE -> FontFamily.Monospace
-                            }
-                        )
-                    )
-                }
                 }
             }
 
@@ -720,7 +804,6 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                                 )
                                             },
                                             valueRange = 100f..10000f,
-                                            steps = 98,
                                             modifier = Modifier.weight(1f)
                                         )
                                         Text(text = "${pasteThresholdSliderState.value.toInt()}")
@@ -801,5 +884,104 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                 }
             }
         }
+    }
+}
+
+private val CustomFontMimeTypes = arrayOf(
+    "font/*",
+    "application/x-font-ttf",
+    "application/x-font-otf",
+    "application/vnd.ms-opentype",
+    "application/octet-stream",
+    "*/*",
+)
+
+private val CustomFontExtensions = setOf("ttf", "otf", "ttc")
+
+private data class ImportedChatFont(
+    val relativePath: String,
+    val displayName: String,
+)
+
+@Composable
+private fun ChatFontFamily.label(): String = when (this) {
+    ChatFontFamily.DEFAULT -> stringResource(R.string.setting_display_page_chat_font_family_default)
+    ChatFontFamily.SERIF -> stringResource(R.string.setting_display_page_chat_font_family_serif)
+    ChatFontFamily.MONOSPACE -> stringResource(R.string.setting_display_page_chat_font_family_monospace)
+    ChatFontFamily.CUSTOM -> stringResource(R.string.setting_display_page_chat_font_family_custom)
+}
+
+private fun ChatFontFamily.toFontFamily(customFontFamily: FontFamily): FontFamily = when (this) {
+    ChatFontFamily.DEFAULT -> FontFamily.Default
+    ChatFontFamily.SERIF -> FontFamily.Serif
+    ChatFontFamily.MONOSPACE -> FontFamily.Monospace
+    ChatFontFamily.CUSTOM -> customFontFamily
+}
+
+private fun importCustomChatFont(context: Context, uri: Uri): ImportedChatFont {
+    val displayName = FileUtils.getFileNameFromUri(context, uri)?.takeIf { it.isNotBlank() } ?: "custom_font"
+    val extension = displayName.substringAfterLast('.', "")
+        .lowercase()
+        .takeIf { it in CustomFontExtensions }
+        ?: "ttf"
+    val fontDir = File(context.filesDir, FileFolders.FONTS).apply { mkdirs() }
+    val targetFile = File(fontDir, "chat_font.${System.currentTimeMillis()}.$extension")
+    val tempFile = File(fontDir, "chat_font_import.tmp")
+
+    try {
+        tempFile.delete()
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            tempFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        } ?: error("Unable to open selected font")
+
+        runCatching {
+            Typeface.createFromFile(tempFile)
+        }.onFailure { error ->
+            throw IllegalArgumentException(error.message ?: "Invalid font file", error)
+        }
+
+        replaceCustomChatFont(fontDir, tempFile, targetFile)
+    } catch (error: Throwable) {
+        tempFile.delete()
+        throw error
+    }
+
+    val relativePath = FileUtils.getRelativePathInFilesDir(context.filesDir, targetFile)
+        ?: "${FileFolders.FONTS}/${targetFile.name}"
+    return ImportedChatFont(relativePath = relativePath, displayName = displayName)
+}
+
+private fun replaceCustomChatFont(fontDir: File, tempFile: File, targetFile: File) {
+    val existingFiles = fontDir.listFiles { file ->
+        file.isFile && file.name.startsWith("chat_font.") && file != tempFile
+    }?.toList().orEmpty()
+    val backups = existingFiles.map { file ->
+        file to File(fontDir, "previous_${file.name}").also { it.delete() }
+    }
+
+    try {
+        backups.forEach { (file, backup) ->
+            check(file.renameTo(backup)) { "Unable to prepare existing font for replacement" }
+        }
+        check(tempFile.renameTo(targetFile)) { "Unable to save selected font" }
+        backups.forEach { (_, backup) -> backup.delete() }
+    } catch (error: Throwable) {
+        tempFile.delete()
+        backups.forEach { (file, backup) ->
+            if (!file.exists() && backup.exists()) {
+                backup.renameTo(file)
+            }
+        }
+        throw error
+    }
+}
+
+private fun deleteCustomChatFont(context: Context, relativePath: String) {
+    val filesDir = runCatching { context.filesDir.canonicalFile }.getOrNull() ?: return
+    val fontFile = runCatching { File(filesDir, relativePath).canonicalFile }.getOrNull() ?: return
+    if (fontFile.path.startsWith("${filesDir.path}${File.separator}")) {
+        fontFile.delete()
     }
 }

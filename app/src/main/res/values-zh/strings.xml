@@ -422,6 +422,7 @@
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 暗色模式</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考完成自动折叠思考内容</string>
   <string name="setting_display_page_auto_collapse_thinking_title">自动折叠思考</string>
+  <string name="setting_display_page_chat_font_family_custom">自定义</string>
   <string name="setting_display_page_chat_list_model_icon_desc">是否在聊天列表消息中显示模型图标</string>
   <string name="setting_display_page_chat_list_model_icon_title">聊天列表模型图标</string>
   <string name="setting_display_page_code_block_auto_collapse_desc">默认自动折叠代码块</string>
@@ -432,6 +433,12 @@
   <string name="setting_display_page_create_new_conversation_on_start_title">启动时新建对话</string>
   <string name="setting_display_page_developer_mode">开发者模式</string>
   <string name="setting_display_page_developer_mode_desc">显示更多调试功能,不建议普通用户使用。</string>
+  <string name="setting_display_page_custom_font_import">导入自定义字体</string>
+  <string name="setting_display_page_custom_font_import_failed">导入字体失败：%1$s</string>
+  <string name="setting_display_page_custom_font_import_success">自定义字体已导入</string>
+  <string name="setting_display_page_custom_font_not_imported">未导入自定义字体。支持 .ttf、.otf 和 .ttc 文件。</string>
+  <string name="setting_display_page_custom_font_remove">移除自定义字体</string>
+  <string name="setting_display_page_custom_font_title">自定义字体</string>
   <string name="setting_display_page_enable_message_generation_haptic_effect_desc">消息生成时启用触觉反馈效果</string>
   <string name="setting_display_page_enable_message_generation_haptic_effect_title">消息生成触觉反馈</string>
   <string name="setting_display_page_font_size_preview">凌晨四点钟，看到海棠花未眠。我常常这样，在无人的夜里独自醒着，想，若有人此刻也在想我，那就好了。</string>
