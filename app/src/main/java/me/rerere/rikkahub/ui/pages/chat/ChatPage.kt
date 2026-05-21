@@ -822,8 +822,6 @@ private fun TopBar(
     val temporaryConversationEnabled = conversation.isTemporaryConversation
     val newChatText = stringResource(R.string.chat_page_new_chat)
     val temporaryConversationText = stringResource(R.string.chat_page_temporary_chat)
-    val temporaryConversationEnabledText = stringResource(R.string.chat_page_temporary_chat_enabled)
-    val temporaryConversationDisabledText = stringResource(R.string.chat_page_temporary_chat_disabled)
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
@@ -873,18 +871,6 @@ private fun TopBar(
                 onClick = {
                     if (showTemporaryConversationAction) {
                         onToggleTemporaryConversation()
-                        toaster.show(
-                            if (temporaryConversationEnabled) {
-                                temporaryConversationDisabledText
-                            } else {
-                                temporaryConversationEnabledText
-                            },
-                            type = if (temporaryConversationEnabled) {
-                                ToastType.Info
-                            } else {
-                                ToastType.Success
-                            }
-                        )
                     } else {
                         onNewChat()
                     }
