@@ -971,6 +971,26 @@
   <string name="setting_files_page_no_files">No Files</string>
   <string name="setting_files_page_folder_upload">Upload</string>
   <string name="setting_files_page_delete_content_description">Delete</string>
+  <string name="setting_files_page_open_failed_toast">Unable to open file</string>
+  <string name="setting_files_page_storage_overview">Storage overview</string>
+  <string name="setting_files_page_total_size">Total size</string>
+  <string name="setting_files_page_total_files">Files</string>
+  <string name="setting_files_page_largest_file">Largest file</string>
+  <string name="setting_files_page_missing_files">Missing</string>
+  <string name="setting_files_page_distribution">By category</string>
+  <string name="setting_files_page_category_all">All</string>
+  <string name="setting_files_page_category_images">Images</string>
+  <string name="setting_files_page_category_videos">Videos</string>
+  <string name="setting_files_page_category_audio">Audio</string>
+  <string name="setting_files_page_category_documents">Documents</string>
+  <string name="setting_files_page_category_other">Other</string>
+  <string name="setting_files_page_sort_newest">Newest</string>
+  <string name="setting_files_page_sort_largest">Largest</string>
+  <string name="setting_files_page_sort_name">Name</string>
+  <string name="setting_files_page_table_file">File</string>
+  <string name="setting_files_page_table_size">Size</string>
+  <string name="setting_files_page_missing">Missing on disk</string>
+  <string name="setting_files_page_no_matching_files">No files in this category</string>
   <string name="setting_page_web_server_enable">Enable the embedded web server</string>
   <string name="setting_termux_page_title">Termux</string>
   <string name="setting_termux_page_workdir_title">Termux Workdir</string>
@@ -1844,7 +1864,6 @@
   <string name="skills_page_skill_content_label">SKILL.md Content</string>
   <string name="skills_page_skill_name">Skill name: %s</string>
   <string name="skills_page_title">Agent Skills</string>
-
   <string name="assistant_page_allow_conversation_prompt_injection">Per-Conversation Prompt Injections</string>
   <string name="assistant_page_allow_conversation_prompt_injection_desc">Allow each conversation to bind its own prompt injections and lorebooks</string>
   <string name="setting_page_theme_setting_desc">Customize app color scheme</string>
@@ -1867,3 +1886,4 @@
   <string name="setting_theme_page_delete_theme_title">Delete Theme</string>
   <string name="setting_theme_page_delete_theme_message">Are you sure you want to delete this theme?</string>
 </resources>
+
